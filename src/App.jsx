@@ -2320,54 +2320,61 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     let _p0Result = null;
 
     if (_companyBaseDomain) {
-      // ── Step 1: Find the real leadership URL via web search ─────────────────
-      // One targeted search → extract the on-domain result URL.
-      // Eliminates guessing 12 paths; works even for non-standard URL structures.
-      let _leadershipUrl = null;
+      // ── Step 1: Find exec-naming pages via targeted site search ─────────────
+      // Broader query than the old "leadership team" search: covers press releases,
+      // About pages, and appointment announcements — not just /leadership roster pages.
+      // Many companies (incl. OC Tanner) name their current C-suite in press releases
+      // (e.g. octanner.com/press/o-c-tanner-elevates-scott-sperry-to-ceo-and-president),
+      // not on a structured /leadership roster page. Model picks top 1-3 candidates.
+      let _candidateUrls = [];
       try {
         const _urlSearchResp = await claudeFetch({
-          model: SONNET, max_tokens: 200, temperature: 0,
+          model: SONNET, max_tokens: 400, temperature: 0,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
           messages: [{ role: "user", content:
-            `Find the leadership or team page for ${co} on their official website.\n` +
-            `Search query: ${co} leadership team site:${_companyBaseDomain}\n` +
-            `Return ONLY the URL of the leadership/team/about page — a single URL, nothing else.`,
+            `Search for pages on ${co}'s official website that name the current CEO, COO, CFO, and other senior executives by name.\n\n` +
+            `Search: site:${_companyBaseDomain} (leadership OR executives OR "chief executive" OR appoints OR announces OR names OR about OR press)\n\n` +
+            `From the results, identify the 1–3 URLs most likely to explicitly NAME current senior leaders.\n` +
+            `PREFER: press releases announcing executive appointments, About/Team/Leadership pages listing current names+titles.\n` +
+            `REJECT: thought-leadership articles (e.g. /insights/*, /blog/*), podcast pages, resource libraries, event pages.\n\n` +
+            `Return ONLY raw JSON:\n{"urls":["https://...","https://..."]}`,
           }],
         });
-        // Extract URL from search result items (prefer on-domain hits)
+
+        // Parse model's JSON recommendation
+        const _srText = (_urlSearchResp?.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+        const _urlJson = safeParseJSON(_srText.includes("{") ? _srText.slice(_srText.indexOf("{")) : _srText);
+        if (_urlJson?.urls?.length) {
+          for (const u of _urlJson.urls) {
+            try {
+              const h = new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+              if ((h.includes(_companyBaseDomain) || _companyBaseDomain.includes(h)) && !_candidateUrls.includes(u)) _candidateUrls.push(u);
+            } catch {}
+          }
+        }
+        // Also collect URLs directly from search result items as additional candidates
         const _srBlocks = (_urlSearchResp?.content || []).filter(b => b.type === "web_search_tool_result");
         for (const _srb of _srBlocks) {
           for (const _sri of (Array.isArray(_srb.content) ? _srb.content : [])) {
             const _iu = _sri.url || "";
-            if (!_iu.startsWith("http")) continue;
+            if (!_iu.startsWith("http") || _candidateUrls.includes(_iu)) continue;
             try {
               const _ih = new URL(_iu).hostname.replace(/^www\./, "").toLowerCase();
-              if (_ih.includes(_companyBaseDomain) || _companyBaseDomain.includes(_ih)) {
-                _leadershipUrl = _iu;
-                break;
-              }
-            } catch {}
-          }
-          if (_leadershipUrl) break;
-        }
-        // Fall back to URL in model's text response (some searches surface it there)
-        if (!_leadershipUrl) {
-          const _srText = (_urlSearchResp?.content || []).filter(b => b.type === "text").map(b => b.text).join("");
-          const _srUrlMatch = _srText.match(/https?:\/\/[^\s"'<>]+/);
-          if (_srUrlMatch) {
-            try {
-              const _ih = new URL(_srUrlMatch[0]).hostname.replace(/^www\./, "").toLowerCase();
-              if (_ih.includes(_companyBaseDomain)) _leadershipUrl = _srUrlMatch[0];
+              if (_ih.includes(_companyBaseDomain) || _companyBaseDomain.includes(_ih)) _candidateUrls.push(_iu);
             } catch {}
           }
         }
-        console.log(`[p2-fetch] Leadership URL search → ${_leadershipUrl || "(no on-domain URL found)"}`);
+        _candidateUrls = _candidateUrls.slice(0, 3);
+        console.log(`[p2-fetch] Leadership URL candidates (${_candidateUrls.length}): ${_candidateUrls.join(" | ") || "(none)"}`);
       } catch (_se) {
         console.warn("[p2-fetch] Leadership URL search failed:", _se?.message);
       }
 
-      // ── Step 2: Fetch the leadership page via /api/fetch ────────────────────
-      if (_leadershipUrl) {
+      // ── Step 2: Try each candidate until one yields verified execs ──────────
+      // /api/fetch escalates to Firecrawl on plain-fetch failure (octanner.com is
+      // bot-protected — Stage 1 will fail, Stage 2 renders via Firecrawl).
+      for (const _leadershipUrl of _candidateUrls) {
+        if (_p0Result) break;
         try {
           const _fr = await fetch("/api/fetch", {
             method: "POST",
@@ -2376,61 +2383,64 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           });
           if (!_fr.ok) {
             console.warn(`[p2-fetch] /api/fetch HTTP ${_fr.status} for ${_leadershipUrl}`);
-          } else {
-            const _fd = await _fr.json();
-            if (!_fd?.ok) {
-              console.log(`[p2-fetch] ${_leadershipUrl} → ok:false reason:${_fd?.reason}${_fd?.detail ? " detail:" + _fd.detail : ""}`);
-            } else if (!_fd.text || _fd.text.length < 150) {
-              console.log(`[p2-fetch] ${_leadershipUrl} → text too short (${_fd?.text?.length || 0} chars)`);
-            } else {
-              // Domain match guard — off-domain redirect breaks account isolation
-              let _domainOk = true;
-              if (_fd.finalUrl) {
-                try {
-                  const _fh = new URL(_fd.finalUrl).hostname.replace(/^www\./, "").toLowerCase();
-                  if (!_fh.includes(_companyBaseDomain) && !_companyBaseDomain.includes(_fh)) {
-                    console.warn(`[p2-fetch] Domain mismatch: ${_leadershipUrl} → ${_fh} — skipping`);
-                    _domainOk = false;
-                  }
-                } catch { _domainOk = false; }
-              }
-              if (_domainOk && !_P0_ROLE_RE.test(_fd.text)) {
-                console.log(`[p2-fetch] ${_leadershipUrl} → no role language in text`);
-              } else if (_domainOk) {
-                console.log(`[p2-fetch] Leadership page loaded: ${_fd.finalUrl || _leadershipUrl} (${_fd.contentChars} chars${_fd.renderUsed ? ", Firecrawl-rendered" : ", plain"})`);
-                _p0Result = { ..._fd, _probeUrl: _leadershipUrl };
-              }
-            }
+            continue;
           }
+          const _fd = await _fr.json();
+          if (!_fd?.ok) {
+            console.log(`[p2-fetch] ${_leadershipUrl} → ok:false reason:${_fd?.reason}${_fd?.detail ? " detail:" + _fd.detail : ""}`);
+            continue;
+          }
+          if (!_fd.text || _fd.text.length < 150) {
+            console.log(`[p2-fetch] ${_leadershipUrl} → text too short (${_fd?.text?.length || 0} chars)`);
+            continue;
+          }
+          // Domain match guard — off-domain redirect breaks account isolation
+          if (_fd.finalUrl) {
+            try {
+              const _fh = new URL(_fd.finalUrl).hostname.replace(/^www\./, "").toLowerCase();
+              if (!_fh.includes(_companyBaseDomain) && !_companyBaseDomain.includes(_fh)) {
+                console.warn(`[p2-fetch] Domain mismatch: ${_leadershipUrl} → ${_fh} — skipping`);
+                continue;
+              }
+            } catch { continue; }
+          }
+          if (!_P0_ROLE_RE.test(_fd.text)) {
+            console.log(`[p2-fetch] ${_leadershipUrl} → no role language in text — skipping`);
+            continue;
+          }
+          console.log(`[p2-fetch] Leadership page loaded: ${_fd.finalUrl || _leadershipUrl} (${_fd.contentChars} chars${_fd.renderUsed ? ", Firecrawl-rendered" : ", plain"})`);
+          _p0Result = { ..._fd, _probeUrl: _leadershipUrl };
         } catch (_fe) {
           console.warn(`[p2-fetch] Fetch failed for ${_leadershipUrl}:`, _fe?.message);
         }
       }
 
       if (!_p0Result) {
-        console.log(`[p2-fetch] Phase 0 complete: no usable leadership page for ${_companyBaseDomain} — falling through to web search`);
+        console.log(`[p2-fetch] Phase 0 complete: no usable exec-naming page found for ${_companyBaseDomain} — falling through to web search`);
       }
     }
 
     if (_p0Result) {
-      // Extract executives from fetched leadership page using Claude (temp 0, no tools).
-      // Ask for name, title, background, angle, and verbatim snippet — all from page text.
+      // ── Step 3: Extract execs — ONE check: name verbatim on fetched page ────
+      // §2.10 final approach: authoritative-source path drops the proximity window,
+      // snippet gymnastics, and corpus-wide departure scan. The page is present-tense
+      // truth — a current press release / About page does not list departed execs as
+      // current. Trust the model's temp-0 read + one code check: name appears on page.
       const _p0Prompt =
-        `You are an extraction engine. Extract the current executives listed on this leadership page for "${co}".\n\n` +
+        `You are an extraction engine. Extract the current executives listed on this page for "${co}".\n\n` +
         `SOURCE: ${_p0Result.finalUrl || _p0Result._probeUrl}\n\n` +
         `PAGE TEXT:\n${_p0Result.text.slice(0, 10000)}\n\n` +
         `EXTRACTION RULES (non-negotiable):\n` +
         `1. ONLY include people whose full name AND current title both appear explicitly in the TEXT above. Do NOT add anyone from training knowledge.\n` +
-        `2. Include C-suite, VP-level, director-level, and president-level roles. Skip board members and advisors unless this is explicitly a board page.\n` +
-        `3. Do NOT include historical founders who are clearly deceased or no longer affiliated.\n` +
-        `4. background: 1 sentence from the page bio about their prior role or experience. Empty string if the page gives none.\n` +
-        `5. angle: What strategic priority does this person own at ${co} based on their title and page bio? How should a seller approach them? 2-3 specific sentences.\n` +
+        `2. Include C-suite, VP-level, and president-level roles. Skip board members and advisors unless this is a board page.\n` +
+        `3. Do NOT include historical founders who are clearly deceased, retired, or no longer affiliated.\n` +
+        `4. background: 1 sentence from the page bio about prior role or experience. Empty string if none.\n` +
+        `5. angle: What priority does this person own at ${co} per their title and bio? How should a seller approach them? 2-3 specific sentences.\n` +
         (KL_EXEC_PERSPECTIVES
-          ? `   ROLE ARCHETYPES for angle: CFO → ROI/cost. CRO → revenue/pipeline. CIO → architecture/integration. CISO → risk/compliance. CHRO → talent/retention. COO → efficiency/process. CMO → growth/brand. Match the angle to the SPECIFIC role.\n`
+          ? `   ROLE ARCHETYPES: CFO → ROI/cost. CRO → revenue/pipeline. CIO → architecture/integration. CISO → risk/compliance. CHRO → talent/retention. COO → efficiency/process. CMO → growth/brand.\n`
           : "") +
-        `6. snippet: verbatim 30-60 word excerpt from the text above that contains BOTH the person's name AND their title together. Copy it exactly — do not paraphrase.\n\n` +
-        `Return ONLY raw JSON (no commentary):\n` +
-        `{"executives":[{"name":"Full Name exactly as written in text","title":"Exact title as in text","background":"1 sentence or empty string","angle":"2-3 sentences on mandate/approach","snippet":"Verbatim excerpt containing name+title"}]}`;
+        `\nReturn ONLY raw JSON (no commentary):\n` +
+        `{"executives":[{"name":"Full Name exactly as in text","title":"Exact title as in text","background":"1 sentence or empty string","angle":"2-3 sentences"}]}`;
 
       try {
         const _p0Resp = await claudeFetch({
@@ -2441,93 +2451,39 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         const _p0Json = extractJsonWithKey(_p0Text, "executives")
                      || safeParseJSON(_p0Text.includes("{") ? _p0Text.slice(_p0Text.indexOf("{")) : _p0Text);
         const _p0Raw = _p0Json?.executives || [];
-
-        // Code-verify each name + title appears in the page text. Two-stage:
-        // Stage A (filter): full name must appear verbatim in page text — hallucinated names stripped.
-        // Stage B (map):
-        //   (1) Snippet check: snippet must contain the name AND appear in the page text
-        //       (first 40 chars as proxy). Clears snippet if it fails — prevents a hallucinated
-        //       snippet from laundering a misread title past mergeExecs Gate A.
-        //   (2) Title proximity check: the extracted title must appear in the page text within
-        //       ±300 chars of the name occurrence. Clears title if unverifiable (keeps the name;
-        //       the seat is real, the specific title is uncertain).
         const _pageTextLower = _p0Result.text.toLowerCase();
 
-        // Helper: check if title (or common abbreviation) appears within ±300 chars of nameLower
-        const _titleNearName = (nl, tl) => {
-          if (!tl || tl.length < 2) return true; // no title → trivially pass
-          // Expand common abbreviations so "CEO" matches "chief executive" on the page
-          const _abbrevMap = { ceo: "chief executive", cfo: "chief financial", coo: "chief operating", cto: "chief technology", cro: "chief revenue", chro: "chief human", cmo: "chief marketing" };
-          const _altTl = _abbrevMap[tl] || null;
-          let _idx = _pageTextLower.indexOf(nl);
-          while (_idx !== -1) {
-            const _ws = Math.max(0, _idx - 300);
-            const _we = Math.min(_pageTextLower.length, _idx + nl.length + 300);
-            const _win = _pageTextLower.slice(_ws, _we);
-            if (_win.includes(tl) || (_altTl && _win.includes(_altTl))) return true;
-            _idx = _pageTextLower.indexOf(nl, _idx + 1);
+        // ONE check: name must appear verbatim in fetched page text.
+        // This is the only gate on the authoritative-source path (§2.10 rule 3).
+        // No proximity window. No snippet gymnastics. No departure scan.
+        // Present-tense page ≠ stale corpus — the page itself is the truth.
+        const _p0Verified = _p0Raw.filter(e => {
+          if (!e.name || e.name.trim().length < 3) return false;
+          const _nl = e.name.toLowerCase().trim();
+          if (!_pageTextLower.includes(_nl)) {
+            console.warn(`[p2-fetch] Name not on page: "${e.name}" — skipping`);
+            return false;
           }
-          return false;
-        };
-
-        const _p0Verified = _p0Raw
-          // Stage A: name must appear verbatim in page text
-          .filter(e => {
-            if (!e.name || e.name.trim().length < 3) return false;
-            const _nl = e.name.toLowerCase().trim();
-            if (!_pageTextLower.includes(_nl)) {
-              console.warn(`[p2-fetch] Verbatim fail: "${e.name}" not found in page text — skipping`);
-              return false;
-            }
-            return true;
-          })
-          // Stage B: snippet + title validation
-          .map(e => {
-            const _nl = e.name.toLowerCase().trim();
-            const _tl = (e.title || "").toLowerCase().trim();
-
-            // Snippet check: must contain name AND its prefix must appear in page text
-            let _snippet = (e.snippet || "").trim();
-            if (_snippet.length >= 20) {
-              const _sl = _snippet.toLowerCase();
-              if (!_sl.includes(_nl)) {
-                console.warn(`[p2-fetch] Snippet name check: "${e.name}" not in snippet — clearing`);
-                _snippet = "";
-              } else if (!_pageTextLower.includes(_sl.slice(0, 40))) {
-                console.warn(`[p2-fetch] Snippet page check: prefix not in page text for "${e.name}" — clearing`);
-                _snippet = "";
-              }
-            } else {
-              _snippet = ""; // too short to be a real verbatim excerpt
-            }
-
-            // Title proximity check: title must appear within ±300 chars of name in page text
-            const _titleOk = _titleNearName(_nl, _tl);
-            const _verifiedTitle = _titleOk ? (e.title || "") : "";
-            if (!_titleOk) {
-              console.warn(`[p2-fetch] Title proximity fail: "${e.title}" not near "${e.name}" in page — clearing title`);
-            }
-
-            return {
-              name: e.name.trim(),
-              title: _verifiedTitle,
-              initials: e.name.trim().split(/\s+/).map(p => p[0] || "").join("").toUpperCase().slice(0, 4),
-              background: e.background || "",
-              angle: e.angle || `${e.name.trim().split(" ")[0]} leads at ${co} as ${_verifiedTitle || "an executive"}. Research their current mandate before reaching out.`,
-              sourceUrl: _p0Result.finalUrl || _p0Result._probeUrl,
-              snippet: _snippet,
-              sourceDate: "",
-            };
-          });
+          return true;
+        }).map(e => ({
+          name: e.name.trim(),
+          title: e.title || "",
+          initials: e.name.trim().split(/\s+/).map(p => p[0] || "").join("").toUpperCase().slice(0, 4),
+          background: e.background || "",
+          angle: e.angle || `${e.name.trim().split(" ")[0]} is ${e.title || "an executive"} at ${co}. Research their current mandate before reaching out.`,
+          sourceUrl: _p0Result.finalUrl || _p0Result._probeUrl,
+          snippet: "",
+          sourceDate: "",
+        }));
 
         if (_p0Verified.length > 0) {
-          console.log(`[p2-fetch] ${_p0Verified.length} exec(s) code-verified from leadership page — returning without web search`);
+          console.log(`[p2-fetch] ${_p0Verified.length} exec(s) verified from authoritative page — skipping web search`);
           return {
             keyExecutives: _p0Verified,
             sellerSnapshot: `${sellerUrl} provides solutions relevant to ${co}'s market.`,
           };
         }
-        console.log(`[p2-fetch] Page found but 0 names passed verbatim validation — falling through to web search`);
+        console.log(`[p2-fetch] Page found but 0 names passed name-on-page check — falling through to web search`);
       } catch (_e0) {
         console.warn("[p2-fetch] Leadership page extraction failed:", _e0?.message);
         // Fall through to Phase 1 web search
@@ -2556,100 +2512,10 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           url: r.url || "",
         }));
       });
-      // Flat corpus still needed by mergeExecs snippet check; keep in sync with _rawItems
-      const rawSearchCorpus = _rawItems.map(r => r.text).join(" ").toLowerCase();
-      const hasRawCorpus = rawSearchCorpus.length > 50;
-      // Per-item diagnostic logging
-      console.log(`[p2-gateA] ${_rawItems.length} items from ${_rawToolBlocks.length} block(s) for "${co}" — total ${rawSearchCorpus.length} chars`);
-      _rawItems.slice(0, 5).forEach((item, i) => {
-        console.log(`[p2-gateA]   item[${i}]: ${item.text.length} chars | ${(item.url || "").slice(0, 80)}`);
-      });
-      if (!hasRawCorpus) {
-        console.log(`[p2-gateA] No raw corpus — snippet-only Gate A in mergeExecs`);
-      }
-
-
+      // Web-search fallback: search → extract → return.
+      // No stacked gates on this path (§2.10). Authoritative page path handles verification.
       const result = parseExecResponse(d);
       if(result?.keyExecutives?.length) {
-        if (hasRawCorpus) {
-          // §2.9 Citation-existence gate (HANDOFF_05 §2.9) — replaces ±400 proximity window.
-          //
-          // Old approach: scan corpus for name within ±400 chars of a role keyword.
-          // Problem: thin corpora (short snippets) fail even for correctly-extracted current execs.
-          //
-          // New approach: the model returns snippet = verbatim text it read name+title from.
-          // Code verifies the snippet actually appears in the raw corpus (not hallucinated).
-          // If no snippet or snippet not found: fallback — name in corpus without departure context.
-          // Departure gate: snippet (or nearest corpus context) must not contain departure signals.
-          //
-          // OC Tanner stale-test: Dave Petersen (former CEO) / Obert C. Tanner (deceased founder)
-          // must NOT pass. Scott Sperry (CEO) / Archibald (COO) / Colovich (CFO) / Cox (CPO) must PASS.
-
-          const _DEPART_RE = /\b(former|formerly|departed|stepped\s+down|resigns|resigned|has\s+left|will\s+leave|succeeded\s+by|replaces|deceased|died|passed\s+away|obituary|in\s+memoriam|retired|emeritus)\b/i;
-          const _corpusNorm = rawSearchCorpus.replace(/\s+/g, " ");
-
-          result.keyExecutives = result.keyExecutives.map(e => {
-            if (!e.name) return e; // title-only — pass through
-
-            const nameLower = e.name.toLowerCase().trim();
-            const snippet   = (e.snippet || "").trim();
-            const snipLower = snippet.toLowerCase();
-
-            // ── 1. Citation existence ─────────────────────────────────────────
-            // Verify the model's snippet actually appears in the raw corpus.
-            // Use two 20-char windows (start + midpoint) to tolerate minor whitespace diffs.
-            let citationFound = false;
-            if (snippet.length >= 20) {
-              const snipNorm = snipLower.replace(/\s+/g, " ");
-              const corpNorm = _corpusNorm.toLowerCase();
-              const mid = Math.floor(snipNorm.length / 2);
-              const windows = [snipNorm.slice(0, 20), snipNorm.slice(Math.max(0, mid - 10), mid + 10)].filter(w => w.length >= 15);
-              citationFound = windows.some(w => corpNorm.includes(w));
-            }
-
-            if (!citationFound) {
-              // Snippet absent or not found — fallback: name must appear anywhere in corpus
-              if (!_corpusNorm.toLowerCase().includes(nameLower)) {
-                console.warn(`[p2-gateA] CITATION FAIL: "${e.name}" (${e.title}) — snippet not in corpus, name not in corpus. Withholding.`);
-                return { ...e, name: "", initials: "" };
-              }
-              // Name in corpus: scan nearest 200-char window for departure signals
-              const nameIdx = _corpusNorm.toLowerCase().indexOf(nameLower);
-              const ctx = _corpusNorm.slice(Math.max(0, nameIdx - 150), nameIdx + nameLower.length + 150);
-              if (_DEPART_RE.test(ctx)) {
-                console.warn(`[p2-gateA] DEPARTURE FAIL (corpus ctx): "${e.name}" (${e.title}) — departure signal near name. Withholding.`);
-                return { ...e, name: "", initials: "" };
-              }
-              console.log(`[p2-gateA] CORPUS PASS (no snippet): "${e.name}" (${e.title}) — name in corpus, no departure.`);
-              return e;
-            }
-
-            // ── 2. Departure check on verified snippet ────────────────────────
-            if (_DEPART_RE.test(snipLower)) {
-              console.warn(`[p2-gateA] DEPARTURE FAIL: "${e.name}" (${e.title}) — departure signal in snippet. Withholding.`);
-              return { ...e, name: "", initials: "" };
-            }
-
-            // ── 3. Corpus-wide departure scan (stale-article guard) ───────────
-            // Model may cite a clean old article while a newer departure article sits
-            // elsewhere in the same corpus. Scan every occurrence of the full name in
-            // corpus for departure signals — any hit is a conflict → fail-closed.
-            // (Replaces the old recency/date tiebreaker without needing date parsing.)
-            const corpLower2 = _corpusNorm.toLowerCase();
-            let scanPos = corpLower2.indexOf(nameLower);
-            while (scanPos !== -1) {
-              const ctx2 = _corpusNorm.slice(Math.max(0, scanPos - 150), scanPos + nameLower.length + 150);
-              if (_DEPART_RE.test(ctx2)) {
-                console.warn(`[p2-gateA] CONFLICT FAIL: "${e.name}" (${e.title}) — departure evidence elsewhere in corpus despite clean citation. Withholding.`);
-                return { ...e, name: "", initials: "" };
-              }
-              scanPos = corpLower2.indexOf(nameLower, scanPos + 1);
-            }
-
-            console.log(`[p2-gateA] CITATION PASS: "${e.name}" (${e.title})`);
-            return e;
-          });
-        }
         return result;
       }
 
@@ -8720,6 +8586,7 @@ Return ONLY raw JSON:
   //          Decoupled from when the AI call fires — spinner appears immediately.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
+    console.log(`[ThePlay P1] playState=${playState} sellerUrl=${!!sellerUrl} sellerICP=${!!sellerICP} productCatalog=${!!(sellerICP?.icp?.productCatalog||[]).length} company_url=${!!selectedAccount?.company_url} briefTrigger=${!!(briefLoading||brief)}`);
     if (playState !== "idle") return;
     if (!sellerUrl || sellerUrl === "research-only") return;
     if (!sellerICP || !(sellerICP?.icp?.productCatalog || []).length) return;
@@ -8732,23 +8599,24 @@ Return ONLY raw JSON:
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [briefLoading, !!brief, sellerUrl, !!sellerICP, selectedAccount?.company]);
 
-  // Phase 2: Fire buildThePlay() when ALL required sections have real data.
-  //          Watches data fields + _completedSections (written only by real merger callbacks, never
-  //          by the 90s hard timeout). _completedSections re-fires this effect when solutions arrives
-  //          late even if solutionMapping was pre-populated by streaming (no dep change on length alone).
+  // Phase 2: Fire buildThePlay() when overview + solutions + signals are present.
+  //          Exec data (hasExecs) is intentionally excluded from the quorum — zero or
+  //          withheld execs must NEVER block the Play (§2.10 rule 5). Execs enrich the
+  //          prompt when present; names are never a gate. _completedSections re-fires this
+  //          effect when solutions arrives late (merger-only write, not timeout/streaming).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (playBuiltRef.current || thePlay !== null || playState !== "building") return;
     if (!sellerUrl || sellerUrl === "research-only") return;
     const LOADING_STUB = /^Researching /i;
     const hasOverview  = !!brief?.companySnapshot && !LOADING_STUB.test(brief.companySnapshot);
-    const hasExecs     = !!(brief?.keyExecutives?.length || brief?.keyContacts?.length);
     const hasSolutions = !!(brief?.solutionMapping?.some(s => s?.product));
     const hasSignals   = !!(brief?.recentSignals?.some(s => typeof s === "string" ? s.trim() : !!(s?.signal || s?.text)) || brief?.recentHeadlines);
     // Under solConEnabled: Play also waits for pre-call SA recommendation before firing.
     // Amendment B: no "unavailable" — building/full/weak-inputs only. Hold in building until ready.
     const hasSARecommendation = !solConEnabled || !!solutionFit?.saRecommendation;
-    if (hasOverview && hasExecs && hasSolutions && hasSignals && hasSARecommendation) {
+    console.log(`[ThePlay P2] playState=${playState} overview=${hasOverview} solutions=${hasSolutions} signals=${hasSignals} saRec=${hasSARecommendation} → ${hasOverview&&hasSolutions&&hasSignals&&hasSARecommendation?"FIRING":"waiting"}`);
+    if (hasOverview && hasSolutions && hasSignals && hasSARecommendation) {
       console.log("[ThePlay] Data quorum met — firing build");
       buildThePlay();
     }
@@ -8783,10 +8651,10 @@ Return ONLY raw JSON:
     };
     const allSettled  = Object.values(settled).every(Boolean);
     const hasOverview = !!brief?.companySnapshot && !LOADING_STUB.test(brief.companySnapshot);
-    const hasExecs    = !!(brief?.keyExecutives?.length || brief?.keyContacts?.length);
     const hasSolutions= !!(brief?.solutionMapping?.some(s => s?.product));
     const hasSignals  = !!(brief?.recentSignals?.some(s => typeof s === "string" ? s.trim() : !!(s?.signal || s?.text)) || brief?.recentHeadlines);
-    const missingData = !hasOverview || !hasExecs || !hasSolutions || !hasSignals;
+    // Exec state deliberately excluded: zero/withheld execs must not block the Play (§2.10 rule 5)
+    const missingData = !hasOverview || !hasSolutions || !hasSignals;
     if (allSettled && missingData) {
       const flagVal = (() => { try { return localStorage.getItem("cc_play_synthesis") || "on"; } catch { return "on"; } })();
       console.warn("[ThePlay] Weak inputs: all sections settled, required data missing", settled);
