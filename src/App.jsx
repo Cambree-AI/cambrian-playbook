@@ -2630,6 +2630,22 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
               return { ...e, name: "", initials: "" };
             }
 
+            // ── 3. Corpus-wide departure scan (stale-article guard) ───────────
+            // Model may cite a clean old article while a newer departure article sits
+            // elsewhere in the same corpus. Scan every occurrence of the full name in
+            // corpus for departure signals — any hit is a conflict → fail-closed.
+            // (Replaces the old recency/date tiebreaker without needing date parsing.)
+            const corpLower2 = _corpusNorm.toLowerCase();
+            let scanPos = corpLower2.indexOf(nameLower);
+            while (scanPos !== -1) {
+              const ctx2 = _corpusNorm.slice(Math.max(0, scanPos - 150), scanPos + nameLower.length + 150);
+              if (_DEPART_RE.test(ctx2)) {
+                console.warn(`[p2-gateA] CONFLICT FAIL: "${e.name}" (${e.title}) — departure evidence elsewhere in corpus despite clean citation. Withholding.`);
+                return { ...e, name: "", initials: "" };
+              }
+              scanPos = corpLower2.indexOf(nameLower, scanPos + 1);
+            }
+
             console.log(`[p2-gateA] CITATION PASS: "${e.name}" (${e.title})`);
             return e;
           });
