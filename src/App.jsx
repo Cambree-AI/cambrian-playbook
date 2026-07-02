@@ -8737,8 +8737,9 @@ Return ONLY raw JSON:
   }, [briefLoading, !!brief, sellerUrl, !!sellerICP, selectedAccount?.company]);
 
   // Phase 2: Fire buildThePlay() when ALL required sections have real data.
-  //          Watches actual brief fields — not _loadingSections flags — so it correctly
-  //          waits for solutions which reliably arrives at ~110-120s (after the brief's 90s timeout).
+  //          Watches data fields + _completedSections (written only by real merger callbacks, never
+  //          by the 90s hard timeout). _completedSections re-fires this effect when solutions arrives
+  //          late even if solutionMapping was pre-populated by streaming (no dep change on length alone).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (playBuiltRef.current || thePlay !== null || playState !== "building") return;
@@ -8760,7 +8761,8 @@ Return ONLY raw JSON:
     brief?.companySnapshot,
     brief?.keyExecutives?.length, brief?.keyContacts?.length,
     brief?.solutionMapping?.length, brief?.recentSignals?.length, brief?.recentHeadlines,
-    solutionFit?.saRecommendation, // NEW: Play waits for pre-call SA under solConEnabled
+    brief?._completedSections?.length, // re-evaluate on every real merger callback, even when solutionMapping was pre-populated by streaming
+    solutionFit?.saRecommendation,
     playState,
   ]);
 
