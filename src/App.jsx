@@ -1533,27 +1533,45 @@ ${sellerDesc} · products:${catalog} · customers:${customers}
 
 TASK: Build The Play for ${seller} selling into ${sf(targetCompany)}. Output valid JSON only.
 
-ENTRY STRATEGY — pick the right door, not just the top of the org chart:
-Step 1: Map topProduct → the function that OWNS this problem and controls the budget.
+ENTRY STRATEGY — classify the relationship FIRST, then pick the door:
+
+STEP 0 — Value relationship (run this before anything else):
+Examine [P4] topProduct/solutionMapping verbs, [ICP] seller description, and [P1] what ${sf(targetCompany)} sells to ITS own clients.
+
+  EMBED / SUPPLY / PARTNERSHIP — highest-priority check:
+  Signs: [P4] uses "catalog," "marketplace," "embed," "supply," "integrate into," "power," "resell," "white-label," "API feed"; OR [P1] shows ${sf(targetCompany)} is a platform/SaaS that sells to enterprise clients and could include ${seller}'s product inside their own offering.
+  → Buyer = Product, Partnerships, BD, Catalog-Supply, or Rewards-Marketplace function.
+  → DO NOT target HR / Total Rewards / CHRO / employee-facing functions — those are the END USER of ${sf(targetCompany)}'s product, not the procurement decision-maker for ${seller}.
+  → The buying question is: "Does OUR product get better / more complete if we add this catalog/service?"
+
+  CHANNEL / RESELL:
+  Signs: ${sf(targetCompany)} distributes or resells ${seller}'s product onward to customers.
+  → Buyer = Strategic Partnerships, Channel Programs, VP Alliances, Business Development.
+
+  CONSUME-INTERNALLY (default if neither above applies):
+  ${sf(targetCompany)} buys ${seller}'s product for its own internal operations. Proceed to Steps 1–3.
+
+STEP 1 (consume-internally only) — Map topProduct → internal owning function:
   • Recognition / Reward catalog / Culture / Employee experience → Total Rewards, CHRO, VP People/HR, Chief People Officer
   • Sales technology / CRM / Revenue tools → CRO, VP Sales, RevOps
   • Finance / Spend management / Procurement → CFO, VP Finance, CPO
   • IT / Infrastructure / Security → CIO, CISO, CTO, VP IT
   • Marketing technology → CMO, VP Marketing, Demand Gen
   • Recruiting / Talent acquisition → VP Talent, Head of TA, CHRO
-Step 2: Calibrate to company size from [P1] employeeCount.
-  • Enterprise (>3,000 employees): Cold C-suite rarely converts. Enter via the VP/Director who OWNS this budget. C-suite sponsorship comes AFTER the function is engaged. Do NOT recommend cold-approaching the CEO/COO/President as the first move for enterprise deals.
-  • Mid-market (300–3,000): VP or SVP level is reachable and appropriate; C-suite for strategic/board-level solutions only.
-  • SMB (<300): CEO/COO/founder is appropriate — they personally own most decisions.
-Step 3: Check [P2] for a name in the target function. If found → name them. If not → use function language only ('engage the VP of Total Rewards', 'reach the Chief People Officer').
-NEVER default to CEO/COO for enterprise recognition/HR/culture solutions — that is not where the buying decision lives.
+
+STEP 2 — Calibrate to company size from [P1] employeeCount:
+  • Enterprise (>3,000): Enter via the VP/Director who OWNS the budget — NOT cold C-suite.
+  • Mid-market (300–3,000): VP or SVP level appropriate; C-suite for board-level solutions only.
+  • SMB (<300): CEO/COO/founder appropriate — they own most decisions personally.
+
+STEP 3 — Name the contact: Check [P2] for a person in the buying function (per Step 0). If found → name them. If not → function language only. NEVER use a name not in [P2].
 
 OUTPUT SCHEMA:
 {
   "situation": "2-3 sentences. What's happening at ${sf(targetCompany)} now, relevant to ${seller}. Ground in [P1]/[P5]. Name the signal.",
   "whyNow": "1-2 sentences. Which ${seller} product fits + the [P5] signal making it timely. Reference a named product.",
-  "yourMove": "2-3 sentences. Who to contact — follow the ENTRY STRATEGY above to pick the right function and level. Use name+title from [P2] ONLY where name is non-empty string. If [P2] shows empty string, use function language only. NEVER supply a name from training knowledge.",
-  "primaryContact": { "name": "from [P2] only — the person in the owning function per ENTRY STRATEGY; omit/null if [P2] has empty string for that role", "title": "from [P2] only", "rationale": "1 sentence — why this function/person owns this decision" },
+  "yourMove": "2-3 sentences. Step 0 sets the buying center: EMBED/SUPPLY → Product/Partnerships/catalog-supply exec; CHANNEL → Alliances/BD; CONSUME-INTERNALLY → internal owning function (Steps 1–3). State the function and level clearly. Use name+title from [P2] ONLY where name is non-empty. NEVER supply a name from training knowledge. No internal plumbing ('no exec found', data-source notes).",
+  "primaryContact": { "name": "from [P2] — exec in the buying function per Step 0; for EMBED/SUPPLY look for Product/Partnerships/BD title; omit/null if [P2] has no match", "title": "from [P2] only", "rationale": "1 sentence — why this function per Step 0 classification owns this decision" },
   "elevatorPitch": "3-4 sentences tailored to ${sf(targetCompany)}. May cite a verified customer from [ICP]. No capabilities not in [ICP].",
   "draftEmailSubject": "One line, specific to ${sf(targetCompany)}.",
   "draftEmailBody": "4-6 sentences: credibility → ${sf(targetCompany)} pain → low-friction ask.",
@@ -2554,103 +2572,65 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       const result = parseExecResponse(d);
       if(result?.keyExecutives?.length) {
         if (hasRawCorpus) {
-          // Code-level Gate A: proximity + recency + fail-closed (Bug 2 balances, Jul 2026).
-          // Three required guarantees:
-          // 1. Name + exec-role keyword must co-occur within ±400 chars in the SAME item,
-          //    with NO departure/historical signals in that window → not bare corpus presence.
-          // 2. Recency/newest-wins: if both passing and departure matches exist, newer wins.
-          // 3. Fail-closed on conflict: if dates unavailable or unresolvable → withhold.
-          // OC Tanner stale-test: Dave Petersen (former CEO) + Obert C. Tanner (deceased founder)
-          // must NOT pass; Scott Sperry (current CEO) + Scott Archibald (current COO) must PASS.
+          // §2.9 Citation-existence gate (HANDOFF_05 §2.9) — replaces ±400 proximity window.
+          //
+          // Old approach: scan corpus for name within ±400 chars of a role keyword.
+          // Problem: thin corpora (short snippets) fail even for correctly-extracted current execs.
+          //
+          // New approach: the model returns snippet = verbatim text it read name+title from.
+          // Code verifies the snippet actually appears in the raw corpus (not hallucinated).
+          // If no snippet or snippet not found: fallback — name in corpus without departure context.
+          // Departure gate: snippet (or nearest corpus context) must not contain departure signals.
+          //
+          // OC Tanner stale-test: Dave Petersen (former CEO) / Obert C. Tanner (deceased founder)
+          // must NOT pass. Scott Sperry (CEO) / Archibald (COO) / Colovich (CFO) / Cox (CPO) must PASS.
 
-          // Role keywords confirming someone holds an exec seat today
-          const _EXEC_ROLE_RE = /\b(ceo|coo|cfo|cto|cro|chro|cmo|president|founder|co-?founder|chief\s+executive|chief\s+operating|chief\s+financial|chief\s+technology|chief\s+revenue|chief\s+human\s+resources|chief\s+marketing|chief\s+people|chief\s+product|vice\s+president|vp\s+of|managing\s+director|executive\s+director)\b/i;
-
-          // Departure/historical signals: presence in proximity window → person is former/deceased
           const _DEPART_RE = /\b(former|formerly|departed|stepped\s+down|resigns|resigned|has\s+left|will\s+leave|succeeded\s+by|replaces|deceased|died|passed\s+away|obituary|in\s+memoriam|retired|emeritus)\b/i;
-
-          // Extract a sortable timestamp from item text; returns 0 if no date found
-          const _parseDate = (text) => {
-            const M = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-            const m1 = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?:(\d{1,2}),?\s+)?(\d{4})\b/i);
-            if (m1) { const mo = M[m1[1].slice(0,3).toLowerCase()]??0; return new Date(parseInt(m1[3]),mo,parseInt(m1[2]||"1")).getTime(); }
-            const m2 = text.match(/\b(\d{4})-(\d{2})-(\d{2})\b/);
-            if (m2) return new Date(parseInt(m2[1]),parseInt(m2[2])-1,parseInt(m2[3])).getTime();
-            const m3 = text.match(/\b(20\d{2}|19\d{2})\b/); // year-only fallback
-            if (m3) return new Date(parseInt(m3[1]),0,1).getTime();
-            return 0;
-          };
-
-          // Scan a single item for all occurrences of searchTerm near a role keyword.
-          // Returns [{pass, hasDepart, date}] — one entry per role-keyword hit found.
-          const _scanItem = (item, searchTerm, WINDOW) => {
-            const lower = item.text.toLowerCase();
-            const hits = [];
-            let idx = lower.indexOf(searchTerm);
-            while (idx !== -1) {
-              const ws = Math.max(0, idx - WINDOW);
-              const we = Math.min(lower.length, idx + searchTerm.length + WINDOW);
-              const win = lower.slice(ws, we);
-              if (_EXEC_ROLE_RE.test(win)) {
-                const hasDepart = _DEPART_RE.test(win);
-                hits.push({ pass: !hasDepart, hasDepart, date: _parseDate(item.text) });
-              }
-              idx = lower.indexOf(searchTerm, idx + 1);
-            }
-            return hits;
-          };
+          const _corpusNorm = rawSearchCorpus.replace(/\s+/g, " ");
 
           result.keyExecutives = result.keyExecutives.map(e => {
-            if (!e.name) return e; // already title-only — pass through
+            if (!e.name) return e; // title-only — pass through
 
             const nameLower = e.name.toLowerCase().trim();
-            const nameParts = nameLower.split(/\s+/);
-            const lastName = nameParts[nameParts.length - 1];
-            // Try full name first; fall back to last name (≥5 chars) only if no full-name hits
-            const searchTerms = [nameLower];
-            if (lastName.length >= 5 && lastName !== nameLower) searchTerms.push(lastName);
+            const snippet   = (e.snippet || "").trim();
+            const snipLower = snippet.toLowerCase();
 
-            const WINDOW = 400;
-            let allHits = [];
-            for (const term of searchTerms) {
-              for (const item of _rawItems) allHits = allHits.concat(_scanItem(item, term, WINDOW));
-              if (allHits.length) break; // full name matched — don't fall back to last name
+            // ── 1. Citation existence ─────────────────────────────────────────
+            // Verify the model's snippet actually appears in the raw corpus.
+            // Use two 20-char windows (start + midpoint) to tolerate minor whitespace diffs.
+            let citationFound = false;
+            if (snippet.length >= 20) {
+              const snipNorm = snipLower.replace(/\s+/g, " ");
+              const corpNorm = _corpusNorm.toLowerCase();
+              const mid = Math.floor(snipNorm.length / 2);
+              const windows = [snipNorm.slice(0, 20), snipNorm.slice(Math.max(0, mid - 10), mid + 10)].filter(w => w.length >= 15);
+              citationFound = windows.some(w => corpNorm.includes(w));
             }
 
-            if (allHits.length === 0) {
-              // Name never appears near a role keyword in any item
-              console.warn(`[p2-gateA] PROXIMITY FAIL: "${e.name}" (${e.title}) — name+role not co-occurring within ±${WINDOW} chars in any item. Corpus: ${rawSearchCorpus.length} chars. Withholding.`);
+            if (!citationFound) {
+              // Snippet absent or not found — fallback: name must appear anywhere in corpus
+              if (!_corpusNorm.toLowerCase().includes(nameLower)) {
+                console.warn(`[p2-gateA] CITATION FAIL: "${e.name}" (${e.title}) — snippet not in corpus, name not in corpus. Withholding.`);
+                return { ...e, name: "", initials: "" };
+              }
+              // Name in corpus: scan nearest 200-char window for departure signals
+              const nameIdx = _corpusNorm.toLowerCase().indexOf(nameLower);
+              const ctx = _corpusNorm.slice(Math.max(0, nameIdx - 150), nameIdx + nameLower.length + 150);
+              if (_DEPART_RE.test(ctx)) {
+                console.warn(`[p2-gateA] DEPARTURE FAIL (corpus ctx): "${e.name}" (${e.title}) — departure signal near name. Withholding.`);
+                return { ...e, name: "", initials: "" };
+              }
+              console.log(`[p2-gateA] CORPUS PASS (no snippet): "${e.name}" (${e.title}) — name in corpus, no departure.`);
+              return e;
+            }
+
+            // ── 2. Departure check on verified snippet ────────────────────────
+            if (_DEPART_RE.test(snipLower)) {
+              console.warn(`[p2-gateA] DEPARTURE FAIL: "${e.name}" (${e.title}) — departure signal in snippet. Withholding.`);
               return { ...e, name: "", initials: "" };
             }
 
-            const passing  = allHits.filter(h => h.pass);
-            const departing = allHits.filter(h => h.hasDepart);
-
-            if (passing.length === 0) {
-              // Every role-vicinity occurrence has a departure/historical signal
-              console.warn(`[p2-gateA] DEPARTURE FAIL: "${e.name}" (${e.title}) — all ${allHits.length} role-proximity match(es) contain departure signals. Withholding.`);
-              return { ...e, name: "", initials: "" };
-            }
-
-            // Recency/newest-wins: if passing AND departing matches coexist, compare dates
-            if (departing.length > 0) {
-              const newestPass   = Math.max(...passing.map(h => h.date));
-              const newestDepart = Math.max(...departing.map(h => h.date));
-              if (newestPass === 0 || newestDepart === 0) {
-                // Dates unavailable — fail-closed (requirement 3)
-                console.warn(`[p2-gateA] CONFLICT FAIL (no dates): "${e.name}" (${e.title}) — passing + departure matches, dates unresolvable. Withholding.`);
-                return { ...e, name: "", initials: "" };
-              }
-              if (newestDepart >= newestPass) {
-                // Departure signal is as recent or more recent — withhold
-                console.warn(`[p2-gateA] RECENCY FAIL: "${e.name}" (${e.title}) — departure (${new Date(newestDepart).getFullYear()}) >= confirming (${new Date(newestPass).getFullYear()}). Withholding.`);
-                return { ...e, name: "", initials: "" };
-              }
-              // Confirming source is newer — log and pass
-              console.log(`[p2-gateA] RECENCY PASS: "${e.name}" (${e.title}) — confirming (${new Date(newestPass).getFullYear()}) > departure (${new Date(newestDepart).getFullYear()}).`);
-            }
-
-            console.log(`[p2-gateA] PASS: "${e.name}" (${e.title}) — ${passing.length} passing, ${departing.length} departure hit(s).`);
+            console.log(`[p2-gateA] CITATION PASS: "${e.name}" (${e.title})`);
             return e;
           });
         }
