@@ -2512,10 +2512,26 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           url: r.url || "",
         }));
       });
-      // Web-search fallback: search → extract → return.
-      // No stacked gates on this path (§2.10). Authoritative page path handles verification.
+      // Build flat corpus for single grounding check below
+      const _wsCorpus = _rawItems.map(r => r.text).join(" ").toLowerCase();
+
+      // Web-search fallback: search → extract → single grounding check → return.
+      // ONE check only (§2.10): name must appear verbatim in raw search corpus.
+      // No _wsCorpus.length guard: empty corpus → includes() is false for all names →
+      // every name falls back to role-only, which is the correct safe default.
+      // If not found → clear personal name, keep title (role-only stub reaches the user,
+      // not a fabricated name). No departure scan, no proximity window — those are gone.
       const result = parseExecResponse(d);
       if(result?.keyExecutives?.length) {
+        result.keyExecutives = result.keyExecutives.map(e => {
+          if (!e.name || e.name.trim().length < 3) return e;
+          const _nl = e.name.toLowerCase().trim();
+          if (!_wsCorpus.includes(_nl)) {
+            console.warn(`[p2-ws] Name not in search corpus: "${e.name}" — falling back to role-only`);
+            return { ...e, name: "", initials: "" };
+          }
+          return e;
+        });
         return result;
       }
 
