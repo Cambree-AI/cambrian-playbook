@@ -8531,13 +8531,14 @@ Return ONLY raw JSON:
     if (flagVal === "off") return;
     if (!sellerUrl || sellerUrl === "research-only") return;
     // Safety guard (Phase 1 + Phase 2 check these too; defense in depth)
-    if (!selectedAccount?.company || !selectedAccount?.company_url) return;
+    // company_url removed — validatePlay Check 1 falls back to domainCore (company name alone suffices)
+    if (!selectedAccount?.company) return;
     if (!sellerICP || !(sellerICP?.icp?.productCatalog || []).length) return;
     // Double-fire guard
     if (playBuiltRef.current) return;
     playBuiltRef.current = true;
     const targetCompany = selectedAccount.company;
-    const targetDomain  = selectedAccount.company_url;
+    const targetDomain  = selectedAccount.company_url || ""; // may be empty; validatePlay Check 1 uses domainCore fallback
     const fitScore      = fitScores[targetCompany] || null;
     setTrackingContext(targetCompany, sellerUrl, "play-synthesis");
     try {
@@ -8606,7 +8607,7 @@ Return ONLY raw JSON:
     if (playState !== "idle") return;
     if (!sellerUrl || sellerUrl === "research-only") return;
     if (!sellerICP || !(sellerICP?.icp?.productCatalog || []).length) return;
-    if (!selectedAccount?.company || !selectedAccount?.company_url) return;
+    if (!selectedAccount?.company) return; // company_url removed — validatePlay Check 1 falls back to domainCore
     const flagVal = (() => { try { return localStorage.getItem("cc_play_synthesis") || "on"; } catch { return "on"; } })();
     if (flagVal === "off") return;
     if (briefLoading || brief) {
