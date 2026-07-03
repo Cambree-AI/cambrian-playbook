@@ -5318,6 +5318,7 @@ export default function App(){
   const[quickEntries,setQuickEntries]=useState([{name:"",url:""}]);
   const[fitScores,setFitScores]=useState({}); // {company: {score, label, reason, color}}
   const[fitScoring,setFitScoring]=useState(false);
+  const[readyAccounts,setReadyAccounts]=useState({}); // {company: true} — has cached brief in Supabase
   const[fitScoreExpected,setFitScoreExpected]=useState(0);
   // ── Fit Check table sort state ──
   const[fitSortKey,setFitSortKey]=useState(null);
@@ -8630,6 +8631,43 @@ Return ONLY raw JSON:
   useEffect(()=>{ if(cohorts.flatMap(c=>c.members).length > 0 && step <= 2) celebrate("prospects_added"); },[cohorts.length]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=>{ if(step===3 && Object.keys(fitScores).length > 0 && !fitScoring) celebrate("first_fit"); },[fitScoring]);
+  // After scoring settles: two unconditional Supabase reads (name + domain) merged into one
+  // setReadyAccounts call. Both fire in parallel — domain is the fallback for accounts whose
+  // name was rewritten by officialName; gating it on name-rows>0 defeats the fallback.
+  // Pure read — zero AI spend, zero build logic.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (fitScoring || !Object.keys(fitScores).length || !sbToken || !sbUser || !sellerUrl) return;
+    const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!SB_URL || !SB_KEY) return;
+    const allMembers = cohorts.flatMap(c => c.members || []);
+    if (!allMembers.length) return;
+    const names = allMembers.map(m => m.company).filter(Boolean);
+    const domains = allMembers.map(m => m.company_url).filter(Boolean);
+    const sellerEnc = encodeURIComponent((sellerUrl || "").slice(0, 200));
+    const hdrs = { apikey: SB_KEY, Authorization: `Bearer ${sbToken}`, Accept: "application/json" };
+    const nameFilter = names.map(n => `"${n.replace(/"/g, '\\"')}"`).join(",");
+    const domainFilter = domains.map(d => `"${d.replace(/"/g, '\\"')}"`).join(",");
+    const nameQ = fetch(`${SB_URL}/rest/v1/account_outputs?output_type=eq.brief&is_latest=eq.true&seller_url=eq.${sellerEnc}&target_company=in.(${encodeURIComponent(nameFilter)})`, { headers: hdrs })
+      .then(r => r.ok ? r.json() : []).catch(() => []);
+    const domainQ = domains.length
+      ? fetch(`${SB_URL}/rest/v1/account_outputs?output_type=eq.brief&is_latest=eq.true&seller_url=eq.${sellerEnc}&target_domain=in.(${encodeURIComponent(domainFilter)})`, { headers: hdrs })
+          .then(r => r.ok ? r.json() : []).catch(() => [])
+      : Promise.resolve([]);
+    Promise.all([nameQ, domainQ]).then(([nameRows, domainRows]) => {
+      const ready = {};
+      (Array.isArray(nameRows) ? nameRows : []).forEach(row => {
+        if (row.target_company) ready[row.target_company] = true;
+      });
+      (Array.isArray(domainRows) ? domainRows : []).forEach(row => {
+        // Map domain back to a member's current company name
+        const match = allMembers.find(m => m.company_url === row.target_domain);
+        if (match) ready[match.company] = true;
+      });
+      setReadyAccounts(ready);
+    }).catch(() => {});
+  }, [fitScoring]);
   // Fit scoring is triggered by the import flows (goToCohorts, goToQuickBrief,
   // Build Target Accounts) and by the manual "Run fit check" button.
   // No auto-trigger on step change — it races with the import flow's own
@@ -15444,6 +15482,7 @@ Return ONLY raw JSON:
                               <div>
                                 <div>{m.company}</div>
                                 {m.company_url&&<div style={{fontSize:11,color:"var(--ink-3)",fontWeight:400}}>🌐 {m.company_url}</div>}
+                                {readyAccounts[m.company]&&<div style={{fontSize:10,color:"var(--green)",fontWeight:600,marginTop:2}}>● Ready — opens instantly</div>}
                               </div>
                             </div>
                           </td>
@@ -15656,6 +15695,7 @@ Return ONLY raw JSON:
                         {ia?adjScore:sc.score}%
                       </span>
                     )}
+                    {readyAccounts[m.company]&&<span style={{fontSize:10,color:"var(--green)",fontWeight:700}}>●</span>}
                   </button>
                 );
               })}
