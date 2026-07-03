@@ -9154,7 +9154,16 @@ Return ONLY raw JSON:
 
                 // Mark missing deep intel sections as loading so UI shows spinners
                 const loadingFlags = { overview: false, executives: missingExecutives, strategy: false, solutions: false, live: true, roles: missingOpenRoles, deepIntel: missingFinancial || missingCompetitive || missingBoard };
-                const cachedBriefData = { ...cd, _generatedAt: new Date(cached[0].created_at).getTime(), _cached: true, _loadingSections: loadingFlags, _failedSections: [], _error: null, _completedSections: ["overview","executives","solutions","live"] };
+                // Only include sections with genuine data — never pre-claim "live" (always backfilled)
+                // or "executives" when missing. Backfills append their section on completion so the
+                // SA pre-call and Play Phase 2 re-trigger correctly when fresh data arrives.
+                const initialCompletedSections = [
+                  "overview", // always present in a valid cached brief (required by hasCritical)
+                  ...(!missingExecutives ? ["executives"] : []),
+                  ...(cd.solutionMapping?.some(s => s?.product) ? ["solutions"] : []),
+                  // "live" deliberately omitted — p5 backfill appends it below when done
+                ];
+                const cachedBriefData = { ...cd, _generatedAt: new Date(cached[0].created_at).getTime(), _cached: true, _loadingSections: loadingFlags, _failedSections: [], _error: null, _completedSections: initialCompletedSections };
                 setBrief(cachedBriefData);
                 setBriefLoading(false);
                 setBriefStatus("");
@@ -9217,12 +9226,13 @@ Return ONLY raw JSON:
                             ...(ss.standoutReview?.text ? { standoutReview: ss.standoutReview } : {}),
                           };
                         }
-                        return { ...prev, ...patch };
+                        // Append "live" so Phase 2 / SA pre-call re-evaluate with fresh signal data
+                        return { ...prev, ...patch, _completedSections: [...new Set([...(prev._completedSections||[]), "live"])] };
                       });
                     } else {
-                      setBrief(prev => prev ? { ...prev, _loadingSections: { ...(prev._loadingSections || {}), live: false } } : prev);
+                      setBrief(prev => prev ? { ...prev, _loadingSections: { ...(prev._loadingSections || {}), live: false }, _completedSections: [...new Set([...(prev._completedSections||[]), "live"])] } : prev);
                     }
-                  } catch { setBrief(prev => prev ? { ...prev, _loadingSections: { ...(prev._loadingSections || {}), live: false } } : prev); }
+                  } catch { setBrief(prev => prev ? { ...prev, _loadingSections: { ...(prev._loadingSections || {}), live: false }, _completedSections: [...new Set([...(prev._completedSections||[]), "live"])] } : prev); }
 
                   // Backfill missing deep intel sections
                   if (missingFinancial) {
@@ -9295,10 +9305,16 @@ Return ONLY raw JSON:
                       const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
                       const parsed = extractJsonWithKey(raw, "keyExecutives") || safeParseJSON(raw.startsWith("{")?raw:"{"+raw);
                       if (parsed?.keyExecutives?.some(e => e?.name)) {
-                        setBrief(prev => prev ? { ...prev, keyExecutives: parsed.keyExecutives } : prev);
+                        setBrief(prev => prev ? { ...prev, keyExecutives: parsed.keyExecutives, _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
                         console.log("[cache] Executives backfilled");
+                      } else {
+                        // No usable names — section settled with no data; append so SA quorum can complete
+                        setBrief(prev => prev ? { ...prev, _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
                       }
-                    } catch (e) { console.warn("[cache] Executives backfill failed:", e?.message); }
+                    } catch (e) {
+                      console.warn("[cache] Executives backfill failed:", e?.message);
+                      setBrief(prev => prev ? { ...prev, _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
+                    }
                   }
                   // Backfill missing open roles
                   if (missingOpenRoles) {
