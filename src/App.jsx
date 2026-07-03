@@ -516,7 +516,7 @@ function safeParseJSON(text){
       out+=ch;
     }else{if(ch==='"'){inStr=true;out+=ch;}else out+=ch;}
   }
-  try{return JSON.parse(out);}catch{return null;}
+  try{return JSON.parse(out);}catch(e){console.warn("[safeParseJSON] all repair attempts failed:", e?.message, "| preview:", (out||"").slice(0,200));return null;}
 }
 
 
@@ -1275,7 +1275,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
       try { return stripCitations(JSON.parse(candidate)); } catch { /* try repair */ }
       const san = candidate.replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,"-").replace(/[\u2026]/g,"...").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/,\s*([}\]])/g,"$1");
       try { return stripCitations(JSON.parse(san)); } catch { /* try repair */ }
-      try { return stripCitations(JSON.parse(repairJSON(san))); } catch { return null; }
+      try { return stripCitations(JSON.parse(repairJSON(san))); } catch(e) { console.warn("[streamAI] JSON parse/repair failed:", e?.message, "| preview:", (san||"").slice(0,200)); return null; }
     }
     return null;
   } catch { return null; }
