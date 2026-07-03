@@ -1570,7 +1570,7 @@ OUTPUT SCHEMA:
 {
   "situation": "2-3 sentences. What's happening at ${sf(targetCompany)} now, relevant to ${seller}. Ground in [P1]/[P5]. Name the signal.",
   "whyNow": "1-2 sentences. Which ${seller} product fits + the [P5] signal making it timely. Reference a named product.",
-  "yourMove": "2-3 sentences. Step 0 sets the buying center: EMBED/SUPPLY → Product/Partnerships/catalog-supply exec; CHANNEL → Alliances/BD; CONSUME-INTERNALLY → internal owning function (Steps 1–3). State the function and level clearly. Use name+title from [P2] ONLY where name is non-empty. NEVER supply a name from training knowledge. No internal plumbing ('no exec found', data-source notes).",
+  "yourMove": "2-3 sentences. Step 0 sets the buying center: EMBED/SUPPLY → Product/Partnerships/catalog-supply exec; CHANNEL → Alliances/BD; CONSUME-INTERNALLY → internal owning function (Steps 1–3). State the function and level clearly. Use name+title from [P2] ONLY where name is non-empty. NEVER supply a name from training knowledge. No internal plumbing whatsoever — forbidden phrases: 'no exec found', 'available contact data', 'contact data', 'data source', 'not found in'. Write as pure sales language a rep would say aloud.",
   "primaryContact": { "name": "from [P2] — exec in the buying function per Step 0; for EMBED/SUPPLY look for Product/Partnerships/BD title; omit/null if [P2] has no match", "title": "from [P2] only", "rationale": "1 sentence — why this function per Step 0 classification owns this decision" },
   "elevatorPitch": "3-4 sentences tailored to ${sf(targetCompany)}. May cite a verified customer from [ICP]. No capabilities not in [ICP].",
   "draftEmailSubject": "One line, specific to ${sf(targetCompany)}.",
@@ -1717,6 +1717,19 @@ function validatePlay(play, targetCompany, targetDomain, brief, sellerICP) {
         }
       }
     }
+  }
+
+  // Post-Check-7 output polish ────────────────────────────────────────────
+  // Strip plumbing phrases from yourMove — "in the available contact data"
+  // and close variants are internal implementation language that should never
+  // surface in a sales-facing field.
+  if (typeof play.yourMove === "string") {
+    play.yourMove = play.yourMove
+      .replace(/\bin the available contact data\b\.?/gi, "")
+      .replace(/\bfrom the available contact data\b\.?/gi, "")
+      .replace(/\bcontact data available\b\.?/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
   }
 
   return { play, playState: state };
