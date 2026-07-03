@@ -2442,6 +2442,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       const _p0Prompt =
         `You are an extraction engine. Extract the current executives listed on this page for "${co}".\n\n` +
         `SOURCE: ${_p0Result.finalUrl || _p0Result._probeUrl}\n\n` +
+        `PAGE TITLE: ${(_p0Result.title || "").slice(0, 200)}\n\n` +
         `PAGE TEXT:\n${_p0Result.text.slice(0, 10000)}\n\n` +
         `EXTRACTION RULES (non-negotiable):\n` +
         `1. ONLY include people whose full name AND current title both appear explicitly in the TEXT above. Do NOT add anyone from training knowledge.\n` +
@@ -2452,8 +2453,10 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         (KL_EXEC_PERSPECTIVES
           ? `   ROLE ARCHETYPES: CFO → ROI/cost. CRO → revenue/pipeline. CIO → architecture/integration. CISO → risk/compliance. CHRO → talent/retention. COO → efficiency/process. CMO → growth/brand.\n`
           : "") +
+        `6. companyIdentity.officialName: the canonical brand name of "${co}" EXACTLY as written on this page (page title, header, or press-release boilerplate — e.g. "O.C. Tanner"). It MUST appear verbatim in the PAGE TITLE or PAGE TEXT above. If you cannot point to where it appears, return "". NEVER use training knowledge for this field.\n` +
+        `7. companyIdentity.headquarters and companyIdentity.website: fill ONLY from explicit statements in the PAGE TEXT above; "" otherwise.\n` +
         `\nReturn ONLY raw JSON (no commentary):\n` +
-        `{"executives":[{"name":"Full Name exactly as in text","title":"Exact title as in text","background":"1 sentence or empty string","angle":"2-3 sentences"}]}`;
+        `{"companyIdentity":{"officialName":"Canonical name exactly as on page, or \\"\\\"","headquarters":"City, State/Country from page text, or \\"\\\"","website":"official domain from page text, or \\"\\\""},"executives":[{"name":"Full Name exactly as in text","title":"Exact title as in text","background":"1 sentence or empty string","angle":"2-3 sentences"}]}`;
 
       try {
         const _p0Resp = await claudeFetch({
@@ -2461,7 +2464,8 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           messages: [{ role: "user", content: _p0Prompt }],
         });
         const _p0Text = (_p0Resp?.content || []).filter(b => b.type === "text").map(b => b.text).join("");
-        const _p0Json = extractJsonWithKey(_p0Text, "executives")
+        const _p0Json = extractJsonWithKey(_p0Text, "companyIdentity")
+                     || extractJsonWithKey(_p0Text, "executives")
                      || safeParseJSON(_p0Text.includes("{") ? _p0Text.slice(_p0Text.indexOf("{")) : _p0Text);
         const _p0Raw = _p0Json?.executives || [];
         const _pageTextLower = _p0Result.text.toLowerCase();
@@ -2489,11 +2493,29 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           sourceDate: "",
         }));
 
+        // companyIdentity — same grounding gate as execs: officialName must appear verbatim in page
+        // text OR the page <title>. Never training knowledge.
+        const _ciRaw = _p0Json?.companyIdentity || {};
+        const _pageTitleLower = (_p0Result.title || "").toLowerCase();
+        let _ciName = (_ciRaw.officialName || "").trim().slice(0, 80);
+        if (_ciName && !_pageTextLower.includes(_ciName.toLowerCase()) && !_pageTitleLower.includes(_ciName.toLowerCase())) {
+          console.warn(`[p2-fetch] companyIdentity.officialName "${_ciName}" not on page or in title — dropping`);
+          _ciName = "";
+        }
+        let _ciHq = (_ciRaw.headquarters || "").trim().slice(0, 120);
+        if (_ciHq && !_pageTextLower.includes(_ciHq.toLowerCase())) _ciHq = "";
+        let _ciSite = (_ciRaw.website || "").trim().toLowerCase().slice(0, 120);
+        if (_ciSite && !_ciSite.includes(_companyBaseDomain)) _ciSite = "";
+        const _companyIdentity = _ciName
+          ? { officialName: _ciName, headquarters: _ciHq, website: _ciSite, sourceUrl: _p0Result.finalUrl || _p0Result._probeUrl }
+          : null;
+
         if (_p0Verified.length > 0) {
           console.log(`[p2-fetch] ${_p0Verified.length} exec(s) verified from authoritative page — skipping web search`);
           return {
             keyExecutives: _p0Verified,
             sellerSnapshot: `${sellerUrl} provides solutions relevant to ${co}'s market.`,
+            companyIdentity: _companyIdentity,
           };
         }
         console.log(`[p2-fetch] Page found but 0 names passed name-on-page check — falling through to web search`);
