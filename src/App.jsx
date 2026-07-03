@@ -2892,7 +2892,8 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
 
     return next;
   };
-  const mergeExecs = (r2) => (prev) => {
+  const mergeExecs = (r2) => {
+    const _updater = (prev) => {
     if (!prev) return prev;
     const next = {...prev,
       _loadingSections: {...(prev._loadingSections||{}), executives:false},
@@ -2949,7 +2950,17 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       next.keyExecutives = verified;
     } else { next._failedSections = [...(prev._failedSections||[]), "executives"]; }
     if (r2?.sellerSnapshot) next.sellerSnapshot = r2.sellerSnapshot;
+    // Phase 0 companyIdentity → brief. HQ/website backfill only — never overwrite existing.
+    if (r2?.companyIdentity?.officialName) {
+      next.companyIdentity = r2.companyIdentity;
+      if (r2.companyIdentity.headquarters && !(next.headquarters || "").trim()) next.headquarters = r2.companyIdentity.headquarters;
+      if (r2.companyIdentity.website && !(next.website || "").trim()) next.website = r2.companyIdentity.website;
+    }
     return next;
+    };
+    _updater._companyIdentity = r2?.companyIdentity || null;
+    _updater._p2Result = r2 || null;
+    return _updater;
   };
   const mergeStrategy = (r3) => (prev) => {
     if (!prev) return prev;
@@ -9684,6 +9695,22 @@ Return ONLY raw JSON:
       m.then(updater => {
         sectionsResolved++;
         if (typeof updater === "function") setBrief(prev => updater(prev));
+        // Canonical brand name from Phase 0 leadership page (replaces the old Apollo backfill).
+        // Guard: per-brief only; account must still be on this brief's domain. Seed name-keyed
+        // caches under the new name FIRST so the pre-fetch effects (~11930, ~11979) don't fire
+        // new API calls, and mirror the fitScores entry so buildThePlay/header don't lose it.
+        const _ci = name === "executives" && typeof updater === "function" ? updater._companyIdentity : null;
+        if (_ci?.officialName && member.company_url && _ci.officialName !== co) {
+          const official = _ci.officialName;
+          if (!execCacheRef.current[official]) execCacheRef.current[official] = updater._p2Result || execCacheRef.current[co] || null;
+          if (!briefPreCacheRef.current[official]) briefPreCacheRef.current[official] = briefPreCacheRef.current[co] || { overview: null, live: null };
+          setFitScores(fs => fs[co] && !fs[official] ? { ...fs, [official]: fs[co] } : fs);
+          setSelectedAccount(sa =>
+            sa && sa.company_url === member.company_url && sa.company !== official
+              ? { ...sa, company: official }
+              : sa);
+          console.log(`[p0-identity] Canonical name: "${co}" → "${official}" (${_ci.sourceUrl})`);
+        }
         console.log(`[brief] ${name} resolved (${sectionsResolved}/6) in ${((Date.now()-briefStart)/1000).toFixed(1)}s`);
       }).catch(err => {
         sectionsResolved++;
