@@ -8616,10 +8616,11 @@ Return ONLY raw JSON:
   }, [briefLoading, !!brief, sellerUrl, !!sellerICP, selectedAccount?.company]);
 
   // Phase 2: Fire buildThePlay() when overview + solutions + signals are present.
-  //          Exec data (hasExecs) is intentionally excluded from the quorum — zero or
-  //          withheld execs must NEVER block the Play (§2.10 rule 5). Execs enrich the
-  //          prompt when present; names are never a gate. _completedSections re-fires this
-  //          effect when solutions arrives late (merger-only write, not timeout/streaming).
+  //          saRecommendation is SOFT: logged for observability, never blocks the build.
+  //          SA enriches the Play prompt when present at build time; if it arrives late
+  //          (or is slow/failed) the Play still renders on core data. Exec data likewise
+  //          excluded — execs enrich when present, never gate. _completedSections re-fires
+  //          this effect on every real merger callback (merger-only write, not timeout).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (playBuiltRef.current || thePlay !== null || playState !== "building") return;
@@ -8628,11 +8629,9 @@ Return ONLY raw JSON:
     const hasOverview  = !!brief?.companySnapshot && !LOADING_STUB.test(brief.companySnapshot);
     const hasSolutions = !!(brief?.solutionMapping?.some(s => s?.product));
     const hasSignals   = !!(brief?.recentSignals?.some(s => typeof s === "string" ? s.trim() : !!(s?.signal || s?.text)) || brief?.recentHeadlines);
-    // Under solConEnabled: Play also waits for pre-call SA recommendation before firing.
-    // Amendment B: no "unavailable" — building/full/weak-inputs only. Hold in building until ready.
-    const hasSARecommendation = !solConEnabled || !!solutionFit?.saRecommendation;
-    console.log(`[ThePlay P2] playState=${playState} overview=${hasOverview} solutions=${hasSolutions} signals=${hasSignals} saRec=${hasSARecommendation} → ${hasOverview&&hasSolutions&&hasSignals&&hasSARecommendation?"FIRING":"waiting"}`);
-    if (hasOverview && hasSolutions && hasSignals && hasSARecommendation) {
+    const hasSARecommendation = !solConEnabled || !!solutionFit?.saRecommendation; // logged only — not a gate
+    console.log(`[ThePlay P2] playState=${playState} overview=${hasOverview} solutions=${hasSolutions} signals=${hasSignals} saRec=${hasSARecommendation} → ${hasOverview&&hasSolutions&&hasSignals?"FIRING":"waiting"}`);
+    if (hasOverview && hasSolutions && hasSignals) {
       console.log("[ThePlay] Data quorum met — firing build");
       buildThePlay();
     }
@@ -8642,7 +8641,7 @@ Return ONLY raw JSON:
     brief?.keyExecutives?.length, brief?.keyContacts?.length,
     brief?.solutionMapping?.length, brief?.recentSignals?.length, brief?.recentHeadlines,
     brief?._completedSections?.length, // re-evaluate on every real merger callback, even when solutionMapping was pre-populated by streaming
-    solutionFit?.saRecommendation,
+    // solutionFit?.saRecommendation intentionally removed — SA is soft, not a gate
     playState,
   ]);
 
@@ -15931,6 +15930,17 @@ Return ONLY raw JSON:
                         </div>
                       )}
                       {play.keySignal&&<div style={rowStyle}><span style={labStyle}>Signal</span><span style={{fontSize:13,color:V.mut,fontStyle:"italic"}}>{play.keySignal}</span></div>}
+                      {/* Solution Rec — reads live from solutionFit state so it populates after the Play builds.
+                          Play is frozen at build time (~13s); SA lands later (~83-117s). This section
+                          re-renders reactively when solutionFit.saRecommendation is set — no Play rebuild. */}
+                      {solConEnabled && (
+                        <div style={rowStyle}>
+                          <span style={labStyle}>Solution Rec</span>
+                          <span style={{fontSize:13,color:solutionFit?.saRecommendation?V.txt:V.mut,fontStyle:solutionFit?.saRecommendation?"normal":"italic"}}>
+                            {solutionFit?.saRecommendation||(solutionFitLoading?"Building your solution recommendation…":"Analyzing your solution fit…")}
+                          </span>
+                        </div>
+                      )}
                       <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap",alignItems:"center"}}>
                         {play.elevatorPitch&&(
                           <button style={coralBtn} onClick={()=>copyText(play.elevatorPitch,"play_pitch")}>
