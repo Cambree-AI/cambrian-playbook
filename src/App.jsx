@@ -1504,7 +1504,14 @@ function buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore
     ..._gateToVP(brief?.keyExecutives || []),
     ..._gateToVP(brief?.keyContacts   || []),
   ]), 2000);
-  const p4 = trunc(JSON.stringify(brief?.solutionMapping || []), 2000);
+  // C2.1: P4 is a compact per-solution summary, NOT a truncated JSON blob.
+  const p4 = ((brief?.solutionMapping || [])
+    .filter(s => s?.product)
+    .slice(0, 6)
+    .map((s, i) =>
+      `${i + 1}. PRODUCT: ${sf(trunc(s.product, 120))} · BUYER ROLE: ${sf(trunc(s.buyerRole, 120)) || "(not specified)"} · FIT: ${sf(trunc(s.fit, 300))}`
+    )
+    .join("\n")) || "(no solutions mapped)";
   const p5 = `${(brief?.recentSignals || []).join(" · ")} · ${brief?.recentHeadlines||""} · ${brief?.growthSignals||""} · sentiment:${brief?.publicSentiment?.sentimentSummary||""}`.slice(0, 2000);
   const p3 = brief?.strategicTheme ? `${brief.strategicTheme} · ${brief.openingAngle||""} · ${brief.sellerOpportunity||""}`.slice(0, 1500) : null;
   const fitLabel  = fitScore ? `${fitScore.label} · ${fitScore.score}%` : "Not scored";
@@ -1533,31 +1540,19 @@ ${sellerDesc} · products:${catalog} · customers:${customers}
 
 TASK: Build The Play for ${seller} selling into ${sf(targetCompany)}. Output valid JSON only.
 
-ENTRY STRATEGY — classify the relationship FIRST, then pick the door:
+ENTRY STRATEGY — determine the buying center FIRST, then pick the door:
 
-STEP 0 — Value relationship (run this before anything else):
-Examine [P4] topProduct/solutionMapping verbs, [ICP] seller description, and [P1] what ${sf(targetCompany)} sells to ITS own clients.
+STEP 0 — Buying center (authoritative source: [P4] BUYER ROLE):
+Pick the ONE [P4] solution you are leading with — that is your topProduct. Its BUYER ROLE field is the
+authoritative answer for who buys this at ${sf(targetCompany)}: use that exact function as the target buying
+center. Explain WHY in plain sales language — what that function owns and why the decision lands on their desk.
+Do NOT override the BUYER ROLE with a generic product-to-function rule or your own reclassification.
 
-  EMBED / SUPPLY / PARTNERSHIP — highest-priority check:
-  Signs: [P4] uses "catalog," "marketplace," "embed," "supply," "integrate into," "power," "resell," "white-label," "API feed"; OR [P1] shows ${sf(targetCompany)} is a platform/SaaS that sells to enterprise clients and could include ${seller}'s product inside their own offering.
-  → Buyer = Product, Partnerships, BD, Catalog-Supply, or Rewards-Marketplace function.
-  → DO NOT target HR / Total Rewards / CHRO / employee-facing functions — those are the END USER of ${sf(targetCompany)}'s product, not the procurement decision-maker for ${seller}.
-  → The buying question is: "Does OUR product get better / more complete if we add this catalog/service?"
-
-  CHANNEL / RESELL:
-  Signs: ${sf(targetCompany)} distributes or resells ${seller}'s product onward to customers.
-  → Buyer = Strategic Partnerships, Channel Programs, VP Alliances, Business Development.
-
-  CONSUME-INTERNALLY (default if neither above applies):
-  ${sf(targetCompany)} buys ${seller}'s product for its own internal operations. Proceed to Steps 1–3.
-
-STEP 1 (consume-internally only) — Map topProduct → internal owning function:
-  • Recognition / Reward catalog / Culture / Employee experience → Total Rewards, CHRO, VP People/HR, Chief People Officer
-  • Sales technology / CRM / Revenue tools → CRO, VP Sales, RevOps
-  • Finance / Spend management / Procurement → CFO, VP Finance, CPO
-  • IT / Infrastructure / Security → CIO, CISO, CTO, VP IT
-  • Marketing technology → CMO, VP Marketing, Demand Gen
-  • Recruiting / Talent acquisition → VP Talent, Head of TA, CHRO
+STEP 1 — Fallback ONLY if the lead solution's BUYER ROLE reads "(not specified)":
+Classify the value relationship using [P4] FIT language, [ICP], and [P1] what ${sf(targetCompany)} sells to ITS clients:
+  • EMBED / SUPPLY / PARTNERSHIP — signs: "catalog," "marketplace," "embed," "supply," "integrate into," "power," "resell," "white-label," "API feed"; OR [P1] shows ${sf(targetCompany)} is a platform that could include ${seller}'s product inside its own offering. → Buyer = Product, Partnerships, BD, or catalog-supply function. DO NOT target HR / Total Rewards / CHRO here — they are the END USER, not the procurement decision-maker for ${seller}.
+  • CHANNEL / RESELL — ${sf(targetCompany)} distributes or resells ${seller}'s product onward. → Buyer = Strategic Partnerships, Channel Programs, VP Alliances, BD.
+  • CONSUME-INTERNALLY (default) — buys for its own internal operations. → Buyer = the internal function that owns the job in the [P4] entry — infer from its FIT and pain language, not a fixed product-category table.
 
 STEP 2 — Calibrate to company size from [P1] employeeCount:
   • Enterprise (>3,000): Enter via the VP/Director who OWNS the budget — NOT cold C-suite.
@@ -1570,12 +1565,12 @@ OUTPUT SCHEMA:
 {
   "situation": "2-3 sentences. What's happening at ${sf(targetCompany)} now, relevant to ${seller}. Ground in [P1]/[P5]. Name the signal.",
   "whyNow": "1-2 sentences. Which ${seller} product fits + the [P5] signal making it timely. Reference a named product.",
-  "yourMove": "2-3 sentences. Step 0 sets the buying center: EMBED/SUPPLY → Product/Partnerships/catalog-supply exec; CHANNEL → Alliances/BD; CONSUME-INTERNALLY → internal owning function (Steps 1–3). State the function and level clearly. Use name+title from [P2] ONLY where name is non-empty. NEVER supply a name from training knowledge. No internal plumbing whatsoever — forbidden phrases: 'no exec found', 'available contact data', 'contact data', 'data source', 'not found in'. Write as pure sales language a rep would say aloud.",
-  "primaryContact": { "name": "from [P2] — exec in the buying function per Step 0; for EMBED/SUPPLY look for Product/Partnerships/BD title; omit/null if [P2] has no match", "title": "from [P2] only", "rationale": "1 sentence — why this function per Step 0 classification owns this decision" },
+  "yourMove": "2-3 sentences. The buying center is the lead [P4] solution's BUYER ROLE (Step 0); use the Step 1 fallback only when that field is '(not specified)'. State the function and level clearly. Use name+title from [P2] ONLY where name is non-empty. NEVER supply a name from training knowledge. No internal plumbing whatsoever — forbidden phrases: 'no exec found', 'available contact data', 'contact data', 'data source', 'not found in'. Write as pure sales language a rep would say aloud.",
+  "primaryContact": { "name": "from [P2] — exec matching the Step 0 buying center (the lead solution's BUYER ROLE, or Step 1 fallback function); omit/null if [P2] has no match", "title": "from [P2] only", "rationale": "1 sentence — why this function owns this decision, grounded in the [P4] BUYER ROLE" },
   "elevatorPitch": "3-4 sentences tailored to ${sf(targetCompany)}. May cite a verified customer from [ICP]. No capabilities not in [ICP].",
   "draftEmailSubject": "One line, specific to ${sf(targetCompany)}.",
   "draftEmailBody": "4-6 sentences: credibility → ${sf(targetCompany)} pain → low-friction ask.",
-  "topProduct": "Product name from [P4 solutionMapping] / [ICP] only — exact match.",
+  "topProduct": "Product name from a [P4] PRODUCT field / [ICP] only — exact match.",
   "keySignal": "Single most important [P5] signal making this timely — one sentence.",
   "sectionSources": { "situation": ["P1","P5"], "whyNow": ["P4","P5"], "yourMove": ["P2"], "elevatorPitch": ["P4","ICP"], "primaryContact": ["P2"] }
 }`;
