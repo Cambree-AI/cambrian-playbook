@@ -2346,10 +2346,10 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
           messages: [{ role: "user", content:
             `Search for pages on ${co}'s official website that name the current CEO, COO, CFO, and other senior executives by name.\n\n` +
-            `Search: site:${_companyBaseDomain} (leadership OR executives OR "chief executive" OR appoints OR announces OR names OR about OR press)\n\n` +
+            `Search: site:${_companyBaseDomain} ("leadership team" OR "executive team" OR "our leaders" OR "management team" OR leadership OR executives OR appoints OR about)\n\n` +
             `From the results, identify the 1–3 URLs most likely to explicitly NAME current senior leaders.\n` +
-            `PREFER: press releases announcing executive appointments, About/Team/Leadership pages listing current names+titles.\n` +
-            `REJECT: thought-leadership articles (e.g. /insights/*, /blog/*), podcast pages, resource libraries, event pages.\n\n` +
+            `PREFER (in this order): (1) leadership/executive-team ROSTER pages — URL paths like /leadership, /team, /our-leaders, /about/leadership, /company/leadership, /executive-team; (2) About/Team pages listing current names+titles; (3) press releases announcing executive appointments.\n` +
+            `REJECT: paginated index pages (any URL containing ?page=), thought-leadership articles (e.g. /articles/*, /insights/*, /blog/*), podcast pages, resource libraries, event pages.\n\n` +
             `Return ONLY raw JSON:\n{"urls":["https://...","https://..."]}`,
           }],
         });
@@ -2378,7 +2378,15 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
             } catch {}
           }
         }
-        _candidateUrls = _candidateUrls.slice(0, 3);
+        // Roster-path bias: leadership/team paths first, press/blog/news last.
+        // Paginated indexes (?page=) are never a roster — drop them outright.
+        const _P0_ROSTER_PATH_RE = /\/(leadership|leadership-team|executive-team|management-team|our-leaders|team|about(?:-us)?(?:\/(?:leadership|team|executives))?|company\/(?:leadership|team))(?:\/|$|\?)/i;
+        const _P0_NOISE_PATH_RE = /\/(press|news(?:room)?|articles?|insights?|blog|podcasts?|events?|resources?)(?:\/|$|\?)/i;
+        const _p0PathScore = (u) => { try { const _pp = new URL(u).pathname; if (_P0_ROSTER_PATH_RE.test(_pp)) return 0; if (_P0_NOISE_PATH_RE.test(_pp)) return 2; return 1; } catch { return 2; } };
+        _candidateUrls = _candidateUrls
+          .filter(u => !/[?&]page=/i.test(u))
+          .sort((a, b) => _p0PathScore(a) - _p0PathScore(b))
+          .slice(0, 3);
         console.log(`[p2-fetch] Leadership URL candidates (${_candidateUrls.length}): ${_candidateUrls.join(" | ") || "(none)"}`);
       } catch (_se) {
         console.warn("[p2-fetch] Leadership URL search failed:", _se?.message);
