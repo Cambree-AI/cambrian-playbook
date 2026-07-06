@@ -2392,82 +2392,35 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         console.warn("[p2-fetch] Leadership URL search failed:", _se?.message);
       }
 
-      // ── Step 2: Try each candidate until one yields verified execs ──────────
-      // /api/fetch escalates to Firecrawl on plain-fetch failure (octanner.com is
-      // bot-protected — Stage 1 will fail, Stage 2 renders via Firecrawl).
-      for (const _leadershipUrl of _candidateUrls) {
-        if (_p0Result) break;
-        try {
-          const _fr = await fetch("/api/fetch", {
-            method: "POST",
-            headers: authHeaders(),
-            body: JSON.stringify({ url: _leadershipUrl, render: "auto" }),
-          });
-          if (!_fr.ok) {
-            console.warn(`[p2-fetch] /api/fetch HTTP ${_fr.status} for ${_leadershipUrl}`);
-            continue;
-          }
-          const _fd = await _fr.json();
-          if (!_fd?.ok) {
-            console.log(`[p2-fetch] ${_leadershipUrl} → ok:false reason:${_fd?.reason}${_fd?.detail ? " detail:" + _fd.detail : ""}`);
-            continue;
-          }
-          if (!_fd.text || _fd.text.length < 150) {
-            console.log(`[p2-fetch] ${_leadershipUrl} → text too short (${_fd?.text?.length || 0} chars)`);
-            continue;
-          }
-          // Domain match guard — off-domain redirect breaks account isolation
-          if (_fd.finalUrl) {
-            try {
-              const _fh = new URL(_fd.finalUrl).hostname.replace(/^www\./, "").toLowerCase();
-              if (!_fh.includes(_companyBaseDomain) && !_companyBaseDomain.includes(_fh)) {
-                console.warn(`[p2-fetch] Domain mismatch: ${_leadershipUrl} → ${_fh} — skipping`);
-                continue;
-              }
-            } catch { continue; }
-          }
-          if (!_P0_ROLE_RE.test(_fd.text)) {
-            console.log(`[p2-fetch] ${_leadershipUrl} → no role language in text — skipping`);
-            continue;
-          }
-          console.log(`[p2-fetch] Leadership page loaded: ${_fd.finalUrl || _leadershipUrl} (${_fd.contentChars} chars${_fd.renderUsed ? ", Firecrawl-rendered" : ", plain"})`);
-          _p0Result = { ..._fd, _probeUrl: _leadershipUrl };
-        } catch (_fe) {
-          console.warn(`[p2-fetch] Fetch failed for ${_leadershipUrl}:`, _fe?.message);
-        }
-      }
+      // ── Step 2+3: per-candidate extract + verify (C1.3 fall-through) ────────
+      // Old flow fetched the FIRST loadable candidate and extracted ONCE — a page
+      // that loads but names zero execs (OC Tanner's /global-culture-report) burned
+      // the whole phase. New flow: every candidate gets its own extract+verify pass;
+      // >= _P0_TARGET_EXECS wins immediately, else keep the best partial and try next.
+      // Verification gate UNCHANGED: name verbatim on fetched page.
+      const _P0_TARGET_EXECS = 3;
+      let _p0Best = null; // { verified, companyIdentity, pageUrl }
 
-      if (!_p0Result) {
-        console.log(`[p2-fetch] Phase 0 complete: no usable exec-naming page found for ${_companyBaseDomain} — falling through to web search`);
-      }
-    }
+      const _p0ExtractAndVerify = async (_p0Page) => {
+        const _p0Prompt =
+          `You are an extraction engine. Extract the current executives listed on this page for "${co}".\n\n` +
+          `SOURCE: ${_p0Page.finalUrl || _p0Page._probeUrl}\n\n` +
+          `PAGE TITLE: ${(_p0Page.title || "").slice(0, 200)}\n\n` +
+          `PAGE TEXT:\n${_p0Page.text.slice(0, 10000)}\n\n` +
+          `EXTRACTION RULES (non-negotiable):\n` +
+          `1. ONLY include people whose full name AND current title both appear explicitly in the TEXT above. Do NOT add anyone from training knowledge.\n` +
+          `2. Include C-suite, VP-level, and president-level roles. Skip board members and advisors unless this is a board page.\n` +
+          `3. Do NOT include historical founders who are clearly deceased, retired, or no longer affiliated.\n` +
+          `4. background: 1 sentence from the page bio about prior role or experience. Empty string if none.\n` +
+          `5. angle: What priority does this person own at ${co} per their title and bio? How should a seller approach them? 2-3 specific sentences.\n` +
+          (KL_EXEC_PERSPECTIVES
+            ? `   ROLE ARCHETYPES: CFO → ROI/cost. CRO → revenue/pipeline. CIO → architecture/integration. CISO → risk/compliance. CHRO → talent/retention. COO → efficiency/process. CMO → growth/brand.\n`
+            : "") +
+          `6. companyIdentity.officialName: the canonical brand name of "${co}" EXACTLY as written on this page (page title, header, or press-release boilerplate — e.g. "O.C. Tanner"). It MUST appear verbatim in the PAGE TITLE or PAGE TEXT above. If you cannot point to where it appears, return "". NEVER use training knowledge for this field.\n` +
+          `7. companyIdentity.headquarters and companyIdentity.website: fill ONLY from explicit statements in the PAGE TEXT above; "" otherwise.\n` +
+          `\nReturn ONLY raw JSON (no commentary):\n` +
+          `{"companyIdentity":{"officialName":"Canonical name exactly as on page, or \\"\\\"","headquarters":"City, State/Country from page text, or \\"\\\"","website":"official domain from page text, or \\"\\\""},"executives":[{"name":"Full Name exactly as in text","title":"Exact title as in text","background":"1 sentence or empty string","angle":"2-3 sentences"}]}`;
 
-    if (_p0Result) {
-      // ── Step 3: Extract execs — ONE check: name verbatim on fetched page ────
-      // §2.10 final approach: authoritative-source path drops the proximity window,
-      // snippet gymnastics, and corpus-wide departure scan. The page is present-tense
-      // truth — a current press release / About page does not list departed execs as
-      // current. Trust the model's temp-0 read + one code check: name appears on page.
-      const _p0Prompt =
-        `You are an extraction engine. Extract the current executives listed on this page for "${co}".\n\n` +
-        `SOURCE: ${_p0Result.finalUrl || _p0Result._probeUrl}\n\n` +
-        `PAGE TITLE: ${(_p0Result.title || "").slice(0, 200)}\n\n` +
-        `PAGE TEXT:\n${_p0Result.text.slice(0, 10000)}\n\n` +
-        `EXTRACTION RULES (non-negotiable):\n` +
-        `1. ONLY include people whose full name AND current title both appear explicitly in the TEXT above. Do NOT add anyone from training knowledge.\n` +
-        `2. Include C-suite, VP-level, and president-level roles. Skip board members and advisors unless this is a board page.\n` +
-        `3. Do NOT include historical founders who are clearly deceased, retired, or no longer affiliated.\n` +
-        `4. background: 1 sentence from the page bio about prior role or experience. Empty string if none.\n` +
-        `5. angle: What priority does this person own at ${co} per their title and bio? How should a seller approach them? 2-3 specific sentences.\n` +
-        (KL_EXEC_PERSPECTIVES
-          ? `   ROLE ARCHETYPES: CFO → ROI/cost. CRO → revenue/pipeline. CIO → architecture/integration. CISO → risk/compliance. CHRO → talent/retention. COO → efficiency/process. CMO → growth/brand.\n`
-          : "") +
-        `6. companyIdentity.officialName: the canonical brand name of "${co}" EXACTLY as written on this page (page title, header, or press-release boilerplate — e.g. "O.C. Tanner"). It MUST appear verbatim in the PAGE TITLE or PAGE TEXT above. If you cannot point to where it appears, return "". NEVER use training knowledge for this field.\n` +
-        `7. companyIdentity.headquarters and companyIdentity.website: fill ONLY from explicit statements in the PAGE TEXT above; "" otherwise.\n` +
-        `\nReturn ONLY raw JSON (no commentary):\n` +
-        `{"companyIdentity":{"officialName":"Canonical name exactly as on page, or \\"\\\"","headquarters":"City, State/Country from page text, or \\"\\\"","website":"official domain from page text, or \\"\\\""},"executives":[{"name":"Full Name exactly as in text","title":"Exact title as in text","background":"1 sentence or empty string","angle":"2-3 sentences"}]}`;
-
-      try {
         const _p0Resp = await claudeFetch({
           model: SONNET, max_tokens: 2000, temperature: 0,
           messages: [{ role: "user", content: _p0Prompt }],
@@ -2477,12 +2430,8 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
                      || extractJsonWithKey(_p0Text, "executives")
                      || safeParseJSON(_p0Text.includes("{") ? _p0Text.slice(_p0Text.indexOf("{")) : _p0Text);
         const _p0Raw = _p0Json?.executives || [];
-        const _pageTextLower = _p0Result.text.toLowerCase();
+        const _pageTextLower = _p0Page.text.toLowerCase();
 
-        // ONE check: name must appear verbatim in fetched page text.
-        // This is the only gate on the authoritative-source path (§2.10 rule 3).
-        // No proximity window. No snippet gymnastics. No departure scan.
-        // Present-tense page ≠ stale corpus — the page itself is the truth.
         const _p0Verified = _p0Raw.filter(e => {
           if (!e.name || e.name.trim().length < 3) return false;
           const _nl = e.name.toLowerCase().trim();
@@ -2497,15 +2446,13 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           initials: e.name.trim().split(/\s+/).map(p => p[0] || "").join("").toUpperCase().slice(0, 4),
           background: e.background || "",
           angle: e.angle || `${e.name.trim().split(" ")[0]} is ${e.title || "an executive"} at ${co}. Research their current mandate before reaching out.`,
-          sourceUrl: _p0Result.finalUrl || _p0Result._probeUrl,
+          sourceUrl: _p0Page.finalUrl || _p0Page._probeUrl,
           snippet: "",
           sourceDate: "",
         }));
 
-        // companyIdentity — same grounding gate as execs: officialName must appear verbatim in page
-        // text OR the page <title>. Never training knowledge.
         const _ciRaw = _p0Json?.companyIdentity || {};
-        const _pageTitleLower = (_p0Result.title || "").toLowerCase();
+        const _pageTitleLower = (_p0Page.title || "").toLowerCase();
         let _ciName = (_ciRaw.officialName || "").trim().slice(0, 80);
         if (_ciName && !_pageTextLower.includes(_ciName.toLowerCase()) && !_pageTitleLower.includes(_ciName.toLowerCase())) {
           console.warn(`[p2-fetch] companyIdentity.officialName "${_ciName}" not on page or in title — dropping`);
@@ -2516,22 +2463,50 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         let _ciSite = (_ciRaw.website || "").trim().toLowerCase().slice(0, 120);
         if (_ciSite && !_ciSite.includes(_companyBaseDomain)) _ciSite = "";
         const _companyIdentity = _ciName
-          ? { officialName: _ciName, headquarters: _ciHq, website: _ciSite, sourceUrl: _p0Result.finalUrl || _p0Result._probeUrl }
+          ? { officialName: _ciName, headquarters: _ciHq, website: _ciSite, sourceUrl: _p0Page.finalUrl || _p0Page._probeUrl }
           : null;
 
-        if (_p0Verified.length > 0) {
-          console.log(`[p2-fetch] ${_p0Verified.length} exec(s) verified from authoritative page — skipping web search`);
-          return {
-            keyExecutives: _p0Verified,
-            sellerSnapshot: `${sellerUrl} provides solutions relevant to ${co}'s market.`,
-            companyIdentity: _companyIdentity,
-          };
-        }
-        console.log(`[p2-fetch] Page found but 0 names passed name-on-page check — falling through to web search`);
-      } catch (_e0) {
-        console.warn("[p2-fetch] Leadership page extraction failed:", _e0?.message);
-        // Fall through to Phase 1 web search
+        return { verified: _p0Verified, companyIdentity: _companyIdentity };
+      };
+
+      for (const _leadershipUrl of _candidateUrls) {
+        try {
+          const _fr = await fetch("/api/fetch", {
+            method: "POST",
+            headers: authHeaders(),
+            body: JSON.stringify({ url: _leadershipUrl, render: "auto" }),
+          });
+          if (!_fr.ok) { console.warn(`[p2-fetch] /api/fetch HTTP ${_fr.status} for ${_leadershipUrl}`); continue; }
+          const _fd = await _fr.json();
+          if (!_fd?.ok) { console.log(`[p2-fetch] ${_leadershipUrl} → ok:false reason:${_fd?.reason}${_fd?.detail ? " detail:" + _fd.detail : ""}`); continue; }
+          if (!_fd.text || _fd.text.length < 150) { console.log(`[p2-fetch] ${_leadershipUrl} → text too short (${_fd?.text?.length || 0} chars)`); continue; }
+          if (_fd.finalUrl) {
+            try {
+              const _fh = new URL(_fd.finalUrl).hostname.replace(/^www\./, "").toLowerCase();
+              if (!_fh.includes(_companyBaseDomain) && !_companyBaseDomain.includes(_fh)) { console.warn(`[p2-fetch] Domain mismatch: ${_leadershipUrl} → ${_fh} — skipping`); continue; }
+            } catch { continue; }
+          }
+          if (!_P0_ROLE_RE.test(_fd.text)) { console.log(`[p2-fetch] ${_leadershipUrl} → no role language in text — skipping`); continue; }
+          console.log(`[p2-fetch] Leadership page loaded: ${_fd.finalUrl || _leadershipUrl} (${_fd.contentChars} chars${_fd.renderUsed ? ", Firecrawl-rendered" : ", plain"})`);
+          _p0Result = { ..._fd, _probeUrl: _leadershipUrl };
+          let _ev = null;
+          try { _ev = await _p0ExtractAndVerify(_p0Result); }
+          catch (_e0) { console.warn("[p2-fetch] Leadership page extraction failed:", _e0?.message); continue; }
+          console.log(`[p2-fetch] ${_ev.verified.length} exec(s) page-verified on ${_leadershipUrl} (target ${_P0_TARGET_EXECS})`);
+          if (_ev.verified.length > (_p0Best?.verified?.length || 0)) _p0Best = { ..._ev, pageUrl: _p0Result.finalUrl || _leadershipUrl };
+          if (_ev.verified.length >= _P0_TARGET_EXECS) break;
+        } catch (_fe) { console.warn(`[p2-fetch] Fetch failed for ${_leadershipUrl}:`, _fe?.message); }
       }
+
+      if (_p0Best?.verified?.length) {
+        console.log(`[p2-fetch] Phase 0: ${_p0Best.verified.length} exec(s) verified from ${_p0Best.pageUrl}${_p0Best.verified.length < _P0_TARGET_EXECS ? " (below target — best candidate kept)" : ""} — skipping web search`);
+        return {
+          keyExecutives: _p0Best.verified,
+          sellerSnapshot: `${sellerUrl} provides solutions relevant to ${co}'s market.`,
+          companyIdentity: _p0Best.companyIdentity,
+        };
+      }
+      console.log(`[p2-fetch] Phase 0 complete: no candidate produced page-verified execs for ${_companyBaseDomain} — falling through to web search`);
     }
 
     try {
