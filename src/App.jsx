@@ -2356,7 +2356,8 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
 
         // Parse model's JSON recommendation
         const _srText = (_urlSearchResp?.content || []).filter(b => b.type === "text").map(b => b.text).join("");
-        const _urlJson = safeParseJSON(_srText.includes("{") ? _srText.slice(_srText.indexOf("{")) : _srText);
+        const _urlJson = extractJsonWithKey(_srText, "urls")
+                     || safeParseJSON(_srText.includes("{") ? _srText.slice(_srText.indexOf("{")) : _srText);
         if (_urlJson?.urls?.length) {
           for (const u of _urlJson.urls) {
             try {
