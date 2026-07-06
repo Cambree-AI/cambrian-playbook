@@ -3420,6 +3420,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       }
       // ── BACKFILL: If P1 left revenue/HQ empty, extract from P9's richer estimates ──
       // SKIP if P9 was contaminated (r9 nulled above)
+      let _revBackfilledFromP9 = false;
       if (r9 && (!next.revenue || !next.revenue.trim())) {
         const rt = r9.financialDeepDive.revenueTrend || "";
         // Extract the dollar estimate: "$3-6M", "$3-6 million", "~$4.5M", etc.
@@ -3428,24 +3429,39 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
                          || rt.match(/([\$~]\s*[\d.,]+\s*(?:million|M|billion|B))/i);
         if (dollarMatch) {
           next.revenue = `${dollarMatch[1].trim()} (estimated)`;
+          _revBackfilledFromP9 = true;
           console.log(`[backfill] Revenue filled from P9: ${next.revenue}`);
         }
       }
-      // Revenue RECONCILIATION — if P1 has a sub-metric and P9 has total, P9 wins.
-      // SKIP if P9 was contaminated (r9 nulled above)
-      if (r9 && next.revenue && r9.financialDeepDive?.revenueTrend) {
+      // Revenue RECONCILIATION — if P1 has a sub-metric and P9 has total revenue, P9 wins.
+      // SKIP if: P9 contaminated (r9 null) | revenue was just backfilled from P9 (self-reconciliation)
+      if (r9 && !_revBackfilledFromP9 && next.revenue && r9.financialDeepDive?.revenueTrend) {
         const p1Value = parseFloat(String(next.revenue).replace(/[^0-9.]/g, "")) * (/B/i.test(next.revenue) ? 1e9 : /M/i.test(next.revenue) ? 1e6 : 1);
         const p9Text = r9.financialDeepDive.revenueTrend;
-        const p9Figures = [...p9Text.matchAll(/([\$])([\d.,]+)\s*(billion|million|B|M)/gi)].map(m => {
-          const num = parseFloat(m[2].replace(/,/g, ""));
-          const mult = /billion|B/i.test(m[3]) ? 1e9 : 1e6;
-          return { value: num * mult, num, isBillion: /billion|B/i.test(m[3]) };
-        }).filter(f => f.value > 0);
+        // Context gate: skip figures preceded by market/TAM/industry/volume context — not company revenue
+        const _revContextGate = (matchIndex, text) => {
+          const before = text.slice(Math.max(0, matchIndex - 80), matchIndex).toLowerCase();
+          return /\b(market|industry|sector|tam|total addressable|addressable|segment|volume|opportunity|valuation|valued at|worth|transactions?)\b/.test(before);
+        };
+        const p9Figures = [...p9Text.matchAll(/([\$])([\d.,]+)\s*(billion|million|B|M)/gi)]
+          .filter(m => !_revContextGate(m.index, p9Text))
+          .map(m => {
+            const num = parseFloat(m[2].replace(/,/g, ""));
+            const mult = /billion|B/i.test(m[3]) ? 1e9 : 1e6;
+            return { value: num * mult, num, isBillion: /billion|B/i.test(m[3]) };
+          }).filter(f => f.value > 0);
         const largest = p9Figures.sort((a, b) => b.value - a.value)[0];
         if (largest && p1Value > 0 && largest.value > p1Value * 2) {
-          const display = largest.isBillion ? `$${largest.num.toFixed(1)}B` : `$${Math.round(largest.num)}M`;
-          console.warn(`[mergeDeepIntel] Revenue reconciled: P1="${next.revenue}" → "${display}" (P9 total is ${(largest.value/p1Value).toFixed(1)}x larger)`);
-          next.revenue = display;
+          const ratio = largest.value / p1Value;
+          if (ratio > 8) {
+            // Beyond 8x sanity bound — implausible override; keep P1, flag conflict
+            next._revenueConflict = { p1: next.revenue, p9: largest.isBillion ? `$${largest.num.toFixed(1)}B` : `$${Math.round(largest.num)}M`, ratio: ratio.toFixed(1) };
+            console.warn(`[mergeDeepIntel] Revenue conflict beyond 8x sanity — keeping P1="${next.revenue}", P9="${next._revenueConflict.p9}" (${ratio.toFixed(1)}x)`);
+          } else {
+            const display = largest.isBillion ? `$${largest.num.toFixed(1)}B` : `$${Math.round(largest.num)}M`;
+            console.warn(`[mergeDeepIntel] Revenue reconciled: P1="${next.revenue}" → "${display}" (P9 total is ${ratio.toFixed(1)}x larger)`);
+            next.revenue = display;
+          }
         }
       }
       if (!next.headquarters || !next.headquarters.trim()) {
