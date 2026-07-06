@@ -2382,7 +2382,16 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         // Paginated indexes (?page=) are never a roster — drop them outright.
         const _P0_ROSTER_PATH_RE = /\/(leadership|leadership-team|executive-team|management-team|our-leaders|team|about(?:-us)?(?:\/(?:leadership|team|executives))?|company\/(?:leadership|team))(?:\/|$|\?)/i;
         const _P0_NOISE_PATH_RE = /\/(press|news(?:room)?|articles?|insights?|blog|podcasts?|events?|resources?)(?:\/|$|\?)/i;
-        const _p0PathScore = (u) => { try { const _pp = new URL(u).pathname; if (_P0_ROSTER_PATH_RE.test(_pp)) return 0; if (_P0_NOISE_PATH_RE.test(_pp)) return 2; return 1; } catch { return 2; } };
+        // Exec-appointment press releases are often the ONLY authoritative C-suite source for
+        // companies with no /leadership roster (OC Tanner: /press/o-c-tanner-elevates-scott-sperry-to-ceo).
+        // Rank them above generic pages (research reports, careers) — still below true rosters.
+        const _P0_EXEC_PRESS_RE = /(appoint|elevat|promot|welcom|joins?-|names?-|new-(?:ceo|cfo|coo|cto|cro|chro|president)|(?:^|-)ceo(?:-|\b)|chief-|-president)/i;
+        const _p0PathScore = (u) => { try {
+          const _pp = new URL(u).pathname;
+          if (_P0_ROSTER_PATH_RE.test(_pp)) return 0;
+          if (_P0_NOISE_PATH_RE.test(_pp)) return _P0_EXEC_PRESS_RE.test(_pp) ? 0.75 : 2;
+          return 1;
+        } catch { return 2; } };
         _candidateUrls = _candidateUrls
           .filter(u => !/[?&]page=/i.test(u))
           .sort((a, b) => _p0PathScore(a) - _p0PathScore(b))
