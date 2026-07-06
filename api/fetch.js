@@ -413,9 +413,18 @@ export default async function handler(req, res) {
   //   2. Stage 1 failed (fetch_failed / timeout / non_html) — bot protection blocks our
   //      server IP entirely; Firecrawl routes through a browser fingerprint that passes.
   //      Bot-protected sites ALWAYS fail Stage 1 — failure must trigger render, not bail.
-  const shouldEscalate = render !== 'never' && (
+  // Definitive miss: the origin answered and said the path does not exist.
+  // Bot protection presents as 403 / timeout / TLS refusal — never a clean 404/410 —
+  // so rendering a 404 will not conjure content. Skipping Firecrawl here keeps the
+  // Phase-0 direct-probe candidates (/leadership, /team, …) near-free on misses.
+  const definitiveMiss = !stage1Ok
+    && fetchResult.reason === 'fetch_failed'
+    && /^HTTP (404|410)$/.test(fetchResult.detail || '');
+  if (definitiveMiss) console.log(`[/api/fetch] Stage 1 ${fetchResult.detail} — definitive miss, skipping render escalation for ${rawUrl}`);
+
+  const shouldEscalate = render !== 'never' && !definitiveMiss && (
     render === 'always' ||
-    !stage1Ok ||                                          // ← NEW: hard Stage-1 failure
+    !stage1Ok ||                                          // hard Stage-1 failure (bot protection)
     (stage1Ok && isThin(stage1Text, stage1Html))          // existing: thin-but-ok
   );
 
