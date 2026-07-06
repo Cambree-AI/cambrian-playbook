@@ -9249,6 +9249,14 @@ Return ONLY raw JSON:
                 ];
                 const cachedBriefData = { ...cd, _generatedAt: new Date(cached[0].created_at).getTime(), _cached: true, _loadingSections: loadingFlags, _failedSections: [], _error: null, _completedSections: initialCompletedSections };
                 setBrief(cachedBriefData);
+                // Apply cached companyIdentity.officialName — Phase 0 is skipped on cache hits,
+                // so without this the display name stays as the raw typed casing ("oc tanner").
+                const _ci = cachedBriefData?.companyIdentity;
+                if (_ci?.officialName && member.company_url && _ci.officialName !== member.company) {
+                  setSelectedAccount(sa => sa && sa.company_url === member.company_url && sa.company !== _ci.officialName
+                    ? { ...sa, company: _ci.officialName } : sa);
+                  console.log(`[p0-identity] (cache) Canonical name: "${member.company}" → "${_ci.officialName}"`);
+                }
                 setBriefLoading(false);
                 setBriefStatus("");
 
