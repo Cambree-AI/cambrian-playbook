@@ -11390,7 +11390,9 @@ Return ONLY raw JSON:
       `"emailBody":"Follow-up email — professional, references ONLY things that were actually discussed (from the captured data above). If discovery was sparse, keep the email short and generic rather than inventing specific details. Clear CTA."}`;
 
     // Stream post-call so user sees deal route appear first
-    const result = await streamAI(postCallPrompt, (partial) => {
+    let result = null;
+    try {
+      result = await streamAI(postCallPrompt, (partial) => {
       try {
         const last = partial.lastIndexOf('}');
         if (last > 0) {
@@ -11399,6 +11401,7 @@ Return ONLY raw JSON:
         }
       } catch { /* partial JSON */ }
     }, 3500);
+    } catch (e) { console.warn("[postCall] stream failed — showing fallback:", e.message); }
 
     const postCallResult = result||{callSummary:"Unable to generate synthesis. Review your discovery notes and try again.",riverScorecard:{reality:"",impact:"",vision:"",entryPoints:"",route:""},dealRoute:"NURTURE",dealRouteReason:"Insufficient data captured to route definitively.",dealRisk:"Incomplete discovery",nextSteps:["Schedule follow-up call","Share relevant case study","Confirm economic buyer"],crmNote:"Call completed. Review notes for next steps.",emailSubject:"Following up — "+(selectedAccount?.company||""),emailBody:"Hi,\n\nThank you for your time today. I'll follow up with next steps shortly.\n\nBest,"};
     setPostCall(postCallResult);
