@@ -1479,7 +1479,7 @@ function repairJSON(s) {
 
 // buildPlayPrompt: assembles the identity-anchored, extractive synthesis prompt.
 // Pure function — no side effects, unit-testable.
-function buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore) {
+function buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore, solutionFit = null) {
   const trunc = (v, n) => (typeof v === "string" ? v : (JSON.stringify(v) || "")).slice(0, n);
   const sf = (s) => sanitizeForPrompt(s || "");
   const seller    = sf(sellerICP?.sellerName || sellerICP?.sellerUrl || "");
@@ -1515,6 +1515,12 @@ function buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore
   const p5 = `${(brief?.recentSignals || []).join(" · ")} · ${brief?.recentHeadlines||""} · ${brief?.growthSignals||""} · sentiment:${brief?.publicSentiment?.sentimentSummary||""}`.slice(0, 2000);
   const p3 = brief?.strategicTheme ? `${brief.strategicTheme} · ${brief.openingAngle||""} · ${brief.sellerOpportunity||""}`.slice(0, 1500) : null;
   const fitLabel  = fitScore ? `${fitScore.label} · ${fitScore.score}%` : "Not scored";
+  // A1 (HANDOFF_12): SA recommendation — SOFT input. Included ONLY when the SA produced a real
+  // recommendation with a lead product. Failure stubs carry an error saRecommendation with
+  // empty/absent confirmedSolutions, so this guard excludes them.
+  const saLead = sf(trunc(solutionFit?.confirmedSolutions?.[0]?.product || "", 120));
+  const saRec  = sf(trunc(solutionFit?.saRecommendation || "", 600));
+  const sa = (saRec && saLead) ? `LEAD PRODUCT: ${saLead}\nRECOMMENDATION: ${saRec}` : null;
   const bar = "═".repeat(55);
   return `${bar}
 You are building a sales play for ONE specific session.
@@ -1535,7 +1541,7 @@ ${p2}
 ${p4}
 [P5: LIVE SIGNALS]
 ${p5}
-${p3 ? `[P3: STRATEGY]\n${p3}\n` : ""}[ICP: SELLER CONTEXT]
+${p3 ? `[P3: STRATEGY]\n${p3}\n` : ""}${sa ? `[SA: SOLUTION ARCHITECT RECOMMENDATION]\n${sa}\n` : ""}[ICP: SELLER CONTEXT]
 ${sellerDesc} · products:${catalog} · customers:${customers}
 
 TASK: Build The Play for ${seller} selling into ${sf(targetCompany)}. Output valid JSON only.
@@ -8605,7 +8611,7 @@ Return ONLY raw JSON:
     const fitScore      = fitScores[targetCompany] || null;
     setTrackingContext(targetCompany, sellerUrl, "play-synthesis");
     try {
-      const prompt = buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore);
+      const prompt = buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore, solutionFit);
       const playSystem = PLAY_SYSTEM + "\n" + ANTI_HALLUCINATION_SYSTEM;
       let parsed = await callAI(prompt, { maxTokens: 1200, model: SONNET, system: playSystem });
       if (!parsed) {
