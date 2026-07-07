@@ -11268,7 +11268,9 @@ Return ONLY raw JSON:
           : `"saRecommendation":"Senior SA perspective: given everything we know, what is the single most important thing to get right in the proposal to win this deal?"}`);
 
     // Stream solution fit for progressive rendering — increased token budget for complex JSON
-    const result = await streamAI(prompt, (partial) => {
+    let result = null;
+    try {
+      result = await streamAI(prompt, (partial) => {
       try {
         const last = partial.lastIndexOf('}');
         if (last > 0) {
@@ -11277,6 +11279,7 @@ Return ONLY raw JSON:
         }
       } catch { /* partial JSON */ }
     }, 4500);
+    } catch (e) { console.warn("[solutionFit] stream failed — showing fallback:", e.message); }
 
     if (result) {
       if (isPreCall) console.log(`[PerformanceWatch K] pre-call SA: ${Date.now()-tStart}ms target:${selectedAccount?.company}`);
