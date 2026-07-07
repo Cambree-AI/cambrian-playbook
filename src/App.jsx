@@ -8715,7 +8715,7 @@ Return ONLY raw JSON:
       if (flagVal !== "shadow") setPlayState("building");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [briefLoading, !!brief, sellerUrl, !!sellerICP, selectedAccount?.company]);
+  }, [briefLoading, !!brief, sellerUrl, !!sellerICP, selectedAccount?.company, lastBriefTime]);
 
   // Phase 2: Fire buildThePlay() when overview + solutions + signals are present.
   //          saRecommendation is SOFT: logged for observability, never blocks the build.
