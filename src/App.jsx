@@ -8747,6 +8747,25 @@ Return ONLY raw JSON:
     playState,
   ]);
 
+  // Phase 2b (C2.4): if the Play already built but the authoritative solutions/buyerRole
+  // have since been REPLACED by a fresher generation (cache backfill or Full Rebuild),
+  // rebuild the Play once on the corrected data. Self-limiting: fires only when the
+  // signature genuinely changes, and re-stamps on rebuild, so it cannot loop.
+  // Bitter-Lesson-safe — no timers, no gates; a pure input-changed → rebuild-once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!playBuiltRef.current || playState === "building") return;
+    if (!sellerUrl || sellerUrl === "research-only") return;
+    const freshSig = _playInputSig(brief);
+    if (!freshSig) return; // no valid buyerRole yet — never blank a good Play
+    if (freshSig === playBuiltFromSigRef.current) return; // unchanged — nothing to do
+    console.log(`[ThePlay] Solutions superseded — rebuilding. was:${playBuiltFromSigRef.current} now:${freshSig}`);
+    playBuiltRef.current = false;
+    setThePlay(null);
+    setPlayState("building"); // Phase 2 re-fires buildThePlay() on the fresh solutions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [brief?.solutionMapping?.length, brief?._completedSections?.length, playState]);
+
   // Weak-inputs detector — data-driven, NOT time-driven.
   // Fires when all required sections have genuinely resolved (via their merge callbacks) AND
   // the required data fields are still empty/sparse. Sections timeout-cleared by the brief's
