@@ -5119,14 +5119,14 @@ export default function App(){
     setCohorts([]); setRows([]); setSelectedAccount(null); setPostCall(null);
     setSolutionFit(null); setNotes(''); setGateAnswers({}); setRiverData({});
     setIcpEdits([]); setUserEdits([]);
-    playBuiltRef.current = false; solutionFitBuiltRef.current = false;
+    playBuiltRef.current = false; playBuiltFromSigRef.current = null; solutionFitBuiltRef.current = false;
     setStep(0);
   };
   const clearAccount = () => {
     setSelectedAccount(null); setBrief(null); setRiverHypo(null); setPostCall(null);
     setSolutionFit(null); setNotes(''); setGateAnswers({}); setRiverData({});
     setContactRole(''); setSelectedOutcomes([]);
-    setThePlay(null); setPlayState("idle"); playBuiltRef.current = false; solutionFitBuiltRef.current = false;
+    setThePlay(null); setPlayState("idle"); playBuiltRef.current = false; playBuiltFromSigRef.current = null; solutionFitBuiltRef.current = false;
     setStep(3);
   };
   const lastSaved = () => null; // reserved for future use
@@ -5369,6 +5369,7 @@ export default function App(){
   const[thePlay,setThePlay]=useState(null);
   const[playState,setPlayState]=useState("idle");
   const playBuiltRef=useRef(false); // prevents double-fire per account
+  const playBuiltFromSigRef = useRef(null); // buyerRole signature the Play last built from (C2.4: detect superseded solutions)
   const solutionFitBuiltRef=useRef(false); // prevents double-fire of pre-call SA (solConEnabled path only)
   // ── SOLUTION CONSOLIDATION FEATURE FLAG ─────────────────────────────────────
   // cc_sol_consolidation: "on" | "off" (default "off")
@@ -8576,6 +8577,16 @@ Return ONLY raw JSON:
   // ── THE PLAY — synthesis pass (v2-staging) ───────────────────────────────
   // Fires only after Phase 2 trigger confirms all required data is present.
   // Two terminal states: "full" (play shown) or "unavailable" (silent — no card shown).
+  // C2.4: signature of the Play's authoritative input (solutionMapping buyerRoles).
+  // Empty/"(not specified)" buyerRoles are ignored so a late/blank solutions section
+  // never counts as a "change" that would blank a good Play.
+  const _playInputSig = (b) => {
+    const roles = (b?.solutionMapping || [])
+      .map(s => (s?.buyerRole || "").trim().toLowerCase())
+      .filter(r => r && r !== "(not specified)");
+    return roles.length ? roles.join("|") : null;
+  };
+
   // "building" is set by Phase 1 trigger; "weak-inputs" by the 150s timeout.
   // Feature flag: localStorage "cc_play_synthesis" = "on" (default) | "off" | "shadow"
   const buildThePlay = async () => {
@@ -8620,7 +8631,8 @@ Return ONLY raw JSON:
       }
       setThePlay(validated);
       setPlayState(validatedState || "full");
-      console.log(`[ThePlay] Built — state:${validatedState || "full"} target:${targetCompany}`);
+      playBuiltFromSigRef.current = _playInputSig(brief);
+      console.log(`[ThePlay] Built — state:${validatedState || "full"} target:${targetCompany} buyerSig:${playBuiltFromSigRef.current}`);
     } catch (e) {
       console.warn("[ThePlay] Build error:", e.message);
       if (flagVal !== "shadow") setPlayState("unavailable");
@@ -9179,7 +9191,7 @@ Return ONLY raw JSON:
     setBriefError("");
     setBriefStatus("Researching " + member.company + "...");
     setBrief(null);
-    setThePlay(null); setPlayState("idle"); playBuiltRef.current = false; solutionFitBuiltRef.current = false;
+    setThePlay(null); setPlayState("idle"); playBuiltRef.current = false; playBuiltFromSigRef.current = null; solutionFitBuiltRef.current = false;
     setGateAnswers({}); setGateNotes({}); setRiverData({}); setDiscoveryQs(null);
     setRiverHypo(null); setSolutionFit(null); setActiveRiver(0);
     setDealValue(""); setDealClassification(""); setNotes(""); setPostCall(null);
@@ -18013,7 +18025,7 @@ Return ONLY raw JSON:
             onExport={doExport}
             onCSV={()=>csvExport("Solution-Fit", solutionFit)}
             onNext={()=>{runPostCall();setStep(9);}}
-            onNextAccount={()=>{setStep(3);setSelectedAccount(null);setGateAnswers({});setRiverData({});setPostCall(null);setSolutionFit(null);setBrief(null);setNotes("");setContactRole("");playBuiltRef.current=false;solutionFitBuiltRef.current=false;}}
+            onNextAccount={()=>{setStep(3);setSelectedAccount(null);setGateAnswers({});setRiverData({});setPostCall(null);setSolutionFit(null);setBrief(null);setNotes("");setContactRole("");playBuiltRef.current=false;playBuiltFromSigRef.current=null;solutionFitBuiltRef.current=false;}}
           />
         )}
 
@@ -18175,7 +18187,7 @@ Return ONLY raw JSON:
                   {(postLoading || postCall?.dealRoute==="Unknown" || postCall?.callSummary?.includes("failed")) && (
                   <button className="btn btn-gold" disabled={postLoading} onClick={()=>{const go=()=>{setPostCall(null);setPostLoading(true);setTimeout(runPostCall,100);};if(!checkNoChange("postCall",getPostCallSig,go))go();}}>{postLoading ? "⏳ Regenerating..." : "↻ Regenerate"}</button>
                   )}
-                  <button className="btn btn-primary" onClick={()=>{setStep(3);setSelectedAccount(null);setGateAnswers({});setRiverData({});setPostCall(null);setSolutionFit(null);setBrief(null);setNotes("");setContactRole("");playBuiltRef.current=false;solutionFitBuiltRef.current=false;}}>New Account</button>
+                  <button className="btn btn-primary" onClick={()=>{setStep(3);setSelectedAccount(null);setGateAnswers({});setRiverData({});setPostCall(null);setSolutionFit(null);setBrief(null);setNotes("");setContactRole("");playBuiltRef.current=false;playBuiltFromSigRef.current=null;solutionFitBuiltRef.current=false;}}>New Account</button>
                   <button className="btn btn-secondary" onClick={()=>{setStep(2);setCohorts([]);setSelectedCohort(null);setSelectedOutcomes([]);setSelectedAccount(null);setGateAnswers({});setRiverData({});setPostCall(null);setSolutionFit(null);setBrief(null);setNotes("");setRows([]);setHeaders([]);setFileName("");clearSession();}}>New Dataset</button>
                 </div>
               </>
