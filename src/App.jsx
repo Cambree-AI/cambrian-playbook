@@ -9172,6 +9172,7 @@ Return ONLY raw JSON:
     // Clear account docs only when switching to a different company (not on regenerate)
     if (selectedAccount?.company !== member.company) setAccountDocs([]);
     setSelectedAccount(member);
+    console.log(`[pickAccount] company=${member.company} forceRebuild=${forceRebuild} quickBrief=${(overrideSellerUrl === "research-only") || (sellerUrl === "research-only")}`);
     logJourney("account_selected", { company: (member.company || "").slice(0, 200), industry: (member.ind || member.industry || "").slice(0, 100), fit_score: member.fitScore ?? member.fit_score ?? null });
     setBriefLoading(true);
     setLastBriefTime(Date.now());
