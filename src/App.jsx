@@ -1549,7 +1549,9 @@ TASK: Build The Play for ${seller} selling into ${sf(targetCompany)}. Output val
 ENTRY STRATEGY — determine the buying center FIRST, then pick the door:
 
 STEP 0 — Buying center (authoritative source: [P4] BUYER ROLE):
-Pick the ONE [P4] solution you are leading with — that is your topProduct. Its BUYER ROLE field is the
+${sa ? `The [SA] LEAD PRODUCT is the single source of truth for what to lead with: your topProduct MUST be
+that product, and your lead [P4] solution is the [P4] entry whose PRODUCT matches it. Do NOT pick a
+different lead solution when [SA] is present.` : `Pick the ONE [P4] solution you are leading with — that is your topProduct.`} Its BUYER ROLE field is the
 authoritative answer for who buys this at ${sf(targetCompany)}: use that exact function as the target buying
 center. Explain WHY in plain sales language — what that function owns and why the decision lands on their desk.
 Do NOT override the BUYER ROLE with a generic product-to-function rule or your own reclassification.
@@ -1576,7 +1578,7 @@ OUTPUT SCHEMA:
   "elevatorPitch": "3-4 sentences tailored to ${sf(targetCompany)}. May cite a verified customer from [ICP]. No capabilities not in [ICP].",
   "draftEmailSubject": "One line, specific to ${sf(targetCompany)}.",
   "draftEmailBody": "4-6 sentences: credibility → ${sf(targetCompany)} pain → low-friction ask.",
-  "topProduct": "Product name from a [P4] PRODUCT field / [ICP] only — exact match.",
+  "topProduct": "${sa ? `MUST be the [SA] LEAD PRODUCT — exact match to its [P4] PRODUCT / [ICP] name.` : `Product name from a [P4] PRODUCT field / [ICP] only — exact match.`}",
   "keySignal": "Single most important [P5] signal making this timely — one sentence.",
   "sectionSources": { "situation": ["P1","P5"], "whyNow": ["P4","P5"], "yourMove": ["P2"], "elevatorPitch": ["P4","ICP"], "primaryContact": ["P2"] }
 }`;
