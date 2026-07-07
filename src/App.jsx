@@ -10903,7 +10903,9 @@ Return ONLY raw JSON:
 
     // Stream hypothesis for progressive rendering — user sees talk tracks
     // fill in as they arrive instead of a 10-15 second blank wait.
-    const result = await streamAI(prompt, (partial) => {
+    let result = null;
+    try {
+      result = await streamAI(prompt, (partial) => {
       try {
         // Try to parse partial JSON for progressive display
         const last = partial.lastIndexOf('}');
@@ -10914,6 +10916,7 @@ Return ONLY raw JSON:
         }
       } catch { /* partial JSON not parseable yet — wait for more */ }
     }, 3000);
+    } catch (e) { console.warn("[riverHypo] stream failed — showing fallback:", e.message); }
 
     if(result){
       setRiverHypo(normalizeRiverHypo(result));
