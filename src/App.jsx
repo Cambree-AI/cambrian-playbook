@@ -8614,6 +8614,10 @@ Return ONLY raw JSON:
     // Double-fire guard
     if (playBuiltRef.current) return;
     playBuiltRef.current = true;
+    // C2.4 loop-guard: stamp the input signature we're ATTEMPTING (success OR fail) so the
+    // "solutions superseded" effect can't re-fire on the same solutions when a build fails
+    // validation — otherwise a repeatedly-suppressed Play (e.g. Check 1) rebuilds forever.
+    playBuiltFromSigRef.current = _playInputSig(brief);
     const targetCompany = selectedAccount.company;
     const targetDomain  = selectedAccount.company_url || ""; // may be empty; validatePlay Check 1 uses domainCore fallback
     const fitScore      = fitScores[targetCompany] || null;
