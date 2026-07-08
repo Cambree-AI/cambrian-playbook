@@ -1141,12 +1141,20 @@ async function claudeFetch(body, { retries = 3, extraHeaders = {} } = {}) {
         window.dispatchEvent(new CustomEvent("usage-limit-exceeded", { detail: d }));
         return d;
       }
-      // Log ALL non-200 responses so we can see guard rejections
+      // Read the body ONCE as text, then parse. A Vercel gateway timeout (504) returns an HTML
+      // page, not JSON; calling r.json() on it throws → the catch below used to retry the full
+      // ~110s call up to 3× (the 328s "retry storm"). Guard the parse; don't retry non-JSON.
+      const _bodyText = await r.text().catch(() => "");
       if (!r.ok) {
-        const errText = await r.clone().text().catch(() => "");
-        console.error(`[claudeFetch] HTTP ${r.status} for model=${body.model}:`, errText.slice(0, 500));
+        console.error(`[claudeFetch] HTTP ${r.status} for model=${body.model}:`, _bodyText.slice(0, 500));
       }
-      const d = stripCitations(await r.json());
+      let d;
+      try {
+        d = stripCitations(JSON.parse(_bodyText));
+      } catch {
+        console.warn(`[claude] non-JSON response (HTTP ${r.status}) — gateway timeout/error, not retrying`);
+        return { error: { type: "unavailable", message: "Even the best need a breather. Our AI engine is recharging — try again in a moment." } };
+      }
       if (d?.error) {
         const t = d.error.type;
         const isOverload = t === "overloaded_error" || r.status === 529;
