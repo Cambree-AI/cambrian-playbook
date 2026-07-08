@@ -5413,7 +5413,7 @@ export default function App(){
   const playBuiltFromSigRef = useRef(null); // buyerRole signature the Play last built from (C2.4: detect superseded solutions)
   const solutionFitBuiltRef=useRef(false); // prevents double-fire of pre-call SA (solConEnabled path only)
   // ── SOLUTION CONSOLIDATION FEATURE FLAG ─────────────────────────────────────
-  // cc_sol_consolidation: "on" | "off" (default "off")
+  // cc_sol_consolidation: "on" | "off" (default "on" — the validated v2 flow)
   // When "on": Step 6 = merged "Solution Architecture & Strategy" stage
   //   (architecture-forward: SA cards → RIVER hypothesis, one scroll).
   //   Step 7 "End Call →" routes back to Step 6.
@@ -5421,7 +5421,7 @@ export default function App(){
   //   Renumbering 10→8 is deferred to build step 7 of HANDOFF_02.
   // Canonical Solution Thesis = { riverHypo, solutionFit } — both already
   //   persisted in getSessionSnap(); no new state needed.
-  const solConEnabled = (() => { try { return localStorage.getItem("cc_sol_consolidation") === "on"; } catch { return false; } })();
+  const solConEnabled = (() => { try { return localStorage.getItem("cc_sol_consolidation") !== "off"; } catch { return true; } })();
   const[briefStatus,setBriefStatus]=useState("");
   const[briefError,setBriefError]=useState("");
   const[riverHypo,setRiverHypo]=useState(null);
