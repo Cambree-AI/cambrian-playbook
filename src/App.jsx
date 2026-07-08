@@ -10120,6 +10120,23 @@ Return ONLY raw JSON:
             }
           }
 
+          // ── RANGE / MODELING-ESTIMATE GUARD (M-P3) ──────────────────────
+          // One end of a range ("$1B–$10B") or a hedged modeling estimate is NOT
+          // a point total and must never win reconciliation. A dollar magnitude is
+          // required on the right side so growth rates / years ("$5.2B and 12%",
+          // "$85B in 2025") are NOT mistaken for a range. Growth phrasing
+          // ("grew from $60B to $66B") is exempt — the right figure is the total.
+          const _isRangeOrModeledFigure = (text, idx, len) => {
+            const before = text.slice(Math.max(0, idx - 70), idx);
+            const after = text.slice(idx + len, idx + len + 24);
+            const growth = /\bfrom\s*$/i.test(before)
+              || /\bfrom\s+\$[\d.,]+\s*(?:billion|million|[BM])?\s*(?:to|[-–—])\s*$/i.test(before);
+            if (!growth && /^\s*(?:[-–—]|to\b|and\b)\s*[~$]?\s*\d[\d.,]*\s*(?:billion|million|[BM]\b)/i.test(after)) return true;
+            if (!growth && /\$[\d.,]+\s*(?:billion|million|[BM])?\s*(?:[-–—]|to\b|and\b)\s*$/i.test(before)) return true;
+            if (/\b(?:range of|ranging|between|up to|as (?:high|much) as|could (?:reach|be))\s*[~$]*\s*$/i.test(before)) return true;
+            return false;
+          };
+
           // Revenue reconciliation: P9 financials are web-searched and higher trust than P1 overview.
           // For PUBLIC companies, P9 uses SEC filings (10-K) — authoritative source.
           // If P1 shows a sub-metric (net fee revenue, subscription revenue) and P9 shows total, P9 wins.
@@ -10127,7 +10144,9 @@ Return ONLY raw JSON:
             const overviewRev = parseFloat(current.revenue.replace(/[^0-9.]/g, "")) || 0;
             const p9Text = current.financialDeepDive.revenueTrend;
             // Extract all dollar figures from P9 and find the largest (likely total revenue)
-            const p9Figures = [...p9Text.matchAll(/([\$])([\d.,]+)\s*(billion|million|B|M)/gi)].map(m => {
+            const p9Figures = [...p9Text.matchAll(/([\$])([\d.,]+)\s*(billion|million|B|M)/gi)]
+              .filter(m => !_isRangeOrModeledFigure(p9Text, m.index, m[0].length))
+              .map(m => {
               const num = parseFloat(m[2].replace(/,/g, ""));
               const mult = /billion|B/i.test(m[3]) ? 1e9 : 1e6;
               return { raw: m[0], value: num * mult, display: `$${m[2]}${/billion|B/i.test(m[3]) ? "B" : "M"}` };
@@ -10135,13 +10154,16 @@ Return ONLY raw JSON:
             const largest = p9Figures.sort((a, b) => b.value - a.value)[0];
             if (largest) {
               const p1Value = overviewRev * (/B/i.test(current.revenue) ? 1e9 : 1e6);
-              // If P9's largest figure is >2x P1's figure, P1 likely has a sub-metric
-              if (p1Value > 0 && largest.value > p1Value * 2) {
+              // >2x → P1 likely a sub-metric; reject an un-corroborated >8x jump
+              // (mirrors mergeDeepIntel's 8x bound) — implausible as sub-metric-vs-total.
+              if (p1Value > 0 && largest.value > p1Value * 2 && largest.value <= p1Value * 8) {
                 console.warn(`[consistency] Revenue reconciled: P1="${current.revenue}" (likely sub-metric) → P9="${largest.display}" (total revenue)`);
                 current.revenue = largest.display.replace(/\$(\d+),?(\d*)M/, (_, a, b) => `$${a}${b ? ","+b : ""} million`);
                 // Use cleaner format
                 if (largest.value >= 1e9) current.revenue = `$${(largest.value / 1e9).toFixed(1)}B`;
                 else current.revenue = `$${(largest.value / 1e6).toFixed(0)}M`;
+              } else if (p1Value > 0 && largest.value > p1Value * 8) {
+                console.warn(`[consistency] Revenue conflict beyond 8x — keeping P1 ("${current.revenue}") over P9 outlier ("${largest.display}")`);
               }
             }
           }
@@ -10486,6 +10508,7 @@ Return ONLY raw JSON:
               const revenueMatch = dollarMatch.find(m => {
                 const idx = p9Rev.indexOf(m);
                 const context = p9Rev.slice(Math.max(0, idx - 80), idx + m.length + 40).toLowerCase();
+                if (_isRangeOrModeledFigure(p9Rev, idx, m.length)) return false;
                 return !context.includes("volume") && !context.includes("transaction") && !context.includes("payment volume") && !context.includes("trading volume");
               });
               if (revenueMatch) {
