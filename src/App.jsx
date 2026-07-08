@@ -9092,6 +9092,7 @@ Return ONLY raw JSON:
 
   // ── APOLLO ENRICHMENT — ground briefs with verified firmographic data ────
   const enrichmentCacheRef = useRef({}); // domain → Apollo enrichment result
+  const briefGenRef = useRef(0); // 1.4: monotonic brief-generation token — bumped per pickAccount; stale async writers compare and drop
 
   async function fetchEnrichment(domain) {
     if (!domain) return null;
@@ -9238,6 +9239,7 @@ Return ONLY raw JSON:
     logJourney("account_selected", { company: (member.company || "").slice(0, 200), industry: (member.ind || member.industry || "").slice(0, 100), fit_score: member.fitScore ?? member.fit_score ?? null });
     setBriefLoading(true);
     setLastBriefTime(Date.now());
+    const myGen = ++briefGenRef.current; // 1.4: generation token — async writers below drop their write if a newer pickAccount has started
     setBriefError("");
     setBriefStatus("Researching " + member.company + "...");
     setBrief(null);
@@ -9576,6 +9578,7 @@ Return ONLY raw JSON:
 
                 // Auto-rebuild safety net: if gaps remain after 45s, trigger full rebuild
                 setTimeout(() => {
+                  if (briefGenRef.current !== myGen) return; // 1.4: stale safety net — a newer pickAccount owns the brief now
                   setBrief(current => {
                     if (!current?._cached) return current; // already rebuilt
                     const stillMissing = !current.financialDeepDive?.revenueTrend || !current.competitivePositioning?.primaryCompetitors?.length;
@@ -9699,6 +9702,7 @@ Return ONLY raw JSON:
 
     // Streaming callback — merges partial data into brief as it arrives
     const onStream = (section, partialData) => {
+      if (briefGenRef.current !== myGen) return; // 1.4: stale stream from a previous account — drop
       try {
         setBrief(prev => {
           if (!prev) return prev;
@@ -9813,6 +9817,7 @@ Return ONLY raw JSON:
     Object.entries(mergers).forEach(([name, m]) => {
       m.then(updater => {
         sectionsResolved++;
+        if (briefGenRef.current !== myGen) { console.warn(`[brief] ${name} resolved after account switch (gen ${myGen} → ${briefGenRef.current}) — stale merge dropped`); return; }
         if (typeof updater === "function") setBrief(prev => updater(prev));
         // Canonical brand name from Phase 0 leadership page (replaces the old Apollo backfill).
         // Guard: per-brief only; account must still be on this brief's domain. Seed name-keyed
@@ -9834,6 +9839,7 @@ Return ONLY raw JSON:
       }).catch(err => {
         sectionsResolved++;
         console.warn(`[brief] ${name} FAILED:`, err?.message || err);
+        if (briefGenRef.current !== myGen) return; // 1.4: stale failure — don't write an error into the new account's brief
         // Surface error to user if all sections fail
         if (sectionsResolved >= 5) {
           setBrief(prev => prev?._loadingSections && Object.values(prev._loadingSections).every(v => v)
@@ -9846,6 +9852,7 @@ Return ONLY raw JSON:
     // Hard timeout — clear ALL loading states after 90s so user is never stuck.
     // Wave stagger adds 6s before deep intel fires; each call takes 5-15s; 90s covers the full pipeline.
     setTimeout(() => {
+      if (briefGenRef.current !== myGen) return; // 1.4: stale hard-timeout — the new generation runs its own 90s timer
       setBrief(prev => {
         if (!prev) return prev;
         const pending = Object.values(prev._loadingSections || {}).filter(Boolean).length;
