@@ -16906,7 +16906,7 @@ Return ONLY raw JSON:
                       : <div style={{background:"var(--bg-1)",borderLeft:"4px solid var(--amber)",borderRadius:"0 10px 10px 0",padding:"14px 16px"}}>
                             <div style={{fontSize:13,fontWeight:600,color:"var(--ink-0)",marginBottom:6}}>Executive names not yet retrieved</div>
                             <div style={{fontSize:12,color:"var(--ink-2)",lineHeight:1.6,marginBottom:10}}>
-                              Retry to load their leadership page, or look them up before your call:
+                              We couldn't confirm their leadership from public sources yet — look them up before your call:
                             </div>
                             <div style={{fontSize:12,color:"var(--ink-1)",lineHeight:1.8}}>
                               {selectedAccount?.company_url ? (
