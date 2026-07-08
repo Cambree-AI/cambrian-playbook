@@ -8447,6 +8447,12 @@ Return ONLY raw JSON:
         // Flag brief for background re-verification (Amendment G §5)
         if (anyBlanked) restoredBrief._execNeedsVerification = true;
       }
+      // Schema-variant self-heal: old briefs stored these as plain strings; render
+      // sites expect arrays (.some/.filter/.map). Coerce at the restore boundary.
+      for (const _k of ["recentHeadlines","recentSignals","watchOuts","growthSignals"]) {
+        const _v = restoredBrief[_k];
+        if (_v !== undefined && !Array.isArray(_v)) restoredBrief[_k] = _v ? [_v] : [];
+      }
       setBrief(restoredBrief);
     }
     if(d.riverHypo) setRiverHypo(normalizeRiverHypo(d.riverHypo));
@@ -9293,6 +9299,11 @@ Return ONLY raw JSON:
                   // "live" deliberately omitted — p5 backfill appends it below when done
                 ];
                 const cachedBriefData = { ...cd, _generatedAt: new Date(cached[0].created_at).getTime(), _cached: true, _loadingSections: loadingFlags, _failedSections: [], _error: null, _completedSections: initialCompletedSections };
+                // Schema-variant self-heal: coerce string-variant fields to arrays (matches restore boundary)
+                for (const _k of ["recentHeadlines","recentSignals","watchOuts","growthSignals"]) {
+                  const _v = cachedBriefData[_k];
+                  if (_v !== undefined && !Array.isArray(_v)) cachedBriefData[_k] = _v ? [_v] : [];
+                }
                 setBrief(cachedBriefData);
                 // Apply cached companyIdentity.officialName — Phase 0 is skipped on cache hits,
                 // so without this the display name stays as the raw typed casing ("oc tanner").
