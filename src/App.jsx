@@ -9576,14 +9576,14 @@ Return ONLY raw JSON:
                   }, 1000);
                 })();
 
-                // Auto-rebuild safety net: if gaps remain after 45s, trigger full rebuild
+                // Auto-rebuild safety net: if gaps remain after 120s, trigger full rebuild
                 setTimeout(() => {
                   if (briefGenRef.current !== myGen) return; // 1.4: stale safety net — a newer pickAccount owns the brief now
                   setBrief(current => {
                     if (!current?._cached) return current; // already rebuilt
                     const stillMissing = !current.financialDeepDive?.revenueTrend || !current.competitivePositioning?.primaryCompetitors?.length;
                     if (stillMissing) {
-                      console.warn("[cache] Gaps remain after 45s — triggering automatic full rebuild");
+                      console.warn("[cache] Gaps remain after 120s — triggering automatic full rebuild");
                       pickAccount(member, null, true); // forceRebuild = true
                     } else {
                       // Clear any remaining loading flags
@@ -9593,7 +9593,7 @@ Return ONLY raw JSON:
                     }
                     return current;
                   });
-                }, 45000);
+                }, 120000);
                 return;
               } else if (ageDays < 7 && !hasCritical) {
                 console.warn(`[brief-cache] Cached brief for ${co} is incomplete (missing critical sections) — rebuilding fresh`);
