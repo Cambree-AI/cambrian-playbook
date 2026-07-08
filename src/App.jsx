@@ -10844,6 +10844,7 @@ Return ONLY raw JSON:
   const buildRiverHypo = async(briefData, member) => {
     if(!briefData) return;
     setRiverHypoLoading(true);
+    try {
     setRiverHypo(null);
 
     const co = member.company;
@@ -10970,7 +10971,11 @@ Return ONLY raw JSON:
         openingAngle:"",talkTracks:[],
       });
     }
-    setRiverHypoLoading(false);
+    } catch (e) {
+      console.warn("[riverHypo] build failed:", e?.message);
+    } finally {
+      setRiverHypoLoading(false);
+    }
   };
 
   // ── LAZY GATE MAP — fires at call prep (step 6), not during brief gen ──
@@ -11173,6 +11178,7 @@ Return ONLY raw JSON:
       // Don't block — proceed with whatever data we have (brief, notes, gate answers, discovery)
     }
     setSolutionFitLoading(true);
+    try {
     const tStart = isPreCall ? Date.now() : 0;
 
     // Check what discovery data is missing and warn the user (post-call only — not applicable pre-call)
@@ -11206,7 +11212,7 @@ Return ONLY raw JSON:
     const _sigText = s => typeof s === "string" ? s : (s?.signal || s?.text || "");
     const _hlText  = h => typeof h === "string" ? h : (h?.headline || h?.text || "");
     const fitSignals = isPreCall ? [
-      ...(brief.recentSignals||[]).map(_sigText).filter(s => s.trim()).slice(0, 5),
+      ...(Array.isArray(brief.recentSignals) ? brief.recentSignals : [brief.recentSignals || ""]).map(_sigText).filter(s => s.trim()).slice(0, 5),
       ...(Array.isArray(brief.recentHeadlines)
         ? brief.recentHeadlines.map(_hlText).filter(Boolean)
         : [brief.recentHeadlines || ""]),
@@ -11344,7 +11350,12 @@ Return ONLY raw JSON:
         saRecommendation:"The SA review could not generate results. Common causes: (1) call notes were too brief, (2) discovery fields were mostly empty, (3) the response was truncated. Add more detail to your call notes and discovery captures, then click Regenerate.",
       });
     }
-    setSolutionFitLoading(false);
+    } catch (e) {
+      console.warn("[solutionFit] build failed:", e?.message);
+      solutionFitBuiltRef.current = false; // let pre-call auto-run retry after a failed build
+    } finally {
+      setSolutionFitLoading(false);
+    }
   };
 
   const runPostCall=async()=>{
