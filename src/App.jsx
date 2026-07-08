@@ -8665,13 +8665,13 @@ Return ONLY raw JSON:
       }
       if (!parsed) {
         console.warn("[ThePlay] Parse failed after retry — no card shown");
-        if (flagVal !== "shadow") setPlayState("unavailable");
+        if (flagVal !== "shadow") setPlayState("weak-inputs");
         return;
       }
       const { play: validated, playState: validatedState } = validatePlay(parsed, targetCompany, targetDomain, brief, sellerICP);
       if (!validated) {
         console.warn("[ThePlay] Validation failed — no card shown");
-        if (flagVal !== "shadow") setPlayState("unavailable");
+        if (flagVal !== "shadow") setPlayState("weak-inputs");
         return;
       }
       // Check 8: stamp score used at build time for drift detection in render
@@ -8686,7 +8686,7 @@ Return ONLY raw JSON:
       console.log(`[ThePlay] Built — state:${validatedState || "full"} target:${targetCompany} buyerSig:${playBuiltFromSigRef.current}`);
     } catch (e) {
       console.warn("[ThePlay] Build error:", e.message);
-      if (flagVal !== "shadow") setPlayState("unavailable");
+      if (flagVal !== "shadow") setPlayState("weak-inputs");
     }
   };
 
@@ -16155,8 +16155,10 @@ Return ONLY raw JSON:
                   if (playState === "weak-inputs") return (
                     <div style={{...cardStyle,borderLeft:`3px solid ${V.mut}`}}>
                       {eyebrow}
-                      <div style={{color:V.txt,fontSize:14,fontWeight:700,marginBottom:8}}>Limited public information on {selectedAccount?.company}</div>
-                      <div style={{color:V.mut,fontSize:13,lineHeight:1.6}}>Not enough public data to build a complete play right now. This can happen with companies that have a smaller digital footprint. The research brief below has everything we found.</div>
+                      <div style={{color:V.txt,fontSize:14,fontWeight:700,marginBottom:8}}>Couldn't complete the play for {selectedAccount?.company} yet</div>
+                      <div style={{color:V.mut,fontSize:13,lineHeight:1.6}}>We couldn't assemble a full play this time — this can happen with limited public data or a transient hiccup. The research brief below has everything we found; retry, or work straight from it.</div>
+                      <button onClick={() => { playBuiltRef.current = false; setThePlay(null); setPlayState("building"); }}
+                        style={{marginTop:12,padding:"7px 16px",borderRadius:6,border:`1px solid ${V.mut}`,background:"transparent",color:V.txt,fontSize:12,fontWeight:600,cursor:"pointer"}}>↻ Retry the play</button>
                     </div>
                   );
                   if (playState === "unavailable" || !thePlay) return null;
