@@ -15988,7 +15988,7 @@ Return ONLY raw JSON:
 
         {/* ── STEP 5: RESEARCH BRIEF ── */}
         {step===5&&(
-          <div className="page">
+          <ErrorBoundary><div className="page">
             {/* Brief header with logos */}
             <div className="page-hero" style={{display:"flex",alignItems:"center",gap:16,marginBottom:6}}>
               {sellerUrl !== "research-only" && <>
@@ -17574,7 +17574,7 @@ Return ONLY raw JSON:
                 <button className="btn btn-secondary btn-sm" onClick={()=>setStep(4)}>← Select Company</button>
               </div>
             )}
-          </div>
+          </div></ErrorBoundary>
         )}
 
         {/* ── STEP 6: CALL PREP ── */}
@@ -17820,7 +17820,7 @@ Return ONLY raw JSON:
 
         {/* ── STEP 7: LIVE CALL ── */}
         {step===7&&(
-          <div className="incall-wrap">
+          <ErrorBoundary><div className="incall-wrap">
 
             {/* Header */}
             <div className="incall-header">
@@ -18076,12 +18076,12 @@ Return ONLY raw JSON:
                 {postLoading ? "Routing..." : "End Call & Route Deal →"}
               </button>
             </div>
-          </div>
+          </div></ErrorBoundary>
         )}
 
         {/* ── STEP 8: SOLUTION FIT REVIEW ── */}
         {step===8&&(
-          <S9SolutionFit
+          <ErrorBoundary><S9SolutionFit
             solutionFit={solutionFit}
             solutionFitLoading={solutionFitLoading}
             selectedAccount={selectedAccount}
@@ -18092,12 +18092,12 @@ Return ONLY raw JSON:
             onCSV={()=>csvExport("Solution-Fit", solutionFit)}
             onNext={()=>{runPostCall();setStep(9);}}
             onNextAccount={()=>{setStep(3);setSelectedAccount(null);setGateAnswers({});setRiverData({});setPostCall(null);setSolutionFit(null);setBrief(null);setNotes("");setContactRole("");playBuiltRef.current=false;playBuiltFromSigRef.current=null;solutionFitBuiltRef.current=false;}}
-          />
+          /></ErrorBoundary>
         )}
 
         {/* ── STEP 9: POST-CALL ── */}
         {step===9&&(
-          <div className="page">
+          <ErrorBoundary><div className="page">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:8}}>
               <div>
                 <div className="page-title">Post-Call Route</div>
@@ -18258,7 +18258,7 @@ Return ONLY raw JSON:
                 </div>
               </>
             )}
-          </div>
+          </div></ErrorBoundary>
         )}
 
         </div>{/* end stage-transition wrapper */}
