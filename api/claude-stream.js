@@ -41,10 +41,13 @@ export default async function handler(req, res) {
 
   // Usage limit enforcement — ALWAYS check for authenticated users.
   const isBillableMax = req.headers["x-billable-max"] === "1";
+  const isBillableRun = req.headers["x-billable-run"] === "1";
   let usageOrgId = null;
   let isMaxRun = false;
 
-  if (!req._isGuest) {
+  // Meter one run per play: only the client-designated billable call checks + increments.
+  // Sub-calls of the same brief skip metering, so a limit hit never aborts a brief mid-flight.
+  if (!req._isGuest && (isBillableRun || isBillableMax)) {
     const userId = extractUserId(req);
     if (userId) {
       const usage = await checkOrgUsage(userId, { isMax: isBillableMax });
