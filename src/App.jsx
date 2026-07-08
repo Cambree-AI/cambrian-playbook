@@ -10976,8 +10976,8 @@ Return ONLY raw JSON:
     const ownership = briefData.publicPrivate || member.publicPrivate || "unknown";
     try {
       console.log("[gateMap] Building lazily for", co);
-      const d = await claudeFetch({
-        model: SONNET, max_tokens: 1500, temperature: 0,
+      const _gmFetch = () => claudeFetch({
+        model: SONNET, max_tokens: 3500, temperature: 0,
         messages: [{ role: "user", content:
           `You are a B2B sales strategist. Analyze the approval gates for a deal between seller "${sellerUrl}" and target "${co}"${url ? ` (${url})` : ""}.\n`+
           `SELLER: ${sellerICP?.sellerDescription || sellerUrl}. Products: ${products.filter(p=>p.name?.trim()).map(p=>p.name).join(", ") || "various"}.\n`+
@@ -10987,14 +10987,21 @@ Return ONLY raw JSON:
           `{"gateMap":{"sellerGates":{"summary":"1-2 sentences: what the seller needs to approve","gates":[{"gate":"Gate name","owner":"Role","trigger":"Trigger","artifact":"What to prepare","timeline":"Timeline"}]},"buyerGates":{"summary":"What ${co} needs internally to approve","gates":[{"gate":"Gate name","owner":"Role","trigger":"Trigger","artifact":"What seller provides","timeline":"Timeline"}]},"criticalPath":"Which gate stalls the deal","mapAdvice":"Most important action this week"}}`
         }],
       });
-      const tb = (d?.content || []).filter(b => b.type === "text").map(b => b.text || "");
-      const raw = tb.join("").replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").replace(/<\/?(?:thinking|antml:thinking)>/g, "").trim();
-      const parsed = extractJsonWithKey(raw, "gateMap") || safeParseJSON(raw.startsWith("{") ? raw : "{" + raw);
+      const _gmParse = (d) => {
+        const raw = (d?.content || []).filter(b => b.type === "text").map(b => b.text || "").join("")
+          .replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").replace(/<\/?(?:thinking|antml:thinking)>/g, "").trim();
+        return { raw, parsed: extractJsonWithKey(raw, "gateMap") || safeParseJSON(raw.startsWith("{") ? raw : "{" + raw) };
+      };
+      let { raw, parsed } = _gmParse(await _gmFetch());
+      if (!parsed?.gateMap) {
+        console.warn("[gateMap] Parse failed — retrying once");
+        ({ raw, parsed } = _gmParse(await _gmFetch()));
+      }
       if (parsed?.gateMap) {
         console.log("[gateMap] Success for", co);
         setBrief(prev => prev ? { ...prev, gateMap: parsed.gateMap } : prev);
       } else {
-        console.warn("[gateMap] Parse failed. Raw:", raw.slice(0, 200));
+        console.warn("[gateMap] Parse failed after retry. Raw:", raw.slice(0, 200));
       }
     } catch (e) { console.warn("[gateMap] Error:", e?.message); }
   };
