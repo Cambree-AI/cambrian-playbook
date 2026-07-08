@@ -11375,7 +11375,7 @@ Return ONLY raw JSON:
         const last = partial.lastIndexOf('}');
         if (last > 0) {
           const parsed = JSON.parse(partial.slice(0, last + 1));
-          if (parsed.dmiacStage) setSolutionFit(parsed);
+          if (parsed.dmiacStage) setSolutionFit({...parsed, _preCall:isPreCall});
         }
       } catch { /* partial JSON */ }
     }, 4500);
@@ -11384,15 +11384,16 @@ Return ONLY raw JSON:
     if (result) {
       if (isPreCall) console.log(`[PerformanceWatch K] pre-call SA: ${Date.now()-tStart}ms target:${selectedAccount?.company}`);
       console.log("[solutionFit] Generated:", Object.keys(result).length, "fields");
-      setSolutionFit(result);
+      setSolutionFit({...result, _preCall:isPreCall});
     } else {
       console.warn("[solutionFit] streamAI returned null — showing failure state");
       setSolutionFit({
+        _preCall:isPreCall,
         confirmedSolutions:[],revisedSolutions:[],architectureGaps:[],
-        implementationRoadmap:"Unable to generate — this usually means the AI response was truncated or the call had insufficient discovery data.",
+        implementationRoadmap:"Unable to generate — the response was likely truncated. Click Regenerate to retry.",
         integrationComplexity:"Unknown",successMetrics:[],
-        discoveryGaps:["Re-run the SA review after adding more call notes or discovery responses"],
-        saRecommendation:"The SA review could not generate results. Common causes: (1) call notes were too brief, (2) discovery fields were mostly empty, (3) the response was truncated. Add more detail to your call notes and discovery captures, then click Regenerate.",
+        discoveryGaps:["Regenerate the review, or add more account detail and retry."],
+        saRecommendation:"The SA review couldn't be generated — the response was likely truncated or inputs were sparse. Click Regenerate to try again.",
       });
     }
     } catch (e) {

@@ -34,7 +34,7 @@ export default function S9SolutionFit({
 
       {solutionFitLoading && (
         <div className="card">
-          <div style={{fontSize:13,color:"var(--ink-2)",marginBottom:12}}>Applying Solution Architecture framework to your discovery capture...</div>
+          <div style={{fontSize:13,color:"var(--ink-2)",marginBottom:12}}>Applying the Solution Architecture framework...</div>
           <div className="pulse-wrap">{[70,90,55,80,65,75,50].map((w,i)=><div key={i} className="pulse-line" style={{width:w+"%",animationDelay:(i*0.12)+"s"}}/>)}</div>
           <div style={{fontSize:12,color:"var(--tan-0)",marginTop:12,fontStyle:"italic"}}>
             Evaluating business alignment, integration complexity, and implementation phasing...
@@ -119,8 +119,8 @@ export default function S9SolutionFit({
           {(solutionFit.confirmedSolutions||[]).length>0 && (
             <div className="bb">
               <div className="bb-hdr">
-                <div className="bb-icon">✓</div>
-                <div><div className="bb-title">Confirmed Solution Fit</div><div className="bb-sub">Solutions validated by discovery — with SA rationale</div></div>
+                <div className="bb-icon">{solutionFit._preCall ? "🎯" : "✓"}</div>
+                <div><div className="bb-title">{solutionFit._preCall ? "Recommended Solution Fit" : "Confirmed Solution Fit"}</div><div className="bb-sub">{solutionFit._preCall ? "Best-fit solutions to lead with — with SA rationale" : "Solutions validated by discovery — with SA rationale"}</div></div>
               </div>
               <div className="bb-body">
                 {solutionFit.confirmedSolutions.map((s,i)=>(
@@ -165,7 +165,7 @@ export default function S9SolutionFit({
             <div className="bb">
               <div className="bb-hdr">
                 <div className="bb-icon" style={{fontSize:14}}>↕</div>
-                <div><div className="bb-title">Revised After Discovery</div><div className="bb-sub">Solutions that changed based on what you actually heard</div></div>
+                <div><div className="bb-title">{solutionFit._preCall ? "Lower-Fit — Reconsider" : "Revised After Discovery"}</div><div className="bb-sub">{solutionFit._preCall ? "Solutions less likely to land, based on current signals" : "Solutions that changed based on what you actually heard"}</div></div>
               </div>
               <div className="bb-body">
                 {solutionFit.revisedSolutions.map((r,i)=>(
@@ -239,9 +239,9 @@ export default function S9SolutionFit({
           {/* Discovery Gaps — what the rep needs to capture next */}
           {(solutionFit.discoveryGaps||[]).filter(Boolean).length > 0 && (
             <div style={{background:"var(--amber-bg)",border:"1.5px solid var(--amber)",borderRadius:14,padding:"16px 20px",marginBottom:16}}>
-              <div style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:10}}>Missing Discovery Data — Capture on Next Call</div>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--amber)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:10}}>{solutionFit._preCall ? "Validate on Your Call" : "Missing Discovery Data — Capture on Next Call"}</div>
               <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.7,marginBottom:8}}>
-                The following information was not captured during discovery. This SA review is based on incomplete data — go back and capture these on your next interaction to strengthen the assessment.
+                {solutionFit._preCall ? "This is a pre-call hypothesis. Confirm these questions on the call to firm up the recommendation." : "The following information was not captured during discovery. This SA review is based on incomplete data — go back and capture these on your next interaction to strengthen the assessment."}
               </div>
               {solutionFit.discoveryGaps.filter(Boolean).map((g, i) => (
                 <div key={i} style={{display:"flex",gap:8,marginBottom:6,alignItems:"flex-start"}}>
