@@ -10065,18 +10065,19 @@ Return ONLY raw JSON:
               console.warn(`[consistency] CEO conflict detected: executives says "${ceoName}" but text mentions "${conflicts.join(", ")}". Cleaning...`);
               // Clean the conflicting text — replace wrong CEO references with the correct one
               const cleaned = { ...current };
+              // NEVER substitute a name — that fabricates false statements (e.g. turns
+              // "CEO Dave Petersen retired in 2024" into "CEO Scott Sperry retired in 2024").
+              // Instead STRIP any sentence asserting the wrong person is the CURRENT/new CEO —
+              // UNLESS it carries a past-tense/transition marker, in which case it's accurate
+              // former-CEO context and is kept verbatim.
+              const _pastMarker = /\b(former|formerly|retired|retiring|succeeded|stepped down|departed|previous|predecessor|outgoing|ex-|until \d{4})\b/i;
               const fixText = (text) => {
                 if (!text) return text;
                 let fixed = text;
                 conflicts.forEach(wrongName => {
-                  // Replace "CEO WrongName" patterns
-                  const wrongPattern = new RegExp(`(CEO|chief executive officer)\\s+${wrongName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'gi');
-                  fixed = fixed.replace(wrongPattern, `$1 ${ceoName}`);
-                  const wrongPattern2 = new RegExp(`${wrongName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*,?\\s*(CEO|chief executive officer)`, 'gi');
-                  fixed = fixed.replace(wrongPattern2, `${ceoName}, $1`);
-                  // Also strip sentences that attribute leadership to the wrong person
-                  const wrongLeaderPattern = new RegExp(`[^.]*\\b${wrongName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b[^.]*(?:new CEO|current CEO|appointed CEO|as CEO|became CEO)[^.]*\\.?`, 'gi');
-                  fixed = fixed.replace(wrongLeaderPattern, '');
+                  const _esc = wrongName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                  const wrongLeaderPattern = new RegExp(`[^.]*\\b${_esc}\\b[^.]*(?:new CEO|current CEO|appointed CEO|as CEO|became CEO|is CEO|now CEO|leads as CEO)[^.]*\\.?`, 'gi');
+                  fixed = fixed.replace(wrongLeaderPattern, (sentence) => _pastMarker.test(sentence) ? sentence : '');
                 });
                 return fixed.replace(/\s{2,}/g, ' ').trim();
               };
