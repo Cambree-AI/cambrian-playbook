@@ -1485,6 +1485,25 @@ function repairJSON(s) {
 
 // ── THE PLAY — pure helper functions (v2-staging) ────────────────────────────
 
+// verifiedPersonsOnly: shared EXPORT/CRM name gate (HANDOFF_16 / Amendment G §4).
+// Mirrors _gateToVP in buildPlayPrompt: a person's NAME is trusted iff it appears in
+// keyExecutives with a real web sourceUrl (startsWith "http"). P4-filled names
+// (sourceUrl:"p4-contact-search"), cache backfills, and board members not matching a
+// verified exec get name+initials blanked — title/role/background/angle are kept.
+// Historical-founder mentions live in narrative STRING fields, not person arrays,
+// so they are unaffected by this gate.
+function verifiedPersonsOnly(persons, keyExecutives) {
+  const _vp = new Set(
+    (keyExecutives || [])
+      .filter(e => e?.name && e?.sourceUrl?.startsWith("http"))
+      .map(e => e.name.toLowerCase().trim())
+  );
+  return (persons || []).map(p => {
+    const _ok = _vp.has((p?.name || "").toLowerCase().trim());
+    return { ...p, name: _ok ? p.name : "", initials: _ok ? p.initials : "" };
+  });
+}
+
 // buildPlayPrompt: assembles the identity-anchored, extractive synthesis prompt.
 // Pure function — no side effects, unit-testable.
 function buildPlayPrompt(targetCompany, targetDomain, sellerICP, brief, fitScore, solutionFit = null) {
@@ -11580,7 +11599,7 @@ Return ONLY raw JSON:
     pushToHubSpot("push_brief",{
       summary: summary || {},
       company: companyData,
-      executives: summary?.executives || (brief?.keyExecutives||[]).filter(e=>e?.name).map(e=>({name:e.name,title:e.title})),
+      executives: summary?.executives || verifiedPersonsOnly(brief?.keyExecutives||[], brief?.keyExecutives).filter(e=>e?.name).map(e=>({name:e.name,title:e.title})),
       tldr: summary ? {topFinding:summary.topFinding,topOpportunity:summary.topOpportunity,topRisk:summary.topRisk} : brief?.tldr,
       elevatorPitch: summary?.elevatorPitch || brief?.elevatorPitch || "",
       strategicTheme: summary?.strategicTheme || brief?.strategicTheme || "",
@@ -11892,8 +11911,8 @@ Return ONLY raw JSON:
       founded: s(brief.founded),
       website: s(brief.website),
 
-      // ── Executives (top 4)
-      executives: a(brief.keyExecutives).filter(e => e?.name).slice(0, 4).map(e => ({
+      // ── Executives (top 4) — name gate: only source-verified names reach export/CRM
+      executives: verifiedPersonsOnly(a(brief.keyExecutives), brief.keyExecutives).filter(e => e?.name).slice(0, 4).map(e => ({
         name: e.name, title: e.title, angle: e.angle || "",
       })),
 
@@ -11949,8 +11968,8 @@ Return ONLY raw JSON:
       cultureProfile: brief.cultureProfile || {},
       workforceProfile: brief.workforceProfile || {},
 
-      // ── Key Contacts
-      keyContacts: a(brief.keyContacts).filter(c => c?.title).slice(0, 3).map(c => ({
+      // ── Key Contacts — name gate (title-only when unverified, mirrors _gateToVP)
+      keyContacts: verifiedPersonsOnly(a(brief.keyContacts), brief.keyExecutives).filter(c => c?.title).slice(0, 3).map(c => ({
         name: c.name || "", title: c.title, angle: c.angle || "",
       })),
 
@@ -16236,7 +16255,7 @@ Return ONLY raw JSON:
                       _l.push(`SALES BRIEF \u2014 ${co}`);
                       if (brief.tldr?.topFinding) { _s("QUICK TAKE"); if (brief.tldr.topFinding) _l.push(`Finding: ${brief.tldr.topFinding}`); if (brief.tldr.topOpportunity) _l.push(`Opportunity: ${brief.tldr.topOpportunity}`); if (brief.tldr.topRisk) _l.push(`Risk: ${brief.tldr.topRisk}`); }
                       if (brief.companySnapshot||brief.revenue||brief.employeeCount) { _s("COMPANY SNAPSHOT"); if (brief.companySnapshot) _l.push(brief.companySnapshot); if (brief.revenue) _l.push(`Revenue: ${brief.revenue}`); if (brief.employeeCount) _l.push(`Employees: ${brief.employeeCount}`); if (brief.headquarters) _l.push(`HQ: ${brief.headquarters}`); if (brief.ownership) _l.push(`Ownership: ${brief.ownership}`); if (brief.fundingProfile) _l.push(`Funding: ${brief.fundingProfile}`); if (brief.founded) _l.push(`Founded: ${brief.founded}`); }
-                      if ((brief.keyExecutives||[]).filter(e=>e?.name).length>0) { _s("KEY EXECUTIVES"); (brief.keyExecutives||[]).filter(e=>e?.name).forEach(e=>_l.push(`${e.name} \u2014 ${e.title}${e.angle?` | ${e.angle}`:""}`)); }
+                      { const _vExecs = verifiedPersonsOnly(brief.keyExecutives||[], brief.keyExecutives).filter(e=>e?.name); if (_vExecs.length>0) { _s("KEY EXECUTIVES"); _vExecs.forEach(e=>_l.push(`${e.name} \u2014 ${e.title}${e.angle?` | ${e.angle}`:""}`)); } }
                       if (brief.strategicTheme||brief.openingAngle||brief.elevatorPitch) { _s("STRATEGY & POSITIONING"); if (brief.strategicTheme) _l.push(`Strategic Theme: ${brief.strategicTheme}`); if (brief.openingAngle) _l.push(`Opening Angle: ${brief.openingAngle}`); if (brief.elevatorPitch) { _l.push("","ELEVATOR PITCH:",brief.elevatorPitch); } }
                       if ((brief.solutionMapping||[]).filter(s=>s?.product).length>0) { _s("SOLUTION MAPPING"); (brief.solutionMapping||[]).filter(s=>s?.product).forEach((s,i)=>{ _l.push(`${i+1}. ${s.product}: ${s.fit||s.jobToBeDone||""}`); if (s.jobToBeDone&&s.fit) _l.push(`   Job-to-be-Done: ${s.jobToBeDone}`); if (s.painRelieved) _l.push(`   Pain Relieved: ${s.painRelieved}`); if (s.gainCreated) _l.push(`   Gain Created: ${s.gainCreated}`); if (s.measurableOutcome) _l.push(`   Outcome: ${s.measurableOutcome}`); if (s.challengerInsight) _l.push(`   Insight: ${s.challengerInsight}`); }); }
                       if (brief.publicSentiment&&(brief.publicSentiment.onlineSentiment||brief.publicSentiment.glassdoorRating||brief.publicSentiment.standoutReview?.text)) { _s("MARKET SENTIMENT"); if (brief.publicSentiment.glassdoorRating) _l.push(`Glassdoor: ${brief.publicSentiment.glassdoorRating}`); if (brief.publicSentiment.onlineSentiment) _l.push(`Sentiment: ${brief.publicSentiment.onlineSentiment}`); if (brief.publicSentiment.npsSignal) _l.push(`NPS Signal: ${brief.publicSentiment.npsSignal}`); if (brief.publicSentiment.standoutReview?.text) _l.push(`Standout Review: "${brief.publicSentiment.standoutReview.text}" \u2014 ${brief.publicSentiment.standoutReview.source||""}`); if (brief.publicSentiment.salesAngle||brief.publicSentiment.sentimentSummary) _l.push(`Sales Angle: ${brief.publicSentiment.salesAngle||brief.publicSentiment.sentimentSummary}`); }
@@ -16244,7 +16263,7 @@ Return ONLY raw JSON:
                       if ((brief.growthSignals||[]).filter(Boolean).length>0||(brief.recentSignals||[]).filter(Boolean).length>0) { _s("SIGNALS"); (brief.growthSignals||[]).filter(Boolean).forEach(s=>_l.push(`\u2191 ${s}`)); (brief.recentSignals||[]).filter(Boolean).forEach(s=>_l.push(`\u2022 ${s}`)); }
                       if (brief.openRoles&&(brief.openRoles.summary||(brief.openRoles.roles||[]).some(r=>r?.title))) { _s("OPEN ROLES"); if (brief.openRoles.summary) _l.push(brief.openRoles.summary); (brief.openRoles.roles||[]).filter(r=>r?.title).forEach(r=>_l.push(`  ${r.title} (${r.dept||"Open"}) \u2014 ${r.signal||""}`)); }
                       if (brief.competitivePositioning||(brief.competitors||[]).filter(Boolean).length>0) { _s("COMPETITIVE POSITIONING"); if (brief.competitivePositioning?.marketPosition) _l.push(`Market Position: ${brief.competitivePositioning.marketPosition}`); if (brief.competitivePositioning?.primaryCompetitors?.length>0) brief.competitivePositioning.primaryCompetitors.forEach(c=>_l.push(`vs ${c.name}: Strength=${c.strength||""} | Weakness=${c.weakness||""}`)); if ((brief.competitors||[]).filter(Boolean).length>0&&!brief.competitivePositioning?.primaryCompetitors?.length) _l.push(`Competitors: ${brief.competitors.filter(Boolean).join(", ")}`); if (brief.competitivePositioning?.whereWinning) _l.push(`Where Winning: ${brief.competitivePositioning.whereWinning}`); if (brief.competitivePositioning?.whereLosing) _l.push(`Where Losing: ${brief.competitivePositioning.whereLosing}`); if (brief.competitivePositioning?.displacementAngle) _l.push(`Displacement Angle: ${brief.competitivePositioning.displacementAngle}`); }
-                      if (brief.boardAndInvestors) { _s("BOARD & INVESTORS"); if (brief.boardAndInvestors.boardMembers?.length>0) brief.boardAndInvestors.boardMembers.forEach(b=>_l.push(`${b.name} \u2014 ${b.role||b.title||""}${b.background?` | ${b.background}`:""}`)); if (brief.boardAndInvestors.leadInvestors) _l.push(`Lead Investors: ${brief.boardAndInvestors.leadInvestors}`); if (brief.boardAndInvestors.investmentThesis) _l.push(`Investment Thesis: ${brief.boardAndInvestors.investmentThesis}`); if (brief.boardAndInvestors.boardMandate) _l.push(`Board Mandate: ${brief.boardAndInvestors.boardMandate}`); }
+                      if (brief.boardAndInvestors) { _s("BOARD & INVESTORS"); if (brief.boardAndInvestors.boardMembers?.length>0) verifiedPersonsOnly(brief.boardAndInvestors.boardMembers, brief.keyExecutives).forEach(b=>_l.push(`${b.name?`${b.name} \u2014 `:""}${b.role||b.title||""}${b.background?` | ${b.background}`:""}`)); if (brief.boardAndInvestors.leadInvestors) _l.push(`Lead Investors: ${brief.boardAndInvestors.leadInvestors}`); if (brief.boardAndInvestors.investmentThesis) _l.push(`Investment Thesis: ${brief.boardAndInvestors.investmentThesis}`); if (brief.boardAndInvestors.boardMandate) _l.push(`Board Mandate: ${brief.boardAndInvestors.boardMandate}`); }
                       if (brief.financialDeepDive) { _s("FINANCIAL DEEP DIVE"); if (brief.financialDeepDive.revenueTrend) _l.push(`Revenue Trend: ${brief.financialDeepDive.revenueTrend}`); if (brief.financialDeepDive.marginTrend) _l.push(`Margin Trend: ${brief.financialDeepDive.marginTrend}`); if (brief.financialDeepDive.segmentBreakdown) _l.push(`Segment Breakdown: ${brief.financialDeepDive.segmentBreakdown}`); if (brief.financialDeepDive.capitalPriorities) _l.push(`Capital Priorities: ${brief.financialDeepDive.capitalPriorities}`); if (brief.financialDeepDive.earningsInsight) _l.push(`Earnings Insight: ${brief.financialDeepDive.earningsInsight}`); if (brief.financialDeepDive.guidanceQuote) _l.push(`Guidance: "${brief.financialDeepDive.guidanceQuote}"`); }
                       if (brief.gateMap) { _s("APPROVAL GATE MAP"); if (brief.gateMap.sellerGates) { _l.push("Seller Gates:"); if (brief.gateMap.sellerGates.summary) _l.push(`  ${brief.gateMap.sellerGates.summary}`); (brief.gateMap.sellerGates.gates||[]).filter(g=>g?.gate).forEach(g=>_l.push(`  \u2022 ${g.gate}: ${g.owner||""} \u2014 ${g.tactic||""}`)); } if (brief.gateMap.buyerGates) { _l.push("Buyer Gates:"); if (brief.gateMap.buyerGates.summary) _l.push(`  ${brief.gateMap.buyerGates.summary}`); (brief.gateMap.buyerGates.gates||[]).filter(g=>g?.gate).forEach(g=>_l.push(`  \u2022 ${g.gate}: ${g.owner||""} \u2014 ${g.tactic||""}`)); } if (brief.gateMap.criticalPath) _l.push(`Critical Path: ${brief.gateMap.criticalPath}`); if (brief.gateMap.mapAdvice) _l.push(`Advice: ${brief.gateMap.mapAdvice}`); }
                       if (brief.techStack&&Object.values(brief.techStack).some(v=>v&&v.toString().trim())) { _s("TECH STACK"); ["crm","erp","hris","marketing","payments","analytics","infrastructure"].forEach(k=>{ if (brief.techStack[k]?.trim()) _l.push(`${k.toUpperCase()}: ${brief.techStack[k]}`); }); }
