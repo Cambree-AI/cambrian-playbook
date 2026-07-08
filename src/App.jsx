@@ -1607,9 +1607,14 @@ function validatePlay(play, targetCompany, targetDomain, brief, sellerICP) {
   // This is the ONE check that suppresses the whole card — all other checks strip/rewrite.
   const playStr     = JSON.stringify(play).toLowerCase();
   const playStrNorm = _coreStr(playStr);
+  // Connector-normalized form: treat "&" and a standalone "and" as equivalent, so a company
+  // typed "Johnson and Johnson" matches a play that writes "Johnson & Johnson" (and vice-versa).
+  const _stripConn      = s => _coreStr((s || "").replace(/\s*(?:&|\band\b)\s*/gi, " "));
+  const _targetConnless = _stripConn(targetLower);
   const _targetPresent = (targetCore.length >= 3 && playStrNorm.includes(targetCore))
     || (targetLower.length >= 3 && playStr.includes(targetLower))
-    || (domainCore.length >= 3 && playStrNorm.includes(domainCore));
+    || (domainCore.length >= 3 && playStrNorm.includes(domainCore))
+    || (_targetConnless.length >= 3 && _stripConn(playStr).includes(_targetConnless));
   if (!_targetPresent) {
     // No match even after normalization → genuinely about the wrong company → suppress.
     console.warn(`[ThePlay] Check 1: target "${targetCompany}" (core:"${targetCore}") not found in play after normalization — suppressing`);
