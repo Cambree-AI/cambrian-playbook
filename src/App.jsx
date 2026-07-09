@@ -10294,17 +10294,29 @@ Return ONLY raw JSON:
           }
 
           // ── DATA CONFIDENCE COMPUTATION ────────────────────────────────
-          // Count how many sections have substantive data (proxy for web-grounded)
+          // Count how many sections have substantive data (proxy for web-grounded).
+          // _noData: a section whose OPENING declares a null result ("No verified data
+          // could be retrieved...", "limited public data available") is NOT grounded,
+          // no matter how long it is. Anchored to the section opening deliberately —
+          // a bare /not found/ would false-positive on legitimate prose like "Exact
+          // revenue not found in the 10-K" (which P9 is instructed to produce for
+          // private companies). The second clause catches the code-written contamination
+          // fallback "<co> (<domain>) — limited public data available" whose domain
+          // dot defeats the [^.] opening anchor.
+          const _noData = (s) => !s || typeof s !== "string" ||
+            /^[^.]{0,80}?(no verified data|no verifiable public|returned zero results|limited public data available|unable to (retrieve|verify)|could not be (retrieved|verified))/i.test(s.trim()) ||
+            /^.{0,120}?—\s*limited public data available/i.test(s.trim());
+          // solutionMapping (p4) intentionally NOT counted — it is SELLER-derived and
+          // always present, so it inflated every company's score by 1. Denominator is 8.
           let grounded = 0;
-          if (current.companySnapshot && current.companySnapshot.length > 50) grounded++; // p1
+          if (current.companySnapshot && current.companySnapshot.length > 50 && !_noData(current.companySnapshot)) grounded++; // p1
           if (current.keyExecutives?.some(e => e?.name)) grounded++;  // p2 (web-searched)
-          if (current.strategicTheme && current.strategicTheme.length > 30) grounded++; // p3
-          if (current.solutionMapping?.some(s => s?.product)) grounded++; // p4
+          if (current.strategicTheme && current.strategicTheme.length > 30 && !_noData(current.strategicTheme)) grounded++; // p3
           if (current.recentHeadlines?.length > 0) grounded++; // p5 (web-searched)
           if (current.openRoles?.roles?.some(r => r?.title)) grounded++; // p6 (web-searched)
-          if (current.competitivePositioning?.marketPosition) grounded++; // p7 (web-searched)
+          if (current.competitivePositioning?.marketPosition && !_noData(current.competitivePositioning.marketPosition)) grounded++; // p7 (web-searched)
           if (current.boardAndInvestors?.boardMembers?.length > 0) grounded++; // p8 (web-searched)
-          if (current.financialDeepDive?.revenueTrend) grounded++; // p9 (web-searched)
+          if (current.financialDeepDive?.revenueTrend && !_noData(current.financialDeepDive.revenueTrend)) grounded++; // p9 (web-searched)
           current._sectionsGrounded = grounded;
           current._dataConfidence = grounded >= 7 ? "high" : grounded >= 4 ? "medium" : "low";
 
@@ -12031,7 +12043,7 @@ Return ONLY raw JSON:
 
     lines.push(`EXECUTIVE SESSION SUMMARY — ${summary.targetCompany}`);
     lines.push(`Selling as: ${summary.sellerName} | Generated: ${new Date(summary.generatedAt).toLocaleDateString()}`);
-    if (summary.dataConfidence) lines.push(`Data Confidence: ${summary.dataConfidence} (${summary.sectionsGrounded}/9 sections web-verified)`);
+    if (summary.dataConfidence) lines.push(`Data Confidence: ${summary.dataConfidence} (${summary.sectionsGrounded}/8 sections web-verified)`);
 
     if (summary.topFinding || summary.topOpportunity || summary.topRisk) {
       addSection("QUICK TAKE");
@@ -16479,9 +16491,9 @@ Return ONLY raw JSON:
                     background: brief._dataConfidence === "high" ? "var(--green-bg)" : brief._dataConfidence === "medium" ? "var(--amber-bg)" : "var(--red-bg)",
                     color: brief._dataConfidence === "high" ? "var(--green)" : brief._dataConfidence === "medium" ? "var(--amber)" : "var(--red)",
                   }}>
-                    <span>{brief._dataConfidence === "high" ? "High" : brief._dataConfidence === "medium" ? "Medium" : "Low"} Data Confidence<InfoTip text="How many of the 9 brief sections were grounded by web search vs training data. High = 7+ verified, Medium = 4-6, Low = fewer than 4. Verify low-confidence facts before your call."/></span>
+                    <span>{brief._dataConfidence === "high" ? "High" : brief._dataConfidence === "medium" ? "Medium" : "Low"} Data Confidence<InfoTip text="How many of the 8 brief sections were grounded by web search vs training data. High = 7+ verified, Medium = 4-6, Low = fewer than 4. Verify low-confidence facts before your call."/></span>
                     <span style={{fontWeight:400,opacity:0.8}}>
-                      {brief._sectionsGrounded}/9 sections web-verified
+                      {brief._sectionsGrounded}/8 sections web-verified
                       {brief._dataConfidence !== "high" && " — verify key facts before the call"}
                     </span>
                   </div>
