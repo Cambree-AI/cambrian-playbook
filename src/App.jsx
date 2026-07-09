@@ -10613,14 +10613,24 @@ Return ONLY raw JSON:
                 const p9Val = parseFloat(revenueMatch.replace(/[^0-9.]/g, "")) * (revenueMatch.toLowerCase().includes("billion") || revenueMatch.includes("B") ? 1e9 : revenueMatch.toLowerCase().includes("million") || revenueMatch.includes("M") ? 1e6 : revenueMatch.toLowerCase().includes("trillion") || revenueMatch.includes("T") ? 1e12 : 1);
                 const p1Val = current.revenue ? parseFloat(String(current.revenue).replace(/[^0-9.]/g, "")) * (String(current.revenue).toLowerCase().includes("billion") || String(current.revenue).includes("B") ? 1e9 : String(current.revenue).toLowerCase().includes("million") || String(current.revenue).includes("M") ? 1e6 : 1) : 0;
 
+                // Preserve estimate labeling. A modeled figure must never be promoted to a bare
+                // fact: it feeds buildPlayPrompt and the rep repeats it to a real buyer. It is an
+                // estimate if P1 already labeled it, OR if the P9 prose around the matched figure
+                // hedges. (_isRangeOrModeledFigure above only filters RANGE syntax, not hedges.)
+                const _revIdx = p9Rev.indexOf(revenueMatch);
+                const _revCtx = p9Rev.slice(Math.max(0, _revIdx - 90), _revIdx + revenueMatch.length + 40).toLowerCase();
+                const _revIsEstimate = (!!current.revenue && current.revenue.toLowerCase().includes("estimated"))
+                  || /(estimat|approximat|roughly|modeled|likely|~\s*\$)/.test(_revCtx);
+                const _revOut = _revIsEstimate ? `${revenueMatch.trim()} (estimated)` : revenueMatch.trim();
+
                 if (!current.revenue || current.revenue === "Not found" || current.revenue.toLowerCase().includes("not available") || current.revenue.toLowerCase().includes("estimated")) {
-                  // P1 has no revenue or just an estimate — use P9
-                  console.warn(`[consistency] Revenue from P9 (authoritative): "${revenueMatch}" overrides P1: "${current.revenue}"`);
-                  current.revenue = revenueMatch.trim();
+                  // P1 has no revenue or just an estimate — use P9 (carrying the estimate label)
+                  console.warn(`[consistency] Revenue from P9 (authoritative): "${_revOut}" overrides P1: "${current.revenue}"`);
+                  current.revenue = _revOut;
                 } else if (p1Val > 0 && p9Val > 0 && (p9Val > p1Val * 2 || p1Val > p9Val * 3)) {
                   // P1 and P9 disagree significantly — P9 wins (deeper research)
                   console.warn(`[consistency] Revenue mismatch: P1="${current.revenue}" vs P9="${revenueMatch}" (${(p9Val/p1Val).toFixed(1)}x diff) — P9 wins`);
-                  current.revenue = revenueMatch.trim();
+                  current.revenue = _revOut;
                 }
               }
             }
