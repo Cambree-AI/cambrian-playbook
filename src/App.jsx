@@ -1593,6 +1593,8 @@ STEP 2 — Calibrate to company size from [P1] employeeCount:
   • Enterprise (>3,000): Enter via the VP/Director who OWNS the budget — NOT cold C-suite.
   • Mid-market (300–3,000): VP or SVP level appropriate; C-suite for board-level solutions only.
   • SMB (<300): CEO/COO/founder appropriate — they own most decisions personally.
+  • If [P1] employeeCount is empty or says it cannot be estimated: DO NOT infer company size from revenue. Revenue in [P1] may be an ESTIMATE (suffixed "(estimated)") or absent entirely. Target by FUNCTION and TITLE instead, and tell the rep to confirm the company's scale on the call.
+  • NEVER state an "(estimated)" revenue figure as fact, and never derive company size, decision-making structure, buying process, or org maturity from an estimated or absent revenue figure.
 
 STEP 3 — Name the contact: Check [P2] for a person in the buying function (per Step 0). If found → name them. If not → function language only. NEVER use a name not in [P2].
 
