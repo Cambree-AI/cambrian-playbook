@@ -10327,6 +10327,11 @@ Return ONLY raw JSON:
           if (current.financialDeepDive?.revenueTrend && !_noData(current.financialDeepDive.revenueTrend)) grounded++; // p9 (web-searched)
           current._sectionsGrounded = grounded;
           current._dataConfidence = grounded >= 7 ? "high" : grounded >= 4 ? "medium" : "low";
+          // An unconfirmed company is never medium/high confidence regardless of how many
+          // sections rendered — those sections describe an absence, not a company.
+          if (current.companySnapshot && _companyUnconfirmed(current.companySnapshot)) {
+            current._dataConfidence = "low";
+          }
 
           // ── CORROBORATION GATE (Moat Architecture §2.2) ─────────────────
           // Tier 3 facts (executives, revenue, ownership) must be corroborated
