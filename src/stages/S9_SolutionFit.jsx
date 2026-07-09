@@ -279,7 +279,7 @@ export default function S9SolutionFit({
           <div style={{fontSize:15,fontWeight:600,color:"var(--ink-0)",marginBottom:6}}>Solution Architecture Review</div>
           <div style={{fontSize:13,color:"var(--ink-2)",marginBottom:20,maxWidth:400,margin:"0 auto 20px"}}>Evaluate solution fit against what you heard in the call. Maps customer needs to your solutions using SA principles.</div>
           {!embedded && <button className="btn btn-primary btn-lg" onClick={onRun}>Run Solution Fit Review →</button>}
-          {embedded && <div style={{fontSize:13,color:"var(--ink-3)"}}>Architecture review will appear after your call.</div>}
+          {embedded && <div style={{fontSize:13,color:"var(--ink-3)"}}>Solution architecture is building — it will appear here.</div>}
         </div>
       )}
     </>

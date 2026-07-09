@@ -8509,7 +8509,13 @@ Return ONLY raw JSON:
     if(d.riverData) setRiverData(d.riverData);
     if(d.notes) setNotes(d.notes);
     if(d.postCall) setPostCall(d.postCall);
-    if(d.solutionFit) setSolutionFit(d.solutionFit);
+    // Legacy sessions saved before _preCall was stamped restore with _preCall === undefined,
+    // which renders post-call copy over a pre-call SA. Infer from postCall presence.
+    if(d.solutionFit) setSolutionFit(
+      d.solutionFit._preCall === undefined
+        ? { ...d.solutionFit, _preCall: !d.postCall }
+        : d.solutionFit
+    );
     if(d.contactRole) setContactRole(d.contactRole);
     if(d.dealClassification) setDealClassification(d.dealClassification);
     if(d.importMode) setImportMode(d.importMode);
@@ -11269,7 +11275,7 @@ Return ONLY raw JSON:
     const isPreCall = preCall && solConEnabled;
     if(!brief) {
       console.warn("[solutionFit] No brief — cannot generate SA review");
-      setSolutionFit({ saRecommendation: "No brief available. Generate a brief first, then run the SA review." });
+      setSolutionFit({ _preCall:isPreCall, saRecommendation: "No brief available. Generate a brief first, then run the SA review." });
       return;
     }
     if(!isPreCall && !postCall) {
@@ -17716,10 +17722,12 @@ Return ONLY raw JSON:
             <div className="page-sub">
               {solConEnabled
                 ? (solutionFit
-                    ? `Solution architecture and RIVER strategy for ${selectedAccount?.company||"this account"}. Architecture confirmed by discovery.`
+                    ? (solutionFit._preCall
+                        ? `Pre-call solution architecture and RIVER strategy for ${selectedAccount?.company||"this account"}. This is a hypothesis — confirm it on your call.`
+                        : `Solution architecture and RIVER strategy for ${selectedAccount?.company||"this account"}. Architecture confirmed by discovery.`)
                     : solutionFitLoading
-                      ? "Building solution architecture from your discovery capture..."
-                      : `Pre-call strategy for ${selectedAccount?.company||"this account"}. Solution architecture will appear after your call.`)
+                      ? "Building solution architecture..."
+                      : `Pre-call strategy for ${selectedAccount?.company||"this account"}. Solution architecture is building.`)
                 : (riverHypoLoading
                     ? "Building your hypothesis — usually finishes before you're done reading the brief. Good problem to have."
                     : riverHypo
