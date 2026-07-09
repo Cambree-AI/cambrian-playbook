@@ -1979,6 +1979,14 @@ const EXEC_CACHE_VERSION = 2;
 //           P8 board NAMES IN NARRATIVE block.
 const BRIEF_CACHE_VERSION = 2;
 
+// _companyUnconfirmed: TRUE only when the snapshot declares we could not confirm the
+// company EXISTS. Deliberately narrower than _noData: it does NOT include "limited
+// public data available", because App.jsx:2113 instructs P1 to emit that phrase for
+// real, data-scarce targets (private companies, small firms, NONPROFITS). Those
+// companies get a labeled ESTIMATE (see 2108/2112); only unconfirmable ones get nothing.
+const _companyUnconfirmed = (s) => !!s && typeof s === "string" &&
+  /^[^.]{0,80}?(no verified data|no verifiable public|returned zero results|unable to (retrieve|verify)|could not be (retrieved|verified))/i.test(s.trim());
+
 // generateBrief is NON-ASYNC so it returns skeleton + raw promises
 // immediately. pickAccount (the only caller) then renders the skeleton
 // right away and merges each micro-result as it resolves — no blocking
@@ -10340,6 +10348,17 @@ Return ONLY raw JSON:
             if (p1digits && !p9text.includes(p1digits.slice(0, 3))) {
               console.warn(`[corroboration] Revenue: p1="${current.revenue}" not corroborated by p9. Keeping p1 but flagging.`);
             }
+          }
+
+          // Unconfirmed-company gate: if we could not confirm the company EXISTS, it carries no
+          // revenue figure. Must run AFTER the Apollo fallback above, or Apollo refills it.
+          // The `current.companySnapshot &&` presence guard is required: stripAllPlaceholders may
+          // have emptied the snapshot earlier in this updater, and an empty snapshot is a transient
+          // failure, not evidence of nonexistence. Real-but-data-scarce companies keep their
+          // labeled estimate — see App.jsx:2108/2112/2113.
+          if (current.companySnapshot && _companyUnconfirmed(current.companySnapshot) && current.revenue) {
+            console.warn(`[corroboration] Revenue "${current.revenue}" cleared — company could not be confirmed`);
+            current.revenue = "";
           }
 
           // Employee count: p1 > Apollo (p1 is URL-anchored, enrichment matches by name and can hit wrong entity)
