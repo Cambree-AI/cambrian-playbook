@@ -3475,7 +3475,13 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       // ── BACKFILL: If P1 left revenue/HQ empty, extract from P9's richer estimates ──
       // SKIP if P9 was contaminated (r9 nulled above)
       let _revBackfilledFromP9 = false;
-      if (r9 && (!next.revenue || !next.revenue.trim())) {
+      // Do not backfill a modeled revenue for a company we could not confirm EXISTS.
+      // Guarded HERE, at the source: The Play reads brief.revenue at Phase-2 quorum, before
+      // the validator's gate runs, and nothing re-fires the Play when revenue later changes.
+      // `next.companySnapshot &&` presence guard avoids a merge-order race — P7-P10 can
+      // resolve before P1, and an absent snapshot is not evidence of nonexistence.
+      // Real-but-data-scarce companies still get their labeled "(estimated)" backfill.
+      if (r9 && (!next.revenue || !next.revenue.trim()) && !(next.companySnapshot && _companyUnconfirmed(next.companySnapshot))) {
         const rt = r9.financialDeepDive.revenueTrend || "";
         // Extract the dollar estimate: "$3-6M", "$3-6 million", "~$4.5M", etc.
         const dollarMatch = rt.match(/(?:estimated\s+(?:annual\s+)?revenue\s+(?:is|of)\s+)?([\$~]\s*[\d.,]+-?[\d.,]*\s*(?:million|M|billion|B|K))/i)
