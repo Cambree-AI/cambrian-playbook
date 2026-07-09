@@ -12043,7 +12043,7 @@ Return ONLY raw JSON:
 
     lines.push(`EXECUTIVE SESSION SUMMARY — ${summary.targetCompany}`);
     lines.push(`Selling as: ${summary.sellerName} | Generated: ${new Date(summary.generatedAt).toLocaleDateString()}`);
-    if (summary.dataConfidence) lines.push(`Data Confidence: ${summary.dataConfidence} (${summary.sectionsGrounded}/8 sections web-verified)`);
+    if (summary.dataConfidence) lines.push(`Data Confidence: ${summary.dataConfidence} (${Math.min(summary.sectionsGrounded ?? 0, 8)}/8 sections web-verified)`);
 
     if (summary.topFinding || summary.topOpportunity || summary.topRisk) {
       addSection("QUICK TAKE");
@@ -16493,7 +16493,7 @@ Return ONLY raw JSON:
                   }}>
                     <span>{brief._dataConfidence === "high" ? "High" : brief._dataConfidence === "medium" ? "Medium" : "Low"} Data Confidence<InfoTip text="How many of the 8 brief sections were grounded by web search vs training data. High = 7+ verified, Medium = 4-6, Low = fewer than 4. Verify low-confidence facts before your call."/></span>
                     <span style={{fontWeight:400,opacity:0.8}}>
-                      {brief._sectionsGrounded}/8 sections web-verified
+                      {Math.min(brief._sectionsGrounded ?? 0, 8)}/8 sections web-verified
                       {brief._dataConfidence !== "high" && " — verify key facts before the call"}
                     </span>
                   </div>
