@@ -1161,8 +1161,12 @@ async function claudeFetch(body, { retries = 3, extraHeaders = {} } = {}) {
         const isRate     = t === "rate_limit_error" || r.status === 429;
         const isServer   = r.status === 500 || r.status === 502 || r.status === 503;
         if ((isOverload || isRate || isServer) && attempt < retries - 1) {
-          const wait = isServer ? [3000, 6000, 12000][attempt] : isOverload ? [2000, 5000, 10000][attempt] : 15000 * (attempt + 1);
-          console.warn(`[claude] ${t || "server_error"} (${r.status}), retrying in ${wait/1000}s (attempt ${attempt+1}/${retries})`);
+          const base = isServer ? [3000, 6000, 12000][attempt] : isOverload ? [2000, 5000, 10000][attempt] : 15000 * (attempt + 1);
+          // Honor server-provided Retry-After (seconds) as a floor, and add jitter so a
+          // brief's ~8 parallel micro-calls don't re-collide on a synchronized schedule.
+          const retryAfterMs = (parseInt(r.headers.get("retry-after") || "0", 10) || 0) * 1000;
+          const wait = Math.max(base, retryAfterMs) + Math.floor(Math.random() * 1000 * (attempt + 1));
+          console.warn(`[claude] ${t || "server_error"} (${r.status}), retrying in ${(wait/1000).toFixed(1)}s (attempt ${attempt+1}/${retries})`);
           await sleep(wait);
           continue;
         }
@@ -1229,8 +1233,10 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
       throw e;
     }
     if (response.status !== 529 && response.status !== 429 && response.status !== 500 && response.status !== 502 && response.status !== 503) break;
-    const wait = response.status >= 500 ? [3000, 6000, 12000][attempt] : response.status === 529 ? [2000, 5000, 10000][attempt] : 15000;
-    console.warn(`[claude-stream] HTTP ${response.status}, retry ${attempt+1}/3 in ${wait/1000}s`);
+    const base = response.status >= 500 ? [3000, 6000, 12000][attempt] : response.status === 529 ? [2000, 5000, 10000][attempt] : [15000, 30000, 45000][attempt];
+    const retryAfterMs = (parseInt(response.headers.get("retry-after") || "0", 10) || 0) * 1000;
+    const wait = Math.max(base, retryAfterMs) + Math.floor(Math.random() * 1000 * (attempt + 1));
+    console.warn(`[claude-stream] HTTP ${response.status}, retry ${attempt+1}/3 in ${(wait/1000).toFixed(1)}s`);
     await sleep(wait);
   }
   if (!response || !response.body) return null;
@@ -1323,8 +1329,10 @@ async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1,
       throw e;
     }
     if (response.status !== 529 && response.status !== 429 && response.status !== 500 && response.status !== 502 && response.status !== 503) break;
-    const wait = response.status >= 500 ? [3000, 6000, 12000][attempt] : response.status === 529 ? [2000, 5000, 10000][attempt] : 15000;
-    console.warn(`[claude-stream-search] HTTP ${response.status}, retry ${attempt+1}/3 in ${wait/1000}s`);
+    const base = response.status >= 500 ? [3000, 6000, 12000][attempt] : response.status === 529 ? [2000, 5000, 10000][attempt] : [15000, 30000, 45000][attempt];
+    const retryAfterMs = (parseInt(response.headers.get("retry-after") || "0", 10) || 0) * 1000;
+    const wait = Math.max(base, retryAfterMs) + Math.floor(Math.random() * 1000 * (attempt + 1));
+    console.warn(`[claude-stream-search] HTTP ${response.status}, retry ${attempt+1}/3 in ${(wait/1000).toFixed(1)}s`);
     await sleep(wait);
   }
   if (!response || !response.body) return null;
