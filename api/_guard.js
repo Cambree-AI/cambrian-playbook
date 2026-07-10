@@ -402,6 +402,7 @@ export async function guard(req, res, { stream = false } = {}) {
            || req.socket?.remoteAddress
            || "unknown";
   if (!checkRateLimit(ip)) {
+    res.setHeader("Retry-After", "30");
     res.status(429).json({ error: "rate limit exceeded — try again in a minute" });
     return null;
   }
@@ -411,6 +412,7 @@ export async function guard(req, res, { stream = false } = {}) {
     const authToken = (req.headers.authorization || "").slice(7);
     const payload = decodeJwtPayload(authToken);
     if (payload?.sub && !checkUserRateLimit(payload.sub)) {
+      res.setHeader("Retry-After", "30");
       res.status(429).json({ error: "rate limit exceeded — try again in a minute" });
       return null;
     }

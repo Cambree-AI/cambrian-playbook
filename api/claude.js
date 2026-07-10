@@ -87,6 +87,10 @@ export default async function handler(req, res) {
     res.setHeader("x-fallback-model", fallbackModel);
   }
 
+  // Propagate upstream backoff guidance — the client retry ladder honors Retry-After
+  const _retryAfter = response.headers.get("retry-after");
+  if (_retryAfter) res.setHeader("Retry-After", _retryAfter);
+
   // Guard against non-JSON responses (Anthropic 500/503 returns HTML)
   if (!response.ok && response.status !== 529) {
     const errBody = await response.text().catch(() => "");
