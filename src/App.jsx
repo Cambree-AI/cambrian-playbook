@@ -3498,7 +3498,17 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
                          || rt.match(/([\$~]\s*[\d.,]+-[\d.,]*\s*(?:million|M))/i)
                          || rt.match(/([\$~]\s*[\d.,]+\s*(?:million|M|billion|B))/i);
         if (dollarMatch) {
-          next.revenue = `${dollarMatch[1].trim()} (estimated)`;
+          const fig = dollarMatch[1].trim();
+          // Label "(estimated)" only when the SOURCE signals an estimate — a numeric range,
+          // a leading "~", or an estimate word next to the figure. A plainly-stated disclosed
+          // figure (e.g. "reported total revenue of $2.907 billion for fiscal year 2024") stays
+          // bare, so the Overview field cannot contradict the Financial section's own wording.
+          const _figIdx = rt.indexOf(dollarMatch[1]);
+          const _ctx = rt.slice(Math.max(0, _figIdx - 60), _figIdx + dollarMatch[1].length + 20).toLowerCase();
+          const _isEst = /\d\s*[-–]\s*\d/.test(fig)
+                       || /^~/.test(fig)
+                       || /(estimat|approximat|roughly|modeled|likely|in the range)/.test(_ctx);
+          next.revenue = _isEst ? `${fig} (estimated)` : fig;
           _revBackfilledFromP9 = true;
           console.log(`[backfill] Revenue filled from P9: ${next.revenue}`);
         }
