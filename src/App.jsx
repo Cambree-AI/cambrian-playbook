@@ -9299,8 +9299,12 @@ Return ONLY raw JSON:
   };
 
   const pickAccount = async (member, overrideSellerUrl, forceRebuild = false) => {
-    // Check usage limit before starting a billable brief generation
-    if (orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
+    // Check usage limit before starting a billable brief generation.
+    // forceRebuild (Retry Brief / Full Rebuild) is exempt: the UI promises
+    // "Retry Brief (free)", and a retry of a failed brief must never be
+    // swallowed by the upgrade modal. Metering itself is unchanged — only the
+    // P2 web-search fallback sends x-billable-run, increments are post-2xx.
+    if (!forceRebuild && orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
       setUpgradeOpen(true);
       return;
     }
@@ -9796,7 +9800,12 @@ Return ONLY raw JSON:
       execCacheRef.current[co] = null;
     }
     const cachedExecs = execCacheRef.current[co] || null;
-    const cachedBrief = briefPreCacheRef.current[co] || {};
+    // Retry Brief / Full Rebuild: drop the P1/P5 pre-cache entry. If the pre-fetch
+    // failed (resolves null) or is still in flight from the failed generation,
+    // generateBrief adopts that promise verbatim (see ~2207) and the retry re-fails
+    // instantly. A rebuild must issue fresh calls.
+    if (forceRebuild) delete briefPreCacheRef.current[co];
+    const cachedBrief = forceRebuild ? {} : (briefPreCacheRef.current[co] || {});
 
     // Streaming callback — merges partial data into brief as it arrives
     const onStream = (section, partialData) => {
