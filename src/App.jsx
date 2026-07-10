@@ -9135,6 +9135,7 @@ Return ONLY raw JSON:
   // ── APOLLO ENRICHMENT — ground briefs with verified firmographic data ────
   const enrichmentCacheRef = useRef({}); // domain → Apollo enrichment result
   const briefGenRef = useRef(0); // 1.4: monotonic brief-generation token — bumped per pickAccount; stale async writers compare and drop
+  const genInFlightRef = useRef({ key: null, gen: 0, at: 0 }); // DF-0: "company|seller" + generation + start time of the current build — duplicate same-target invocations no-op for a 180s cooldown from start
 
   async function fetchEnrichment(domain) {
     if (!domain) return null;
@@ -9274,6 +9275,32 @@ Return ONLY raw JSON:
       setUpgradeOpen(true);
       return;
     }
+    // ── DF-0: generation cooldown guard ──────────────────────────────────────
+    // Observed live (2026-07-10, deployed bundle, fresh Quick Briefs): pickAccount
+    // fires at T0, then a same-second DOUBLE re-invocation lands shortly AFTER the
+    // brief's allDone resolves (Cygnus: allDone+26s = T0+99s; Zorvath: T0+51s) —
+    // the first of the pair launches a second full 16-21-call generation (double
+    // spend, double load). Because the phantom double arrives POST-completion, the
+    // guard cannot be released at allDone; it holds for a fixed 180s cooldown from
+    // T0 (allDone lands at ~75-130s, so 180s covers a full generation plus the
+    // post-completion echo with margin). The trigger is unpinned; this guard is
+    // trigger-independent. Duplicate = same company+seller key, the guarded
+    // generation is still the current one, and it started <180s ago. forceRebuild
+    // (Retry Brief / Full Rebuild / 120s safety net) always bypasses; a different
+    // company+seller key passes immediately and stamps its own guard; the gen
+    // comparison falls open the moment any other pickAccount runs, so A→B→A works.
+    // The caller tag in the warn pins the trigger on the next occurrence. gen is
+    // stamped as briefGenRef.current + 1 — the value this invocation takes at the
+    // ++ below; no await sits between here and there, so it cannot be interleaved.
+    const _genKey = `${member.company}|${overrideSellerUrl || sellerUrl || ""}`;
+    if (!forceRebuild
+        && genInFlightRef.current.key === _genKey
+        && genInFlightRef.current.gen === briefGenRef.current
+        && Date.now() - genInFlightRef.current.at < 180000) {
+      console.warn(`[pickAccount] DUPLICATE invocation for ${member.company} ${Math.round((Date.now() - genInFlightRef.current.at) / 1000)}s into the 180s generation cooldown — ignored. caller=${((new Error().stack || "").split("\n")[2] || "").trim()}`);
+      return;
+    }
+    genInFlightRef.current = { key: _genKey, gen: briefGenRef.current + 1, at: Date.now() };
     // Clear account docs only when switching to a different company (not on regenerate)
     if (selectedAccount?.company !== member.company) setAccountDocs([]);
     setSelectedAccount(member);
@@ -10026,6 +10053,12 @@ Return ONLY raw JSON:
     // mergers (including p4 solutions) have applied to the brief state.
     allDone.then(() => {
       console.log("[brief] allDone resolved — triggering consistency check, discovery questions + 5 Questions");
+      // DF-0: the cooldown guard is deliberately NOT released here. Live evidence
+      // (2026-07-10): a phantom same-second double pickAccount re-invocation lands
+      // ~26s AFTER this allDone — a release here falls open before it arrives and
+      // a full duplicate generation slips through. The guard expires on its 180s
+      // cooldown from generation start; only forceRebuild (or a different
+      // company+seller key) gets through before that.
       setBrief(current => {
         if (current?._error) setBriefError(current._error);
         return current;
