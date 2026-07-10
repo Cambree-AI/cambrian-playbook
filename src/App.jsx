@@ -12834,6 +12834,73 @@ Return ONLY raw JSON:
     }))).slice(0, 50)), // cap at 50 to keep the palette performant
   ];
 
+  // Step-0 Go pipeline — extracted VERBATIM from the classic Go button's inline
+  // onClick (was @~13700-13761) so the kickoff-v2 form reuses the exact same
+  // logic: domain fast-path → scan; name → web disambiguation → modal/fast-path.
+  // Body unchanged; it references only component-scope state and functions.
+  const handleSellerGo = async()=>{
+    const norm = sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
+    if(!norm) return;
+    const hasUrl = /\.(com|io|ai|org|net|app|co|dev|so|gov|edu|xyz|us|uk|de|fr|eu)($|\/)/i.test(norm);
+    if(hasUrl) {
+      // URL with TLD — go directly to scan + build
+      // Clear stale scan state before launching new scan
+      setProductUrls([]);
+      setUrlScanStatus("");
+      setUrlScanConfirmed(false);
+      setSellerUrl(norm);
+      scanSellerUrl(norm);
+    } else {
+      // Name only — disambiguate to find the right domain
+      setDisambigLoading(true);
+      try {
+        const result = await claudeFetch({
+          model: activeModel(),
+          max_tokens: 800,
+          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
+          messages: [{ role: "user", content:
+            `I need to identify the exact company a user means by "${norm}". Search the web and return the top 2-3 matches.\n\n` +
+            `RULES:\n` +
+            `- Return at least 2 matches if any company with a similar name exists in a DIFFERENT industry.\n` +
+            `- Each match must include the company's primary website domain.\n` +
+            `- Include a one-line description that distinguishes it from the others.\n` +
+            `- Only return 1 match if the name is truly unique.\n\n` +
+            `Return ONLY raw JSON: {"matches":[{"name":"Company Name","domain":"company.com","description":"One line — what they do"}]}`
+          }],
+        });
+        const textBlocks = (result?.content || []).filter(b => b.type === "text").map(b => b.text || "");
+        let matches = null;
+        for (let i = textBlocks.length - 1; i >= 0 && !matches; i--) {
+          const parsed = extractJsonWithKey(textBlocks[i], "matches");
+          if (parsed?.matches?.length) matches = parsed.matches;
+        }
+        if (!matches?.length) {
+          // No matches — fall back to name.com
+          const fb = norm + ".com";
+          setSellerUrl(fb); setSellerInput(fb);
+          scanSellerUrl(fb);
+        } else if (matches.length === 1) {
+          const domain = (matches[0].domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
+          setSellerUrl(domain); setSellerInput(domain);
+          scanSellerUrl(domain);
+        } else {
+          setDisambigOptions({ matches, input: norm, onSelect: (match) => {
+            const domain = (match.domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
+            setSellerUrl(domain); setSellerInput(domain);
+            setDisambigOptions(null);
+            scanSellerUrl(domain);
+          }});
+        }
+      } catch (e) {
+        console.warn("[Go] Disambiguation failed:", e.message);
+        const fb = norm + ".com";
+        setSellerUrl(fb); setSellerInput(fb); scanSellerUrl(fb);
+      } finally {
+        setDisambigLoading(false);
+      }
+    }
+  };
+
   return(
     <>
       {/* Company disambiguation overlay */}
@@ -13697,68 +13764,7 @@ Return ONLY raw JSON:
                   style={{color: icpVerified ? "var(--green)" : undefined, fontWeight: icpVerified ? 600 : undefined}}
                 />
                   <button
-                    onClick={async()=>{
-                      const norm = sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
-                      if(!norm) return;
-                      const hasUrl = /\.(com|io|ai|org|net|app|co|dev|so|gov|edu|xyz|us|uk|de|fr|eu)($|\/)/i.test(norm);
-                      if(hasUrl) {
-                        // URL with TLD — go directly to scan + build
-                        // Clear stale scan state before launching new scan
-                        setProductUrls([]);
-                        setUrlScanStatus("");
-                        setUrlScanConfirmed(false);
-                        setSellerUrl(norm);
-                        scanSellerUrl(norm);
-                      } else {
-                        // Name only — disambiguate to find the right domain
-                        setDisambigLoading(true);
-                        try {
-                          const result = await claudeFetch({
-                            model: activeModel(),
-                            max_tokens: 800,
-                            tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
-                            messages: [{ role: "user", content:
-                              `I need to identify the exact company a user means by "${norm}". Search the web and return the top 2-3 matches.\n\n` +
-                              `RULES:\n` +
-                              `- Return at least 2 matches if any company with a similar name exists in a DIFFERENT industry.\n` +
-                              `- Each match must include the company's primary website domain.\n` +
-                              `- Include a one-line description that distinguishes it from the others.\n` +
-                              `- Only return 1 match if the name is truly unique.\n\n` +
-                              `Return ONLY raw JSON: {"matches":[{"name":"Company Name","domain":"company.com","description":"One line — what they do"}]}`
-                            }],
-                          });
-                          const textBlocks = (result?.content || []).filter(b => b.type === "text").map(b => b.text || "");
-                          let matches = null;
-                          for (let i = textBlocks.length - 1; i >= 0 && !matches; i--) {
-                            const parsed = extractJsonWithKey(textBlocks[i], "matches");
-                            if (parsed?.matches?.length) matches = parsed.matches;
-                          }
-                          if (!matches?.length) {
-                            // No matches — fall back to name.com
-                            const fb = norm + ".com";
-                            setSellerUrl(fb); setSellerInput(fb);
-                            scanSellerUrl(fb);
-                          } else if (matches.length === 1) {
-                            const domain = (matches[0].domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
-                            setSellerUrl(domain); setSellerInput(domain);
-                            scanSellerUrl(domain);
-                          } else {
-                            setDisambigOptions({ matches, input: norm, onSelect: (match) => {
-                              const domain = (match.domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
-                              setSellerUrl(domain); setSellerInput(domain);
-                              setDisambigOptions(null);
-                              scanSellerUrl(domain);
-                            }});
-                          }
-                        } catch (e) {
-                          console.warn("[Go] Disambiguation failed:", e.message);
-                          const fb = norm + ".com";
-                          setSellerUrl(fb); setSellerInput(fb); scanSellerUrl(fb);
-                        } finally {
-                          setDisambigLoading(false);
-                        }
-                      }
-                    }}
+                    onClick={handleSellerGo}
                     disabled={!sellerInput.trim() || isLoading || disambigLoading}
                     style={{padding:"8px 16px",fontSize:12,fontWeight:700,borderRadius:8,border:"none",
                       background: (isLoading || disambigLoading) ? "var(--ink-3)" : (scanDone && !isLoading) ? "var(--bg-2)" : "var(--tan-0)",
