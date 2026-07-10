@@ -12834,6 +12834,9 @@ Return ONLY raw JSON:
     }))).slice(0, 50)), // cap at 50 to keep the palette performant
   ];
 
+  // ── Kickoff v2 flag (HANDOFF 29, Commit 1b) — localStorage "cc_kickoff_v2", default OFF.
+  const kickoffV2 = (() => { try { return localStorage.getItem("cc_kickoff_v2") === "on"; } catch { return false; } })();
+
   // Step-0 Go pipeline — extracted VERBATIM from the classic Go button's inline
   // onClick (was @~13700-13761) so the kickoff-v2 form reuses the exact same
   // logic: domain fast-path → scan; name → web disambiguation → modal/fast-path.
@@ -13721,8 +13724,146 @@ Return ONLY raw JSON:
                 </div>
               ) : null /* Full Session toggle replaced by card grid above */}
 
+              {/* Kickoff v2 — flag-gated single-screen compact form (localStorage cc_kickoff_v2 = "on") */}
+              {sessionMode==="full"&&kickoffV2&&(()=>{
+                // Same derived state as the classic step-0 URL bar (flag-off branch below)
+                const inputNorm = sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"").toLowerCase();
+                const sellerNorm = (sellerUrl||"").toLowerCase();
+                const icpName = (sellerICP?.sellerName || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+                const inputBase = inputNorm.split(".")[0].replace(/[^a-z0-9]/g, "");
+                const icpMatchesUrl = icpName && inputBase && (icpName.includes(inputBase) || inputBase.includes(icpName));
+                const icpVerified = sellerICP && !sellerICP._error && !sellerICP._loading && inputNorm && inputNorm === sellerNorm && icpMatchesUrl;
+                const scanDone = urlScanConfirmed || urlScanStatus === "found";
+                const urlReady = icpVerified || scanDone;
+                const isLoading = (icpLoading || urlScanStatus === "scanning") && inputNorm && !urlReady;
+                return (
+                <>
+                <div className="field-row">
+                  <div className="field-label">Your Organization's Website <span className="req">*</span></div>
+                  <div className="setup-url-bar" style={{borderColor: urlReady ? "var(--green)" : isLoading ? "var(--amber)" : undefined, transition:"border-color 0.2s"}}>
+                    <div className="setup-url-label" style={{color: urlReady ? "var(--green)" : isLoading ? "var(--amber)" : undefined}}>
+                      {urlReady ? "✓" : isLoading ? "⏳" : "Seller URL"}
+                    </div>
+                    <input className="setup-url-input" type="text" placeholder="e.g. yourcompany.com"
+                      value={sellerInput} onChange={e=>{setSellerInput(e.target.value);setUrlScanStatus("");setUrlScanConfirmed(false);}}
+                      onKeyDown={e=>{if(e.key==="Enter"&&sellerInput.trim()&&!isLoading&&!disambigLoading) handleSellerGo();}}
+                      style={{color: icpVerified ? "var(--green)" : undefined, fontWeight: icpVerified ? 600 : undefined}}
+                    />
+                  </div>
+
+                  {/* Scan status — same state machine + safeguards as the classic form */}
+                  {urlScanStatus==="scanning"&&(
+                    <div style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--amber)",marginTop:8}}>
+                      <div className="load-spin" style={{width:12,height:12,borderWidth:2}}/> Scanning for products, solutions, and case studies...
+                    </div>
+                  )}
+                  {urlScanStatus==="found"&&!urlScanConfirmed&&(
+                    <div style={{background:"var(--green-bg)",border:"1.5px solid var(--green)",borderRadius:10,padding:"12px 14px",marginTop:10}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"var(--green)",marginBottom:8}}>
+                        🔍 Found {productUrls.filter(u=>u.url).length} product page{productUrls.filter(u=>u.url).length!==1?"s":""}
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
+                        {productUrls.filter(u=>u.url).map((u,i)=>(
+                          <div key={i} style={{fontSize:12,color:"var(--ink-0)",display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{color:"var(--green)",fontSize:14}}>🔗</span>
+                            <span style={{fontWeight:600,color:"var(--green)",marginRight:4,flex:1}}>{u.label||"Page "+(i+1)}</span>
+                            <span style={{color:"var(--ink-2)",fontFamily:"monospace",fontSize:11,flex:1}}>{u.url.replace(/^https?:\/\//,"").slice(0,50)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{fontSize:13,fontWeight:600,color:"var(--ink-0)",marginBottom:10}}>Are these the right product pages?</div>
+                      <div style={{display:"flex",gap:8}}>
+                        <button className="btn btn-green btn-sm" onClick={()=>{setUrlScanConfirmed(true); if(!sellerICP && !icpLoading) buildSellerICP(sellerUrl);}}>✓ Yes, looks right</button>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>{setProductUrls([{url:"",label:""}]);setUrlScanStatus("");}}>✕ Clear, I'll add manually</button>
+                      </div>
+                    </div>
+                  )}
+                  {urlScanConfirmed&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--green)",padding:"8px 12px",marginTop:8,background:"var(--green-bg)",border:"1px solid #2E6B2E22",borderRadius:8}}>
+                      <span style={{fontSize:14}}>✓</span> {productUrls.filter(u=>u.url).length} product page{productUrls.filter(u=>u.url).length!==1?"s":""} confirmed
+                    </div>
+                  )}
+                  {urlScanStatus==="none"&&(
+                    <div style={{fontSize:12,color:"var(--ink-3)",marginTop:8}}>No product pages found automatically — you can add them on the next step.</div>
+                  )}
+                  {icpLoading&&!sellerICP&&(
+                    <div style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--ink-3)",padding:"8px 0",marginTop:8}}>
+                      <div className="load-spin" style={{width:12,height:12,borderWidth:2}}/> {icpStatus || getQuip("icp")}
+                    </div>
+                  )}
+                  {sellerICP&&!icpLoading&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--green)",padding:"8px 12px",marginTop:8,background:"var(--green-bg)",border:"1px solid #2E6B2E22",borderRadius:8}}>
+                      <span style={{fontSize:14}}>✓</span> <strong>ICP ready</strong> — you'll review and edit it on the next step
+                    </div>
+                  )}
+                </div>
+
+                {/* Add more details — collapsed disclosure; binds the SAME state the classic form feeds
+                    into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824, sellerICPInput @8270) */}
+                <div style={{marginTop:14}}>
+                  <div onClick={()=>toggleBB("setupDetails")} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"var(--bg-1)",borderRadius:8,border:"1px solid var(--line-0)"}}>
+                    <span style={{fontSize:13}}>{bbIsOpen("setupDetails")?"▾":"▸"}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--ink-1)"}}>Add more details <span style={{fontWeight:400,color:"var(--ink-3)"}}>(optional — improves targeting)</span></div>
+                      <div style={{fontSize:10,color:"var(--ink-3)"}}>Funding stage, market segment, your own ICP notes</div>
+                    </div>
+                    {sellerStage && <span style={{fontSize:10,fontWeight:700,background:"var(--green-bg)",color:"var(--green)",borderRadius:10,padding:"2px 8px"}}>{sellerStage}</span>}
+                  </div>
+                  <div style={{display:bbIsOpen("setupDetails")?"block":"none",padding:"12px 0 0"}}>
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Your Funding Stage</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                        {["Bootstrapped","Angel","Seed","Series A","Series B","Series C","Series D+","PE-Backed","Private","Public"].map(stage=>(
+                          <button key={stage} onClick={()=>setSellerStage(stage)}
+                            style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(sellerStage===stage?"var(--ink-0)":"var(--line-0)"),
+                              background:sellerStage===stage?"var(--ink-0)":"var(--surface)",color:sellerStage===stage?"#fff":"var(--ink-1)",
+                              fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.13s"}}>
+                            {stage}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Market Segment <span style={{fontWeight:400,color:"var(--ink-3)"}}>pick 1</span></div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                        {["SMB","Mid-Market","Enterprise"].map(v=>{
+                          const sel=icpTargeting.segment===v;
+                          return <button key={v} onClick={()=>setIcpTargeting(p=>({...p,segment:sel?"":v}))}
+                            style={{padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all 0.13s",
+                              border:"1.5px solid "+(sel?"var(--navy)":"var(--line-0)"),background:sel?"var(--navy)":"var(--surface)",color:sel?"#fff":"var(--ink-1)"}}>{v}</button>;
+                        })}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Anything else we should know? <span style={{fontWeight:400,color:"var(--ink-3)"}}>your ICP, in your own words</span></div>
+                      <textarea
+                        value={sellerICPInput}
+                        onChange={e=>setSellerICPInput(e.target.value)}
+                        placeholder={"e.g. \"We sell to SMB restaurants with 1-5 locations, owner-operators, $500K-$5M revenue\""}
+                        style={{width:"100%",minHeight:60,padding:"10px 12px",fontSize:13,border:"1.5px solid var(--line-0)",borderRadius:8,resize:"vertical",fontFamily:"inherit",lineHeight:1.6,background:"var(--bg-0)"}}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Primary CTA — the EXISTING Go pipeline (resolver → disambiguation modal or domain fast-path → scan) */}
+                <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",marginTop:20}}
+                  onClick={handleSellerGo}
+                  disabled={!sellerInput.trim() || isLoading || disambigLoading}>
+                  {disambigLoading ? "Verifying..." : isLoading ? "Scanning..." : "Build my workspace →"}
+                </button>
+                {/* Advance — identical action to the classic Start Session button */}
+                {scanDone&&(
+                  <button className="btn btn-secondary" style={{width:"100%",justifyContent:"center",marginTop:8}}
+                    onClick={()=>{if(sellerInput.trim()){setSellerUrl(sellerInput.trim());setStep(1);}}}
+                    disabled={!sellerInput.trim()}>Continue to session →</button>
+                )}
+                </>
+                );
+              })()}
+
               {/* Full Session mode */}
-              {sessionMode==="full"&&(
+              {sessionMode==="full"&&!kickoffV2&&(
               <>
               <div className="field-row">
                 <div className="field-label">Your Organization's Website <span className="req">*</span></div>
