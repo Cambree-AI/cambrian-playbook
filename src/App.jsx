@@ -10703,7 +10703,10 @@ Return ONLY raw JSON:
           }
 
           // ── REVENUE RECONCILIATION WITH P9 — P9 is authoritative (deeper financial research) ──
-          if (current.financialDeepDive?.revenueTrend) {
+          // Skipped for unconfirmed companies: the unconfirmed-company gate above cleared
+          // current.revenue; this block must not re-add a wrong-entity P9 figure (mirrors the
+          // mergeDeepIntel backfill guard at App.jsx:3494).
+          if (current.financialDeepDive?.revenueTrend && !(current.companySnapshot && _companyUnconfirmed(current.companySnapshot))) {
             const p9Rev = current.financialDeepDive.revenueTrend;
             const dollarMatch = p9Rev.match(/\$[\d,.]+\s*(?:billion|B|million|M|trillion|T)/gi);
             if (dollarMatch?.length) {
