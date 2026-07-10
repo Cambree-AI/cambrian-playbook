@@ -3565,10 +3565,31 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     return merger(null);
   };
 
+  // One-shot P1 retry — Overview failures under burst are usually transient 429/529
+  // (same class as the p7/p9 deep-intel retries at ~3578-3599). Compact prompt, 8s
+  // breather so the rate window recovers before re-firing. Late by design: P2/P7/P8/P9
+  // already awaited the original p1 and proceeded without a snapshot — this retry
+  // repairs the brief header/confidence/revenue, not their identity context. Both
+  // outcomes flow through mergeOverview, which owns _completedSections/_error writes.
+  const retryOverview = () => new Promise(r => setTimeout(r, 8000)).then(() =>
+    streamAIWithSearch(baseLight +
+      `Search for "${co}" to get current, accurate company data.\n` +
+      `OWNERSHIP ACCURACY: if the company was acquired or taken private, say "Private" — never include a stale/delisted ticker.\n\n` +
+      `Return ONLY raw JSON:\n` +
+      `{"companySnapshot":"3-4 sentences: what ${co} does, market position, recent moves. Describe roles only — never name a currently-active individual.","revenue":"most recent TOTAL revenue figure with fiscal year, or a reasoned labeled estimate for private companies","publicPrivate":"Public (EXCHANGE: TICKER) only if currently listed, else Private / Private (PE-backed) / Nonprofit","employeeCount":"exact for public companies, ~estimate for private","headquarters":"City, State","founded":"Year","website":"domain.com","linkedIn":"exact LinkedIn company page URL or empty string","fundingProfile":"ownership structure — must agree with publicPrivate","competitors":["direct competitors from search results only"],"watchOuts":["Procurement risk assessment","Incumbent vendor risk","Seller-stage credibility fit"]}`,
+      null, 1800, { maxSearches: 1, anchorKey: "companySnapshot", model: SONNET }));
+
   return {
     skeleton,
     mergers: {
-      overview:  p1.then(mergeOverview).catch(catchLog("p1-overview", mergeOverview)),
+      overview:  p1.then(r1 => {
+        if (r1 && typeof r1 === "object") return mergeOverview(r1);
+        console.log("[p1] Overview failed — retrying once");
+        return retryOverview().then(r1b => {
+          if (r1b) console.log("[p1] Overview retry succeeded");
+          return mergeOverview(r1b);
+        }).catch(catchLog("p1-overview-retry", mergeOverview));
+      }).catch(catchLog("p1-overview", mergeOverview)),
       executives:p2.then(mergeExecs).catch(catchLog("p2-executives", mergeExecs)),
       strategy:  p3.then(mergeStrategy).catch(catchLog("p3-strategy", mergeStrategy)),
       solutions: p4.then(mergeSolutions).catch(catchLog("p4-solutions", mergeSolutions)),
