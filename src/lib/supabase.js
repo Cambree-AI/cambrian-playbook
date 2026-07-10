@@ -42,7 +42,7 @@ export async function sbRefreshSession() {
   if (_refreshPromise) return _refreshPromise;
 
   const refreshToken = sessionStorage.getItem('sb_refresh_token') || localStorage.getItem('sb_refresh_token');
-  if (!refreshToken) return null;
+  if (!refreshToken) return { token: null, terminal: true }; // nothing to refresh with — genuinely unrecoverable
 
   _refreshPromise = (async () => {
     try {
@@ -51,14 +51,21 @@ export async function sbRefreshSession() {
         headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
       });
-      const d = await r.json();
-      if (d.access_token) {
+      let d = null;
+      try { d = await r.json(); } catch { /* non-JSON body (gateway error page) = transient */ }
+      if (d?.access_token) {
         sbStoreTokens(d);
         if (_onTokenRefreshed) _onTokenRefreshed(d.access_token);
-        return d.access_token;
+        return { token: d.access_token, terminal: false };
       }
-      return null;
-    } catch { return null; }
+      // ONLY a definitive rejection by the auth server (400/401/403 — invalid, expired,
+      // or revoked refresh token) is terminal. 429 / 5xx / non-JSON / network errors are
+      // transient: the refresh token may be perfectly valid, and destroying the session
+      // on a blip is the observed silent-sign-out bug (HANDOFF_26 §B).
+      const terminal = r.status === 400 || r.status === 401 || r.status === 403;
+      console.warn(`[auth] Refresh failed (${r.status}) — ${terminal ? 'terminal' : 'transient, keeping tokens'}`);
+      return { token: null, terminal };
+    } catch { console.warn('[auth] Refresh network error — transient, keeping tokens'); return { token: null, terminal: false }; }
     finally { _refreshPromise = null; }
   })();
 
@@ -118,7 +125,12 @@ export async function sbGetUser(token) {
   const r = await fetch(SB_URL + '/auth/v1/user', {
     headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + token },
   });
-  return r.ok ? r.json() : null;
+  if (r.ok) return r.json();
+  // 401/403 = the token itself is invalid (terminal → null, as before). Anything else —
+  // 429, 5xx, gateway errors — is transient: the token may be perfectly valid, and
+  // callers must NOT destroy the session on it.
+  if (r.status === 401 || r.status === 403) return null;
+  return { _transient: true, _status: r.status };
 }
 
 export async function sbSessions(method, path, token, body) {

@@ -4118,13 +4118,19 @@ function PasswordGate({ onAuth }) {
 
     const restored = sbRestoreSession();
     if (restored?.needsRefresh) {
-      // Token expired but refresh token exists — try refreshing
-      sbRefreshSession().then(async newToken => {
+      // Token expired but refresh token exists — try refreshing. ONLY a terminal
+      // rejection may destroy the session; a transient failure (network blip, 429,
+      // 5xx) keeps tokens so the next load recovers. Previously ANY failure here
+      // executed sbClearTokens() — the observed silent sign-out (3x in production).
+      sbRefreshSession().then(async res => {
+        const newToken = res?.token;
         if (newToken) {
           const u = await sbGetUser(newToken);
           if (u?.id) { onAuth(u, newToken); return; }
+          if (u && u._transient) { console.warn('[auth] /user transient failure after refresh — keeping tokens'); return; }
         }
-        sbClearTokens();
+        if (res?.terminal) { console.warn('[auth] Refresh terminally rejected — clearing session'); sbClearTokens(); }
+        else console.warn('[auth] Refresh failed transiently — keeping tokens for next load');
       });
     } else if (restored?.token) {
       const token = restored.token;
@@ -4146,6 +4152,16 @@ function PasswordGate({ onAuth }) {
             } catch (e) { console.warn("[invite] Accept failed:", e.message); }
           }
           onAuth(u,token);
+        } else if (u && u._transient) {
+          // Transient /user failure — the token may be perfectly valid. Retry once,
+          // and keep tokens either way; only a definitive 401/403 clears.
+          console.warn(`[auth] /user transient failure (${u._status}) — retrying once in 3s`);
+          setTimeout(async () => {
+            const u2 = await sbGetUser(token);
+            if (u2?.id) onAuth(u2, token);
+            else if (u2 && u2._transient) console.warn('[auth] /user still transient — keeping tokens');
+            else sbClearTokens();
+          }, 3000);
         } else {
           sbClearTokens();
         }
