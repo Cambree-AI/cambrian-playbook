@@ -12379,8 +12379,9 @@ Return ONLY raw JSON:
           messages: [{ role: "user", content: light +
             `Search for "${co}" to get current, accurate company data.\n` +
             `OWNERSHIP ACCURACY: Many companies have changed ownership status. If a company was acquired or taken private, say "Private" — NEVER include a stale/delisted ticker. Only include a ticker if verified as currently listed.\n\n` +
+            `COMPETITOR GROUNDING: competitors must come from your web search results and must actually compete in ${co}'s market AND geography — if you are not confident a company operates where ${co} does, omit it. An empty array beats a guessed name. Never claim a company operates in or has a presence in a region unless search results confirm it, and never state specific dollar figures or market-share percentages that did not appear in search results.\n\n` +
             `Return ONLY raw JSON:\n` +
-            `{"companySnapshot":"3-4 sentences: what they do, market position, recent moves","revenue":"most recent figure","publicPrivate":"e.g. Public (NASDAQ: CASH) — only include ticker if verified","employeeCount":"e.g. ~50,000","headquarters":"City, State","founded":"Year","website":"domain.com","linkedIn":"linkedin.com/company/name","fundingProfile":"Ownership details","competitors":["","",""],"watchOuts":["Procurement risk assessment","Incumbent vendor risk","Seller-stage credibility fit"]}`
+            `{"companySnapshot":"3-4 sentences: what they do, market position, recent moves","revenue":"most recent figure","publicPrivate":"e.g. Public (NASDAQ: CASH) — only include ticker if verified","employeeCount":"e.g. ~50,000","headquarters":"City, State","founded":"Year","website":"domain.com","linkedIn":"linkedin.com/company/name","fundingProfile":"Ownership details","competitors":["ONLY direct competitors in the same product category AND geography — from web search results. Empty array if none found."],"watchOuts":["Procurement risk assessment","Incumbent vendor risk — only name a specific vendor or competitor if search results support it","Seller-stage credibility fit"]}`
           }],
         });
         if (d.error) return null;
