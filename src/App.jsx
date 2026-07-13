@@ -16397,7 +16397,7 @@ Return ONLY raw JSON:
             <div className="page-sub">
               {briefLoading?"Hang tight — live research in progress.":(sellerUrl === "research-only"
                 ? `Deep intelligence on ${selectedAccount?.company} — executives, strategy, sentiment, financials, and competitive positioning. All fields are editable.`
-                : `This brief maps ${sellerICP?.sellerName||sellerUrl}'s products to ${selectedAccount?.company}'s needs${(sellerICP?.icp?.verifiedCustomers||[]).length?` — grounded in ${sellerICP.icp.verifiedCustomers.length} verified customer win${sellerICP.icp.verifiedCustomers.length===1?"":"s"}`:""}.${(sellerICP?.icp?.productCatalog||[]).length?` ${sellerICP.icp.productCatalog.length} product${sellerICP.icp.productCatalog.length===1?"":"s"} mapped.`:""} All fields are editable.`)}
+                : `This brief maps ${sellerICP?.sellerName||sellerUrl}'s products to ${selectedAccount?.company}'s needs${(sellerICP?.icp?.verifiedCustomers||[]).length?` — drawing on ${sellerICP.icp.verifiedCustomers.length} verified customer win${sellerICP.icp.verifiedCustomers.length===1?"":"s"} from the seller's track record`:""}.${(sellerICP?.icp?.productCatalog||[]).length?` Catalog: ${sellerICP.icp.productCatalog.length} product${sellerICP.icp.productCatalog.length===1?"":"s"} available to map.`:""} All fields are editable.`)}
             </div>
 
             {/* Brief age + cache indicator */}
