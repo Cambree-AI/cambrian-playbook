@@ -3348,9 +3348,35 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         }],
       });
       const textBlocks=(d.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
+      // E4 fix: code-verify board-member names against the raw web-search corpus
+      // (same §2.10 pattern as the P2 web-search gate at ~2590). web_search_tool_result
+      // blocks come from Anthropic's search API — the model cannot fabricate them.
+      // A name found verbatim in a result item gets that item's REAL url code-stamped
+      // as sourceUrl; any model-supplied sourceUrl is stripped first. Unverified members
+      // keep their name in DATA (render gate suppresses it; _scrubOwn needs it) but
+      // carry no sourceUrl, so their name can never render.
+      const _p8Items = (d.content||[]).filter(b=>b.type==="web_search_tool_result").flatMap(block=>{
+        const items = Array.isArray(block.content) ? block.content : [];
+        return items.map(r=>({
+          text: [r.page_content||"", r.title||"", r.text||"", r.description||"", r.snippet||""].join(" ").toLowerCase(),
+          url: r.url||"",
+        }));
+      });
+      const _stampBoard = (bi) => {
+        if (!bi?.boardMembers?.length) return bi;
+        bi.boardMembers = bi.boardMembers.map(m=>{
+          const { sourceUrl: _modelUrl, ...clean } = (m || {});
+          const _nl = (clean.name||"").toLowerCase().trim();
+          if (_nl.length < 3) return clean;
+          const _hit = _p8Items.find(it=>it.url.startsWith("http") && it.text.includes(_nl));
+          if (!_hit) { console.warn(`[p8] Board name not in search corpus: "${clean.name}" — stays role-only`); return clean; }
+          return { ...clean, sourceUrl: _hit.url };
+        });
+        return bi;
+      };
       for(let i=textBlocks.length-1;i>=0;i--){
         const parsed=extractJsonWithKey(textBlocks[i],"boardAndInvestors");
-        if(parsed?.boardAndInvestors) return parsed;
+        if(parsed?.boardAndInvestors) { parsed.boardAndInvestors = _stampBoard(parsed.boardAndInvestors); return parsed; }
       }
       return null;
     }catch{return null;}
@@ -17700,7 +17726,10 @@ Return ONLY raw JSON:
                                     .filter(e=>e.name&&e.sourceUrl?.startsWith("http"))
                                     .map(e=>e.name.toLowerCase().trim())
                                 );
-                                const _bVerified = _vpBoard.has((b.name||"").toLowerCase().trim());
+                                // E4 fix: a board member also verifies via their OWN sourceUrl —
+                                // code-stamped in p8 only after the name was found verbatim in the
+                                // raw web-search corpus (model-supplied URLs are stripped there).
+                                const _bVerified = _vpBoard.has((b.name||"").toLowerCase().trim()) || !!(b.name && (b.sourceUrl||"").startsWith("http"));
                                 // 2.5: for an UNVERIFIED member, scrub their own (already-withheld) name out of
                                 // their bio prose so the narrative can't re-introduce the name the header suppressed.
                                 const _scrubOwn = (t) => (!_bVerified && b.name && t)
