@@ -2001,6 +2001,23 @@ const BRIEF_CACHE_VERSION = 3;
 const _companyUnconfirmed = (s) => !!s && typeof s === "string" &&
   /^[^.]{0,80}?(no verified data|no verifiable public|returned zero results|unable to (retrieve|verify)|could not be (retrieved|verified))/i.test(s.trim());
 
+// ── VERBAL CONFIDENCE (display layer) ────────────────────────────────────────
+// 3-state verbal chip replacing the numeric "N/8 sections web-verified" badge.
+// Positively framed by design: users never see a raw count or the word "low".
+// The underlying signal (_dataConfidence/_sectionsGrounded) is unchanged and
+// still flows to telemetry. confBandOf falls back to _dataConfidence for briefs
+// saved before _confidenceBand existed (supabase cache, guest state) and for
+// the mergeOverview contamination path (2889) when the validator never ran.
+const CONF_LABELS = {
+  well:    "Well-sourced",
+  solid:   "Solid — confirm a couple items",
+  lighter: "Lighter public data — verify before the call",
+};
+const confBandOf = (b) => b?._confidenceBand ||
+  (b?._dataConfidence === "high" ? "well" :
+   b?._dataConfidence === "medium" ? "solid" :
+   b?._dataConfidence === "low" ? "lighter" : null);
+
 // generateBrief is NON-ASYNC so it returns skeleton + raw promises
 // immediately. pickAccount (the only caller) then renders the skeleton
 // right away and merges each micro-result as it resolves — no blocking
@@ -12098,6 +12115,7 @@ Return ONLY raw JSON:
       generatedAt: new Date().toISOString(),
       dataConfidence: brief._dataConfidence || "",
       sectionsGrounded: brief._sectionsGrounded || 0,
+      confidenceLabel: CONF_LABELS[confBandOf(brief)] || "",
 
       // ── Quick Take
       topFinding: s(brief.tldr?.topFinding),
@@ -12231,7 +12249,7 @@ Return ONLY raw JSON:
 
     lines.push(`EXECUTIVE SESSION SUMMARY — ${summary.targetCompany}`);
     lines.push(`Selling as: ${summary.sellerName} | Generated: ${new Date(summary.generatedAt).toLocaleDateString()}`);
-    if (summary.dataConfidence) lines.push(`Data Confidence: ${summary.dataConfidence} (${Math.min(summary.sectionsGrounded ?? 0, 8)}/8 sections web-verified)`);
+    if (summary.confidenceLabel) lines.push(`Sourcing: ${summary.confidenceLabel}`);
 
     if (summary.topFinding || summary.topOpportunity || summary.topRisk) {
       addSection("QUICK TAKE");
@@ -16851,21 +16869,19 @@ Return ONLY raw JSON:
                   );
                 })()}
 
-                {/* Data Confidence badge — anti-hallucination transparency */}
-                {brief._dataConfidence && (
+                {/* Sourcing chip — verbal, positively framed. No raw counts, never
+                    the word "low"; the raw signal stays in _dataConfidence/
+                    _sectionsGrounded (telemetry, unchanged). */}
+                {confBandOf(brief) && (() => { const _band = confBandOf(brief); return (
                   <div style={{
                     display:"flex",alignItems:"center",gap:8,marginBottom:10,padding:"6px 12px",
                     borderRadius:"var(--r-md)",fontSize:11,fontWeight:600,
-                    background: brief._dataConfidence === "high" ? "var(--green-bg)" : brief._dataConfidence === "medium" ? "var(--amber-bg)" : "var(--red-bg)",
-                    color: brief._dataConfidence === "high" ? "var(--green)" : brief._dataConfidence === "medium" ? "var(--amber)" : "var(--red)",
+                    background: _band === "well" ? "var(--green-bg)" : "var(--amber-bg)",
+                    color: _band === "well" ? "var(--green)" : "var(--amber)",
                   }}>
-                    <span>{brief._dataConfidence === "high" ? "High" : brief._dataConfidence === "medium" ? "Medium" : "Low"} Data Confidence<InfoTip text="How many of the 8 brief sections were grounded by web search vs training data. High = 7+ verified, Medium = 4-6, Low = fewer than 4. Verify low-confidence facts before your call."/></span>
-                    <span style={{fontWeight:400,opacity:0.8}}>
-                      {Math.min(brief._sectionsGrounded ?? 0, 8)}/8 sections web-verified
-                      {brief._dataConfidence !== "high" && " — verify key facts before the call"}
-                    </span>
+                    <span>{CONF_LABELS[_band]}<InfoTip text="How much of this brief was confirmed against live web sources. Well-sourced: core intel confirmed from the web. Solid: most of it confirmed — double-check a couple of items. Lighter public data: thin public footprint (common for private companies) — verify key facts before the call."/></span>
                   </div>
-                )}
+                ); })()}
 
                 {/* First-brief guidance — contextual callout for new users */}
                 {brief && !Object.values(brief._loadingSections || {}).some(Boolean) && !briefError && !brief._error && (
