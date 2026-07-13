@@ -776,7 +776,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
   .print-footer {
     display: block !important;
     position: fixed;
-    bottom: 0;
+    bottom: -12mm; /* sit inside the 18mm @page bottom margin, clear of body text */
     left: 0;
     right: 0;
     text-align: center;
@@ -784,6 +784,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
     color: #bbb;
     padding: 6px 0;
     border-top: 1px solid #eee;
+    background: #fff; /* opaque — never interleaves even if overlap recurs */
   }
   .print-footer .pf-brand { font-family: 'Lora', serif; font-weight: 700; color: #1a1a18; }
   .print-footer .pf-brand span { color: #8B6F47; }
