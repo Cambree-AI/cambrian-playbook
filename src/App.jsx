@@ -360,6 +360,7 @@ const BLANK_BRIEF = {
   // Data confidence — anti-hallucination provenance tracking
   _dataConfidence:null, // "high" | "medium" | "low" — computed after all sections resolve
   _sectionsGrounded:0, // count of sections that used web search successfully
+  _confidenceBand:null, // "well" | "solid" | "lighter" — DISPLAY-ONLY verbal band over _sectionsGrounded (coarse bands + hysteresis), computed after mergers settle
 };
 
 const RKEYS = ["reality","impact","vision","entryPoints","route"];
@@ -10128,10 +10129,22 @@ Return ONLY raw JSON:
     });
 
     // Discovery questions need solutionMapping (product context) to generate
-    // product-specific questions — NOT generic ones. Wait for allDone so all
-    // mergers (including p4 solutions) have applied to the brief state.
-    allDone.then(() => {
-      console.log("[brief] allDone resolved — triggering consistency check, discovery questions + 5 Questions");
+    // product-specific questions — NOT generic ones. Wait for the MERGERS to
+    // settle, not raw allDone: the p1 retry (8s breather + call, ~3617) and the
+    // p7/p9 retries awaited inside the deepIntel merger (~3641-3672) apply their
+    // recovered data seconds AFTER allDone (raw p1..p10) resolves. Computing
+    // confidence at raw allDone scored retry-recovered sections as unverified —
+    // the run-to-run badge flip. Merger .thens were attached first (9965), so
+    // their setBrief updaters are enqueued before this one — post-retry state is
+    // visible here. Bounded by a 45s race after allDone so a hung retry can never
+    // strand the validator (worst case = today's timing, 45s later); the 90s hard
+    // timeout is independent and unchanged.
+    const mergersSettled = allDone.then(() => Promise.race([
+      Promise.allSettled(Object.values(mergers)),
+      new Promise(res => setTimeout(res, 45000)),
+    ]));
+    mergersSettled.then(() => {
+      console.log("[brief] mergers settled — triggering consistency check, discovery questions + 5 Questions");
       setBrief(current => {
         if (current?._error) setBriefError(current._error);
         return current;
@@ -10452,6 +10465,24 @@ Return ONLY raw JSON:
           if (current.companySnapshot && _companyUnconfirmed(current.companySnapshot)) {
             current._dataConfidence = "low";
           }
+          // ── VERBAL CONFIDENCE BAND (display-only; raw signal above unchanged) ──
+          // Same thresholds as _dataConfidence, plus Schmitt-trigger hysteresis
+          // against the PREVIOUS run of this company: an earned band survives a
+          // 1-point dip below its threshold ("well" holds at grounded ≥6, "solid"
+          // at ≥3); upgrades still require the full threshold. Thresholds are
+          // FIXED, so the label can never ratchet downward while keeping its word.
+          // Honest floor: an unconfirmed company is always "lighter" — hysteresis
+          // cannot lift it, and the floored band is what gets stored.
+          let _band = grounded >= 7 ? "well" : grounded >= 4 ? "solid" : "lighter";
+          const _confKey = `cambrianConfBand:${member.company_url || member.company || ""}`;
+          try {
+            const _prevBand = JSON.parse(localStorage.getItem(_confKey) || "null")?.band;
+            if (_prevBand === "well" && _band === "solid" && grounded >= 6) _band = "well";
+            else if (_prevBand === "solid" && _band === "lighter" && grounded >= 3) _band = "solid";
+          } catch { /* non-critical */ }
+          if (current.companySnapshot && _companyUnconfirmed(current.companySnapshot)) _band = "lighter";
+          try { localStorage.setItem(_confKey, JSON.stringify({ band: _band, grounded })); } catch { /* non-critical */ }
+          current._confidenceBand = _band;
 
           // ── CORROBORATION GATE (Moat Architecture §2.2) ─────────────────
           // Tier 3 facts (executives, revenue, ownership) must be corroborated
