@@ -13793,7 +13793,35 @@ Return ONLY raw JSON:
                     </div>
                   )}
                   {urlScanStatus==="none"&&(
-                    <div style={{fontSize:12,color:"var(--ink-3)",marginTop:8}}>No product pages found automatically — you can add them on the next step.</div>
+                    <div style={{background:"var(--bg-1)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"14px 16px",marginTop:10}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>Let's add a little context</div>
+                      <div style={{fontSize:12,color:"var(--ink-1)",lineHeight:1.6,marginBottom:12}}>
+                        Looks like your company's website is a little light on product, services, solutions, and case-study content.
+                        Not a problem — use the upload button to add relevant materials (case studies, product one-pagers, etc.),
+                        or use the text field below to describe the products, solutions, or services you're focused on selling.
+                      </div>
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs) */}
+                        <label className="btn btn-secondary btn-sm" style={{cursor:"pointer"}}>
+                          <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
+                            onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
+                          📂 Upload materials
+                        </label>
+                        <button className="btn btn-secondary btn-sm"
+                          onClick={()=>{
+                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("setupDetails");return next;});
+                            setTimeout(()=>{document.getElementById("kickoffv2-icp-input")?.focus();},80);
+                          }}>
+                          ✏️ Describe what you sell
+                        </button>
+                        {sellerDocs.length>0&&(
+                          <span style={{fontSize:11,fontWeight:600,color:"var(--green)"}}>✓ {sellerDocs.length} doc{sellerDocs.length>1?"s":""} added</span>
+                        )}
+                      </div>
+                      <div style={{fontSize:11,color:"var(--ink-3)",marginTop:10}}>
+                        Either one works. Then continue below — you'll build your ICP on the next step with whatever you add here.
+                      </div>
+                    </div>
                   )}
                   {icpLoading&&!sellerICP&&(
                     <div style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"var(--ink-3)",padding:"8px 0",marginTop:8}}>
@@ -13846,6 +13874,7 @@ Return ONLY raw JSON:
                     <div>
                       <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Anything else we should know? <span style={{fontWeight:400,color:"var(--ink-3)"}}>your ICP, in your own words</span></div>
                       <textarea
+                        id="kickoffv2-icp-input"
                         value={sellerICPInput}
                         onChange={e=>setSellerICPInput(e.target.value)}
                         placeholder={"e.g. \"We sell to SMB restaurants with 1-5 locations, owner-operators, $500K-$5M revenue\""}
@@ -13861,8 +13890,11 @@ Return ONLY raw JSON:
                   disabled={!sellerInput.trim() || isLoading || disambigLoading}>
                   {disambigLoading ? "Verifying..." : isLoading ? "Scanning..." : "Build my workspace →"}
                 </button>
-                {/* Advance — identical action to the classic Start Session button */}
-                {scanDone&&(
+                {/* Advance — identical action to the classic Start Session button.
+                    Also rendered on a no-products scan (light-content path) so it is never a dead-end:
+                    the user proceeds to step 1 and builds the ICP via the existing "Build ICP Now"
+                    EmptyState (@14502), exactly like the classic no-products flow, using any uploaded docs. */}
+                {(scanDone||urlScanStatus==="none")&&(
                   <button className="btn btn-secondary" style={{width:"100%",justifyContent:"center",marginTop:8}}
                     onClick={()=>{if(sellerInput.trim()){setSellerUrl(sellerInput.trim());setStep(1);}}}
                     disabled={!sellerInput.trim()}>Continue to session →</button>
