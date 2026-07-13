@@ -3265,8 +3265,8 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
   // This eliminates ambiguity — P1 already knows what the company does.
   const p7 = (async()=>{
     // Wait for P1 to resolve — we need its companySnapshot to disambiguate
-    let p1Snapshot = "";
-    try { const r1 = await p1; p1Snapshot = r1?.companySnapshot || ""; } catch {}
+    let p1Snapshot = "", p1Competitors = [];
+    try { const r1 = await p1; p1Snapshot = r1?.companySnapshot || ""; p1Competitors = (Array.isArray(r1?.competitors) ? r1.competitors : []).filter(c => typeof c === "string" && c.trim()).slice(0, 6); } catch {}
     try {
       const companyDescription = p1Snapshot ? `\nCOMPANY DESCRIPTION (from verified web research — use this to filter search results):\n"${p1Snapshot.slice(0, 400)}"\nIf a search result describes a company that does NOT match this description, DISCARD it. This company is in ${p1Snapshot.match(/(?:is a|is an|provides|offers|specializes in)\s+([^.]{10,60})/i)?.[1] || "technology/services"} — not adhesives, manufacturing, or any other unrelated industry.\n\n` : "";
       const d = await claudeFetch({
@@ -3278,6 +3278,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
             : `IDENTITY: Research "${co}" ONLY.${companyDescription}\n\n`) +
           secFilingCtx +
           firmographicsTruth+
+          (p1Competitors.length ? `CANDIDATE COMPETITORS (already shown to the user elsewhere in this brief, from web research): ${p1Competitors.join(", ")}.\nVerify each with your own search — KEEP those your search confirms compete with ${co} in its actual market and geography, DROP any you cannot support, ADD better ones your search surfaces. Do NOT produce a list that contradicts these candidates unless your search shows one is wrong: two competitor lists that disagree in one brief destroy rep trust.\n\n` : "")+
           `Research the competitive landscape of ${co}${url && url !== co ? ` (${url})` : ""}.\n\n`+
           `Search for "${co} ${url && url !== co ? url + ' ' : ''}competitors" and "${co} vs" to find real competitive dynamics.\n\n`+
           `COMPETITOR ACCURACY (CRITICAL): Only list companies that DIRECTLY compete with ${co} in the SAME product category. A competitor must offer a substitute product that a buyer would evaluate alongside ${co}. Companies in adjacent categories (analytics, CRM, data platforms, etc.) are NOT competitors unless they directly compete for the same budget and use case. If web search returns no clear competitors, return fewer entries or empty array — do NOT fill with companies from your training data that seem vaguely related. A wrong competitor name makes the rep look uninformed.\n\n`+
