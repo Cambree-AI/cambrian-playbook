@@ -6698,17 +6698,26 @@ CRITICAL: EVERY COMPANY MUST BE UNIQUE. Never return the same company twice. Nev
     if (!sellerNorm) { console.log("[rfp-persist] Skip DB load — no seller URL"); return { open: [], closed: [], signals: [] }; }
     try {
       // Only load non-dismissed results from the last 180 days
-      // Match on user_id + seller_url pattern (handles evermoreoutcomes vs evermoreoutcomes.com)
+      // Anchored seller match (task #23). The old unanchored substring ilike
+      // (*sellerShort*) pulled OTHER sellers' rows (e.g. "app" matched
+      // appfolio.com). Each branch below anchors the full host at a boundary,
+      // so this seller's own stored variants (case, apex vs www., http(s)://,
+      // trailing slash/path, legacy TLD-less) still match, while superstring
+      // domains (catalyst.com vs cambriancatalyst.com) cannot.
       const cutoff = new Date(Date.now() - 180 * 86400000).toISOString();
-      const sellerShort = sellerNorm.replace(/\.com$|\.io$|\.ai$|\.org$|\.net$/, "").slice(0, 50);
-      // Query by seller_url pattern — no user_id filter so org-wide results persist
+      const sellerHost = sellerNorm.replace(/^www\./, "").replace(/\/.*$/, "");
+      const sellerBase = sellerHost.replace(/\.com$|\.io$|\.ai$|\.org$|\.net$/, "");
+      const h = encodeURIComponent(sellerHost);
+      const b = encodeURIComponent(sellerBase);
+      const sellerFilter = `or=(seller_url.ilike.${h},seller_url.ilike.${h}/*,seller_url.ilike.www.${h},seller_url.ilike.www.${h}/*,seller_url.ilike.http*://${h},seller_url.ilike.http*://${h}/*,seller_url.ilike.http*://www.${h},seller_url.ilike.http*://www.${h}/*,seller_url.ilike.${b},seller_url.ilike.www.${b})`;
+      // No user_id filter so org-wide results persist
       // RLS policy (migration 026) already scopes to authenticated user
-      const queryUrl = `${SB_URL}/rest/v1/rfp_intel_signals?seller_url=ilike.*${encodeURIComponent(sellerShort)}*&search_stage=eq.icp_level&user_dismissed=eq.false&created_at=gte.${cutoff}&order=relevance_score.desc.nullslast&limit=30`;
+      const queryUrl = `${SB_URL}/rest/v1/rfp_intel_signals?${sellerFilter}&search_stage=eq.icp_level&user_dismissed=eq.false&created_at=gte.${cutoff}&order=relevance_score.desc.nullslast&limit=30`;
       console.log("[rfp-persist] Query:", queryUrl.replace(SB_URL, ""));
       const r = await fetch(queryUrl, { headers: { apikey: SB_KEY, Authorization: `Bearer ${sbToken}` } });
       if (!r.ok) { const errText = await r.text().catch(()=>""); console.warn("[rfp-persist] DB load failed:", r.status, errText.slice(0,200)); return { open: [], closed: [], signals: [] }; }
       const rows = await r.json();
-      console.log(`[rfp-persist] Loaded ${rows?.length || 0} previous results from DB for "${sellerShort}"`, rows?.length ? `(first: ${rows[0]?.title?.slice(0,50)})` : "(empty)");
+      console.log(`[rfp-persist] Loaded ${rows?.length || 0} previous results from DB for "${sellerHost}"`, rows?.length ? `(first: ${rows[0]?.title?.slice(0,50)})` : "(empty)");
       // Filter out stale results that don't match the current seller's products/category
       // This catches CRM RFPs persisted for a previous seller that got tagged to this seller_url
       const currentCategory = (sellerICP?.marketCategory || "").toLowerCase();
