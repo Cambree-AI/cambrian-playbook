@@ -12877,8 +12877,8 @@ Return ONLY raw JSON:
     }))).slice(0, 50)), // cap at 50 to keep the palette performant
   ];
 
-  // ── Kickoff v2 flag (HANDOFF 29, Commit 1b) — localStorage "cc_kickoff_v2", default OFF.
-  const kickoffV2 = (() => { try { return localStorage.getItem("cc_kickoff_v2") === "on"; } catch { return false; } })();
+  // ── Kickoff v2 flag (HANDOFF 29) — localStorage "cc_kickoff_v2", default ON (opt out with "off").
+  const kickoffV2 = (() => { try { return localStorage.getItem("cc_kickoff_v2") !== "off"; } catch { return true; } })();
 
   // Step-0 Go pipeline — extracted VERBATIM from the classic Go button's inline
   // onClick (was @~13700-13761) so the kickoff-v2 form reuses the exact same
