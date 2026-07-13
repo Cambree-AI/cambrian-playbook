@@ -1507,7 +1507,9 @@ function verifiedPersonsOnly(persons, keyExecutives) {
       .map(e => e.name.toLowerCase().trim())
   );
   return (persons || []).map(p => {
-    const _ok = _vp.has((p?.name || "").toLowerCase().trim());
+    // E4: also trust a person's OWN code-stamped http sourceUrl (P0 page-verify 2513,
+    // P8 corpus stamp). "p4-contact-search" and model output never satisfy this.
+    const _ok = _vp.has((p?.name || "").toLowerCase().trim()) || !!(p?.name && (p?.sourceUrl || "").startsWith("http"));
     return { ...p, name: _ok ? p.name : "", initials: _ok ? p.initials : "" };
   });
 }
