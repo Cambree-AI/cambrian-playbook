@@ -1998,8 +1998,14 @@ const BRIEF_CACHE_VERSION = 3;
 // public data available", because App.jsx:2113 instructs P1 to emit that phrase for
 // real, data-scarce targets (private companies, small firms, NONPROFITS). Those
 // companies get a labeled ESTIMATE (see 2108/2112); only unconfirmable ones get nothing.
+// Widened (Move 1 c4, Meridian fix): NONEXISTENCE language only — "no verified [public]
+// data", "no third-party sources", "does not appear in any/the … registr(y|ies)",
+// "returned zero/no results", unable/could-not retrieve|verify|confirm. Deliberately
+// NOT matched (real-but-thin private co / nonprofit): "not publicly disclosed",
+// "privately held", "no audited figures", "estimate based on", "limited public data
+// available" (the instructed data-scarce phrase, 2152). Thin data ≠ nonexistent entity.
 const _companyUnconfirmed = (s) => !!s && typeof s === "string" &&
-  /^[^.]{0,80}?(no verified data|no verifiable public|returned zero results|unable to (retrieve|verify)|could not be (retrieved|verified))/i.test(s.trim());
+  /^[^.]{0,80}?(no verified( \w+){0,2} data|no verifiable public|no third[- ]party sources|does not appear in (any|the)[\w\s'-]{0,40}registr|returned (zero|no) results|unable to (retrieve|verify|confirm)|could not be (retrieved|verified|confirmed))/i.test(s.trim());
 
 // ── VERBAL CONFIDENCE (display layer) ────────────────────────────────────────
 // 3-state verbal chip replacing the numeric "N/8 sections web-verified" badge.
@@ -10461,8 +10467,14 @@ Return ONLY raw JSON:
           // private companies). The second clause catches the code-written contamination
           // fallback "<co> (<domain>) — limited public data available" whose domain
           // dot defeats the [^.] opening anchor.
+          // Widened (Move 1 c4): honest null-result openers now also include
+          // "no published … data found", "insufficient data", "cannot be determined",
+          // "would be fabricated", "returned no results", "no third-party sources",
+          // "no verified <adj> data". Estimate sections stay grounded: the instructed
+          // private-co format "No published data. Based on [evidence]…" (3442) does NOT
+          // match — "found" is required after "data" and [^.] can't cross the period.
           const _noData = (s) => !s || typeof s !== "string" ||
-            /^[^.]{0,80}?(no verified data|no verifiable public|returned zero results|limited public data available|unable to (retrieve|verify)|could not be (retrieved|verified))/i.test(s.trim()) ||
+            /^[^.]{0,80}?(no verified( \w+){0,2} data|no published( \w+){0,3} data( was)? found|no verifiable public|no third[- ]party sources|does not appear in (any|the)[\w\s'-]{0,40}registr|returned (zero|no) results|insufficient data|cannot be determined|would be fabricated|limited public data available|unable to (retrieve|verify|confirm)|could not be (retrieved|verified|confirmed))/i.test(s.trim()) ||
             /^.{0,120}?—\s*limited public data available/i.test(s.trim());
           // solutionMapping (p4) intentionally NOT counted — it is SELLER-derived and
           // always present, so it inflated every company's score by 1. Denominator is 8.
