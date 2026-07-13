@@ -1987,7 +1987,8 @@ const EXEC_CACHE_VERSION = 2;
 // prompts change. Stale briefs served from cache will NOT reflect prompt fixes.
 // v1 → v2: P1 NAMES IN NARRATIVE, anti-bootstrapped vocabulary across P1/P9/QuickTake,
 //           P8 board NAMES IN NARRATIVE block.
-const BRIEF_CACHE_VERSION = 2;
+// v2 → v3: competitor/geography grounding guardrails (P1 family + P7 family) — finding E2.
+const BRIEF_CACHE_VERSION = 3;
 
 // _companyUnconfirmed: TRUE only when the snapshot declares we could not confirm the
 // company EXISTS. Deliberately narrower than _noData: it does NOT include "limited
