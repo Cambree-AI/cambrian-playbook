@@ -14011,7 +14011,7 @@ Return ONLY raw JSON:
                 <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",marginTop:20}}
                   onClick={handleSellerGo}
                   disabled={!sellerInput.trim() || isLoading || disambigLoading}>
-                  {disambigLoading ? "Verifying..." : isLoading ? "Scanning..." : "Build my workspace →"}
+                  {disambigLoading ? "Verifying..." : isLoading ? "Scanning..." : "Analyze my company →"}
                 </button>
                 {/* Advance — identical action to the classic Start Session button.
                     Also rendered on a no-products scan (light-content path) so it is never a dead-end:
