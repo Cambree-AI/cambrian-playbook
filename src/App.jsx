@@ -1197,6 +1197,13 @@ ANTI-HALLUCINATION RULES (apply to EVERY response):
 - A sales rep who cites a wrong fact in a meeting loses credibility permanently. Your job is to be RIGHT, not to be complete.
 - NEVER disparage or undermine the selling organization. You are building tools FOR the seller. Do not editorialize about their product quality, pricing, viability, or market position.`;
 
+// JSON-only enforcement for the promptless web-search claudeFetch calls (Move 2).
+// Deliberately minimal: format enforcement ONLY. Anti-fabrication rules already live in
+// each call's own prompt body, so we do NOT duplicate ANTI_HALLUCINATION_SYSTEM here —
+// the extra "return empty" prose could bias web-search calls toward emptier output and
+// REDUCE citations, which is the opposite of Move 2's goal.
+const JSON_ONLY_SYSTEM = "You are a JSON API. Output only valid JSON matching the schema in the user's message. Use only ASCII punctuation. Do not emit any prose, preamble, markdown, or explanation before or after the JSON.";
+
 // ── THE PLAY — synthesis system prompt ──────────────────────────────────────
 // Prepended to ANTI_HALLUCINATION_SYSTEM for buildThePlay(). Establishes the
 // extractive rule and identity anchor for the synthesis pass.
@@ -2423,6 +2430,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       try {
         const _urlSearchResp = await claudeFetch({
           model: SONNET, max_tokens: 400, temperature: 0,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
           messages: [{ role: "user", content:
             `Search for pages on ${co}'s official website that name the current CEO, COO, CFO, and other senior executives by name.\n\n` +
@@ -2605,6 +2613,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         model: SONNET,
         max_tokens:3000,
         temperature: 0,
+        system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:execPrompt}],
       }, { extraHeaders: { "x-billable-run": "1" } });
@@ -2852,6 +2861,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         model:activeModel(),
         max_tokens:1800,
         temperature:0,
+        system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:prompt}],
       });
@@ -3183,6 +3193,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         model: activeModel(),
         max_tokens: 1200,
         temperature: 0,
+        system: JSON_ONLY_SYSTEM,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
         messages: [{ role: "user", content:
           firmographicsTruth +
@@ -3223,6 +3234,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           model: activeModel(),
           max_tokens: 1200,
           temperature: 0,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
           messages: [{ role: "user", content:
             `Search for current job openings at "${co}"${url && url !== co ? ` (${url})` : ""} on job boards and career platforms.\n\n` +
@@ -3298,6 +3310,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       const companyDescription = p1Snapshot ? `\nCOMPANY DESCRIPTION (from verified web research — use this to filter search results):\n"${p1Snapshot.slice(0, 400)}"\nIf a search result describes a company that does NOT match this description, DISCARD it. This company is in ${p1Snapshot.match(/(?:is a|is an|provides|offers|specializes in)\s+([^.]{10,60})/i)?.[1] || "technology/services"} — not adhesives, manufacturing, or any other unrelated industry.\n\n` : "";
       const d = await claudeFetch({
         model: SONNET, max_tokens:2000,
+        system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:
           (url && url !== co
@@ -3341,6 +3354,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       const companyDescription = p1Snapshot ? `\nCOMPANY DESCRIPTION (from verified web research — use this to filter search results):\n"${p1Snapshot.slice(0, 400)}"\nIf a search result describes a company that does NOT match this description, DISCARD it. This company is in ${p1Snapshot.match(/(?:is a|is an|provides|offers|specializes in)\s+([^.]{10,60})/i)?.[1] || "technology/services"} — not adhesives, manufacturing, or any other unrelated industry.\n\n` : "";
       const d = await claudeFetch({
         model:SONNET, max_tokens:2000,
+        system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:
           // P8 uses relaxed identity — board/investor data comes from Crunchbase,
@@ -3418,6 +3432,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       const companyDescription = p1Snapshot ? `\nCOMPANY DESCRIPTION (from verified web research — use this to filter search results):\n"${p1Snapshot.slice(0, 400)}"\nIf a search result describes a company that does NOT match this description, DISCARD it. This company is in ${p1Snapshot.match(/(?:is a|is an|provides|offers|specializes in)\s+([^.]{10,60})/i)?.[1] || "technology/services"} — not adhesives, manufacturing, or any other unrelated industry.\n\n` : "";
       const d = await claudeFetch({
         model:SONNET, max_tokens:2000,
+        system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:
           // P9 uses relaxed identity — financial data for private companies comes from
@@ -3674,7 +3689,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         if (!fin?.financialDeepDive && sellerUrl !== "research-only") {
           console.log("[p9] Financial failed — retrying once");
           try {
-            const d = await claudeFetch({ model: SONNET, max_tokens: 2000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+            const d = await claudeFetch({ model: SONNET, max_tokens: 2000, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
               messages: [{ role: "user", content: retryIdentity + firmographicsTruth + `Research the financial performance of ${co}${url ? ` (${url})` : ""}.\nReturn raw JSON:\n{"financialDeepDive":{"revenueTrend":"Revenue data","marginTrend":"Margins","segmentBreakdown":"Segments","capitalPriorities":"Investments","earningsInsight":"Leadership signals","guidanceQuote":"Forward statements"}}` }] });
             const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
             const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
@@ -3685,7 +3700,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         if (!comp?.competitivePositioning && sellerUrl !== "research-only") {
           console.log("[p7] Competitive failed — retrying once");
           try {
-            const d = await claudeFetch({ model: SONNET, max_tokens: 2000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+            const d = await claudeFetch({ model: SONNET, max_tokens: 2000, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
               messages: [{ role: "user", content: retryIdentity + firmographicsTruth + `Research the competitive landscape of ${co}${url ? ` (${url})` : ""}.\nGROUNDING: Only name competitors your web search confirms compete with ${co} in its actual market AND geography — omit any you are unsure of. Never assert a company operates in or has a presence in a region unless search results confirm it. Never state specific dollar figures or market-share percentages not found in search results.\nReturn raw JSON:\n{"competitivePositioning":{"marketPosition":"Market position","primaryCompetitors":[{"name":"Competitor","strength":"Their edge","weakness":"Where ${co} beats them","recentMove":"Latest action"}],"whereWinning":"Where ${co} wins","whereLosing":"Where they lose","displacementAngle":"How seller should position"}}` }] });
             const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
             const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
@@ -7117,6 +7132,7 @@ ${isOpen
         const d = await claudeFetch({
           model: SONNET,
           max_tokens: 4000,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: kind === "open" ? 4 : 3 }],
           messages: [{ role: "user", content: buildPrompt(kind) + seedCtx }],
         });
@@ -7208,6 +7224,7 @@ Return ONLY raw JSON:
         const d = await claudeFetch({
           model: SONNET,
           max_tokens: 3000,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
           messages: [{ role: "user", content: buildSignalsPrompt() }],
         });
@@ -7252,7 +7269,7 @@ Return ONLY raw JSON: {"rows":[{"title":"RFP title","buyer":"Agency name","count
       try {
         const prevGov = (prevIntel.open || []).filter(r => r.isGovernment);
         const seed = prevGov.length ? `\n\nPREVIOUSLY FOUND (verify + find NEW):\n${prevGov.slice(0,3).map(r=>`- "${r.title}" ${r.buyer} ${r.url||""}`).join("\n")}` : "";
-        const d = await claudeFetch({ model: SONNET, max_tokens: 3000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }], messages: [{ role: "user", content: buildGovOpenPrompt() + seed }] });
+        const d = await claudeFetch({ model: SONNET, max_tokens: 3000, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }], messages: [{ role: "user", content: buildGovOpenPrompt() + seed }] });
         if (d.error) return { rows: [] };
         const textBlocks = (d.content || []).filter(b => b.type === "text").map(b => b.text || "");
         const fullText = textBlocks.join(" ").toLowerCase();
@@ -7445,6 +7462,7 @@ Return ONLY raw JSON:
       try {
         const d = await claudeFetch({
           model: SONNET, max_tokens: 4000,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }],
           messages: [{ role: "user", content: buildAccountPrompt(kind) }],
         });
@@ -7464,6 +7482,7 @@ Return ONLY raw JSON:
       try {
         const d = await claudeFetch({
           model: SONNET, max_tokens: 3000,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
           messages: [{ role: "user", content: buildAccountSignalsPrompt() }],
         });
@@ -8035,6 +8054,7 @@ Return ONLY raw JSON:
       if (currentIcp?.icp && sbToken) {
         claudeFetch({
           model: SONNET, max_tokens: 2000, temperature: 0,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
           messages: [{ role: "user", content:
             `Research customers and competitors for "${url}". Search for "${url}" case studies OR customers OR partners.\n\n` +
@@ -8083,6 +8103,7 @@ Return ONLY raw JSON:
           model: activeModel(),
           max_tokens: 1200,
           temperature: 0,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
           messages: [{ role: "user", content:
             `Search for upcoming industry conferences and trade shows relevant to these industries: ${industries.join(", ")}.\n\n` +
@@ -8437,6 +8458,7 @@ Return ONLY raw JSON:
         model:OPUS,
         max_tokens:2000,
         temperature:0,
+        system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:prompt}],
       });
@@ -9315,6 +9337,7 @@ Return ONLY raw JSON:
       const result = await claudeFetch({
         model: activeModel(),
         max_tokens: 800,
+        system: JSON_ONLY_SYSTEM,
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
         messages: [{ role: "user", content:
           `I need to identify the exact company a user means by "${co}". Search the web and return the top 2-3 matches.\n\n` +
@@ -9571,7 +9594,7 @@ Return ONLY raw JSON:
                   // Backfill missing deep intel sections
                   if (missingFinancial) {
                     try {
-                      const d = await claudeFetch({ model: SONNET, max_tokens: 2000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+                      const d = await claudeFetch({ model: SONNET, max_tokens: 2000, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
                         messages: [{ role: "user", content: deepIntelIdentityCache + `Research the financial performance of ${co}${url ? ` (${url})` : ""}.\nReturn raw JSON:\n{"financialDeepDive":{"revenueTrend":"Revenue data with growth rates","marginTrend":"Margin analysis","segmentBreakdown":"Business segment breakdown","capitalPriorities":"Where they invest","earningsInsight":"Leadership quotes or strategic signals","guidanceQuote":"Forward-looking statements"}}` }] });
                       const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
                       const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
@@ -9584,7 +9607,7 @@ Return ONLY raw JSON:
                   }
                   if (missingCompetitive) {
                     try {
-                      const d = await claudeFetch({ model: SONNET, max_tokens: 2000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+                      const d = await claudeFetch({ model: SONNET, max_tokens: 2000, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
                         messages: [{ role: "user", content: deepIntelIdentityCache + `Research the competitive landscape of ${co}${url ? ` (${url})` : ""}.\nGROUNDING: Only name competitors your web search confirms compete with ${co} in its actual market AND geography — omit any you are unsure of. Never assert a company operates in or has a presence in a region unless search results confirm it. Never state specific dollar figures or market-share percentages not found in search results.\nReturn raw JSON:\n{"competitivePositioning":{"marketPosition":"2-3 sentences on market position","primaryCompetitors":[{"name":"Competitor","strength":"Their edge","weakness":"Where ${co} beats them","recentMove":"Latest action"}],"whereWinning":"Where ${co} wins deals","whereLosing":"Where they lose","displacementAngle":"How the seller should position against ${co}'s current approach"}}` }] });
                       const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
                       const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
@@ -9597,7 +9620,7 @@ Return ONLY raw JSON:
                   }
                   if (missingBoard) {
                     try {
-                      const d = await claudeFetch({ model: SONNET, max_tokens: 2000, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+                      const d = await claudeFetch({ model: SONNET, max_tokens: 2000, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
                         messages: [{ role: "user", content:
                           (url && url !== co ? `IDENTITY: Research board and investor data for ${co} (${url}). Search Crunchbase, PitchBook, SEC, press.\n\n` : `IDENTITY: Research "${co}" ONLY.\n\n`) +
                           `Research the board of directors, investors, and governance of ${co}${url ? ` (${url})` : ""}.\nSearch for "${co} board of directors" and "${co} investors funding".\nReturn raw JSON:\n{"boardAndInvestors":{"leadInvestors":"Key investors or funding sources","investmentThesis":"What bet are investors making","boardMandate":"What the board is pushing for"}}` }] });
@@ -9633,7 +9656,7 @@ Return ONLY raw JSON:
                   // Backfill missing executives
                   if (missingExecutives) {
                     try {
-                      const d = await claudeFetch({ model: SONNET, max_tokens: 1500, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+                      const d = await claudeFetch({ model: SONNET, max_tokens: 1500, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
                         messages: [{ role: "user", content: deepIntelIdentityCache + `Find the current C-suite executives and key leaders of ${co}${url ? ` (${url})` : ""}.\nSearch for "${co} CEO executive team" and "${co} leadership".\nReturn raw JSON: {"keyExecutives":[{"name":"Full Name","title":"Exact Title","initials":"XX","angle":"1-2 sentences on how to approach this person as a seller — their mandate, first-90-day priorities, what resonates","background":"Prior roles, education, notable career facts"}]}` }] });
                       const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
                       const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
@@ -9653,7 +9676,7 @@ Return ONLY raw JSON:
                   // Backfill missing open roles
                   if (missingOpenRoles) {
                     try {
-                      const d = await claudeFetch({ model: SONNET, max_tokens: 1200, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
+                      const d = await claudeFetch({ model: SONNET, max_tokens: 1200, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
                         messages: [{ role: "user", content: deepIntelIdentityCache + `Find current open job postings for ${co}${url ? ` (${url})` : ""}.\nSearch for "${co} jobs" and "${co} careers hiring".\nReturn raw JSON: {"openRoles":{"roles":[{"dept":"Department","title":"Job Title","signal":"What this hire signals about company direction or priorities"}],"summary":"2-sentence summary of hiring patterns and what they reveal about company priorities"}}` }] });
                       const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
                       const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
@@ -12422,6 +12445,7 @@ Return ONLY raw JSON:
         const d = await claudeFetch({
           model: activeModel(),
           max_tokens: 3000,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
           messages: [{ role: "user", content: base +
             `Search for the CURRENT C-suite and senior leadership of ${co}. Return 4-6 executives.\n\n` +
@@ -12466,6 +12490,7 @@ Return ONLY raw JSON:
         const d = await claudeFetch({
           model: activeModel(),
           max_tokens: 2000,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
           messages: [{ role: "user", content: light +
             `Search for "${co}" to get current, accurate company data.\n` +
@@ -12517,6 +12542,7 @@ Return ONLY raw JSON:
         const d = await claudeFetch({
           model: activeModel(),
           max_tokens: 1800, temperature: 0,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
           messages: [{ role: "user", content: prompt }],
         });
@@ -12964,6 +12990,7 @@ Return ONLY raw JSON:
         const result = await claudeFetch({
           model: activeModel(),
           max_tokens: 800,
+          system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
           messages: [{ role: "user", content:
             `I need to identify the exact company a user means by "${norm}". Search the web and return the top 2-3 matches.\n\n` +
