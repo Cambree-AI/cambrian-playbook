@@ -14007,20 +14007,23 @@ Return ONLY raw JSON:
                   </div>
                 </div>
 
-                {/* Primary CTA — the EXISTING Go pipeline (resolver → disambiguation modal or domain fast-path → scan) */}
-                <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",marginTop:20}}
-                  onClick={handleSellerGo}
-                  disabled={!sellerInput.trim() || isLoading || disambigLoading}>
-                  {disambigLoading ? "Verifying..." : isLoading ? "Scanning..." : "Analyze my company →"}
-                </button>
-                {/* Advance — identical action to the classic Start Session button.
-                    Also rendered on a no-products scan (light-content path) so it is never a dead-end:
-                    the user proceeds to step 1 and builds the ICP via the existing "Build ICP Now"
-                    EmptyState (@14502), exactly like the classic no-products flow, using any uploaded docs. */}
-                {(scanDone||urlScanStatus==="none")&&(
-                  <button className="btn btn-secondary" style={{width:"100%",justifyContent:"center",marginTop:8}}
+                {/* Single context-aware primary CTA — no two stacked full-width buttons:
+                    pre-scan  → run the EXISTING Go pipeline (scan / disambiguation), label "Analyze my company →";
+                    post-scan (found OR light-content) → advance to step 1 (identical action to the classic
+                    Start Session button). ICP is pre-warmed via "Yes, looks right" or built on step 1 via the
+                    "Build ICP Now" EmptyState (@14666) — never a dead-end. */}
+                {(scanDone||urlScanStatus==="none") ? (
+                  <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",marginTop:20}}
                     onClick={()=>{if(sellerInput.trim()){setSellerUrl(sellerInput.trim());setStep(1);}}}
-                    disabled={!sellerInput.trim()}>Continue to session →</button>
+                    disabled={!sellerInput.trim()}>
+                    Start my session →
+                  </button>
+                ) : (
+                  <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",marginTop:20}}
+                    onClick={handleSellerGo}
+                    disabled={!sellerInput.trim() || isLoading || disambigLoading}>
+                    {disambigLoading ? "Verifying..." : isLoading ? "Scanning..." : "Analyze my company →"}
+                  </button>
                 )}
                 </>
                 );
