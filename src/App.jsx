@@ -2064,7 +2064,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
   // that don't need the seller proof pack, scoring heuristics, or deal context.
   // baseFull is for seller-mapping calls (p3, p4) that need everything.
   // This cuts ~1,500 input tokens off p1 and p5, making them resolve ~40% faster.
-  // APOLLO ENRICHMENT GROUNDING: when enrichment data is available, inject
+  // ENRICHMENT GROUNDING: when enrichment data is available, inject
   // verified firmographics so the model doesn't guess basic facts.
   const enrichment = member._enrichment?.organization;
   const enrichedPeople = member._enrichment?.people || [];
@@ -2087,7 +2087,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       enrichedPeople.slice(0, 8).map(p => `- ${p.name}, ${p.title}${p.department ? ` (${p.department})` : ""}${p.linkedIn ? ` — ${p.linkedIn}` : ""}`).join("\n") + "\n" : "") +
     "\n" : "";
 
-  // FALLBACK FIRMOGRAPHICS: when Apollo isn't available, use whatever we have from
+  // FALLBACK FIRMOGRAPHICS: when enrichment isn't available, use whatever we have from
   // Quick Entry enrichment or scoring backfill. This prevents the brief from guessing
   // a different employee count than what's already shown in the Fit Check table.
   const fallbackFirmographics = !enrichment && (member.employees || member.publicPrivate || member.ind)
@@ -2100,7 +2100,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
 
   // FIRMOGRAPHICS SINGLE SOURCE OF TRUTH — compact block injected into EVERY micro-call.
   // Establishes non-negotiable facts so P1/P2/P4/P5/P7/P9 never contradict each other.
-  // Priority: Apollo > member-level (from scoring/enrichment) > empty
+  // Priority: enrichment > member-level (from scoring/enrichment) > empty
   // FIRMOGRAPHICS — enrichment is name-matched (SEC EDGAR, Wikidata) and can hit
   // wrong entities for ambiguous names (Stripe, Mercury, Apollo). HQ is NOT included
   // because name-matching frequently returns wrong addresses. P1 finds HQ from the
@@ -2163,7 +2163,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     `- If web search found no data for a field, return empty string "" — do NOT fill it from training knowledge alone.\n`+
     `- If a figure is uncertain, present as a range (e.g. "$2-3B") or add "(estimate)" — never state an uncertain figure as fact.\n`+
     `- For data-scarce targets (mutuals, private companies, small firms, nonprofits): include "Limited public data available" in companySnapshot so the rep knows to verify before the call.\n`+
-    `- NEVER fabricate a Glassdoor rating, revenue figure, executive name, or acquisition that did not appear in web search results or the Apollo data above.\n`+
+    `- NEVER fabricate a Glassdoor rating, revenue figure, executive name, or acquisition that did not appear in web search results or the enrichment data above.\n`+
     `- A rep who cites a wrong fact in a sales call loses credibility permanently. Empty is safe; wrong is fatal.\n`+
     `CONSISTENCY: Return EXACTLY the structure shown — same field names, same array lengths.\n`+
     `STABILITY: For the same company, your output should be stable across runs. Use established facts (revenue, HQ, founding year, executive names) not ephemeral observations. Anchor every claim in verifiable data, not interpretive commentary that could vary between runs. If multiple descriptions are equally valid, prefer the most specific and factual one.\n\n`+
@@ -2778,7 +2778,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     (isResearchOnly
       ? `This is a RESEARCH-ONLY brief. There is no selling organization. You MUST still populate ALL fields below:\n`+
         `- solutionMapping: leave as empty array []\n`+
-        `- keyContacts: identify 2-3 key decision-makers at ${co} by likely title and function — VP level or above. Use ONLY names found in your web search results or the Apollo-verified contacts above. If search returned no names for a role, leave name as empty string but still fill in the title and angle.\n`+
+        `- keyContacts: identify 2-3 key decision-makers at ${co} by likely title and function — VP level or above. Use ONLY names found in your web search results or the enrichment-verified contacts above. If search returned no names for a role, leave name as empty string but still fill in the title and angle.\n`+
         `- techStack: use your web search results to identify ${co}'s technology stack. If not found in search, return empty string for that field — do NOT guess.\n`+
         `- mobilizer: describe who at ${co} would champion a new technology purchase — what title, what motivates them, how to identify them.\n`+
         `CRITICAL: Do NOT return empty objects. Every field except solutionMapping must have substantive content.\n`
@@ -2801,7 +2801,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     `"measurableOutcome":"Specific outcome target. If citing a percentage improvement (e.g. '30% reduction'), tag with [industry benchmark] or [proof pack]. Do NOT invent precise metrics without a source — round numbers like '30%' are suspect without evidence."},`+
     `{"product":"","imperativeServed":"","buyerRole":"","jobToBeDone":"","painRelieved":"","gainCreated":"","challengerInsight":"","joltRiskRemover":"","fit":"","provenWith":"","measurableOutcome":""}],`+
     `"caseStudies":[{"title":"Use a NAMED CUSTOMER from the seller's proof pack — do NOT invent","customer":"Customer name from the seller's list","relevance":"Why this past win is analogous to ${co}'s situation. Cite the specific parallel (industry, size, trigger, pain, outcome).","quantifiedOutcome":"What measurable result that customer achieved — quote from uploaded docs if available, mark as '[unsupported — verify]' if not"},{"title":"","customer":"","relevance":"","quantifiedOutcome":""}],`+
-    `"keyContacts":[{"name":"Use ONLY names found in your web search results or the Apollo-verified contacts above. If search returned no name for this role, leave as EMPTY STRING — do NOT guess or fabricate names","title":"Likely title e.g. VP of Operations or Director of Procurement — always fill this even if name is unknown","initials":"First+last initials if name is known, empty string if not","angle":"Use role-specific language: CFO cares about margins and ROI, CIO cares about architecture and integration, CHRO cares about talent and engagement, VP Ops cares about efficiency and process. Match the angle to THEIR mandate, not a generic 'they would benefit from...' Write how to REACH them — what language resonates, what their first-90-day priority likely is."},{"name":"","title":"","initials":"","angle":""}],`+
+    `"keyContacts":[{"name":"Use ONLY names found in your web search results or the enrichment-verified contacts above. If search returned no name for this role, leave as EMPTY STRING — do NOT guess or fabricate names","title":"Likely title e.g. VP of Operations or Director of Procurement — always fill this even if name is unknown","initials":"First+last initials if name is known, empty string if not","angle":"Use role-specific language: CFO cares about margins and ROI, CIO cares about architecture and integration, CHRO cares about talent and engagement, VP Ops cares about efficiency and process. Match the angle to THEIR mandate, not a generic 'they would benefit from...' Write how to REACH them — what language resonates, what their first-90-day priority likely is."},{"name":"","title":"","initials":"","angle":""}],`+
     `"techStack":{"crm":"Use ONLY tech found in web search results (job postings, case studies, press). Empty string if not found — do NOT guess.","erp":"empty string if not found","hris":"empty string if not found","marketing":"empty string if not found","payments":"empty string if not found","analytics":"empty string if not found","infrastructure":"empty string if not found","other":[]},`+
     `"mobilizer":{"description":"Who is the likely Mobilizer at ${co}? The person who asks 'how do we make this happen?' — specific title, function, and what motivates them to champion this deal internally.","identifyingBehavior":"How will the seller know they've found this person in a meeting? What do they say or ask that a Talker or Blocker wouldn't?","teachingAngle":"The specific insight to teach THROUGH this Mobilizer to the broader buying group — one surprising fact or case study that reframes their assumptions."}}`,
     (partial) => {
@@ -10507,16 +10507,16 @@ Return ONLY raw JSON:
           // ── CORROBORATION GATE (Moat Architecture §2.2) ─────────────────
           // Tier 3 facts (executives, revenue, ownership) must be corroborated
           // by 2+ independent sources. Single-source facts get caveated.
-          // Priority: Apollo (verified API) > web_search (p2/p5/p7-p9) > training (p1/p3/p4)
-          const apollo = member._enrichment?.organization;
-          const apolloPeople = member._enrichment?.people || [];
+          // Priority: enrichment (SEC/Wikidata, name-matched) > web_search (p2/p5/p7-p9) > training (p1/p3/p4)
+          const enrich = member._enrichment?.organization;
+          const enrichPeople = member._enrichment?.people || [];
 
-          // Revenue: p1/p9 > Apollo (p1 revenue was already reconciled with P9 in mergeDeepIntel;
+          // Revenue: p1/p9 > enrichment (p1 revenue was already reconciled with P9 in mergeDeepIntel;
           // enrichment matches by name and can hit wrong entity for ambiguous companies)
-          if (apollo?.revenue && !current.revenue) {
-            // Apollo as fallback only when P1/P9 didn't find revenue
-            console.log(`[corroboration] Revenue: Apollo "${apollo.revenue}" used as fallback (no P1/P9 revenue)`);
-            current.revenue = apollo.revenue;
+          if (enrich?.revenue && !current.revenue) {
+            // enrichment as fallback only when P1/P9 didn't find revenue
+            console.log(`[corroboration] Revenue: enrichment "${enrich.revenue}" used as fallback (no P1/P9 revenue)`);
+            current.revenue = enrich.revenue;
           } else if (current.financialDeepDive?.revenueTrend && current.revenue) {
             // Both p1 and p9 have revenue — check if they agree (rough check)
             const p1digits = (current.revenue || "").replace(/[^0-9.]/g, "").slice(0, 4);
@@ -10527,7 +10527,7 @@ Return ONLY raw JSON:
           }
 
           // Unconfirmed-company gate: if we could not confirm the company EXISTS, it carries no
-          // revenue figure. Must run AFTER the Apollo fallback above, or Apollo refills it.
+          // revenue figure. Must run AFTER the enrichment fallback above, or enrichment refills it.
           // The `current.companySnapshot &&` presence guard is required: stripAllPlaceholders may
           // have emptied the snapshot earlier in this updater, and an empty snapshot is a transient
           // failure, not evidence of nonexistence. Real-but-data-scarce companies keep their
@@ -10537,40 +10537,40 @@ Return ONLY raw JSON:
             current.revenue = "";
           }
 
-          // Employee count: p1 > Apollo (p1 is URL-anchored, enrichment matches by name and can hit wrong entity)
-          // Apollo is only used as fallback when P1 didn't find employee count
-          if (apollo?.employeeCount && current.employeeCount) {
-            const apolloNum = parseInt(String(apollo.employeeCount).replace(/[^0-9]/g, ""));
+          // Employee count: p1 > enrichment (p1 is URL-anchored, enrichment matches by name and can hit wrong entity)
+          // enrichment is only used as fallback when P1 didn't find employee count
+          if (enrich?.employeeCount && current.employeeCount) {
+            const enrichNum = parseInt(String(enrich.employeeCount).replace(/[^0-9]/g, ""));
             const p1Num = parseInt(String(current.employeeCount).replace(/[^0-9]/g, ""));
-            if (apolloNum && p1Num && Math.abs(apolloNum - p1Num) / apolloNum > 0.3) {
-              console.log(`[corroboration] Employees: p1 ${p1Num} kept over Apollo ${apolloNum} (>30% diff — enrichment may match wrong entity)`);
+            if (enrichNum && p1Num && Math.abs(enrichNum - p1Num) / enrichNum > 0.3) {
+              console.log(`[corroboration] Employees: p1 ${p1Num} kept over enrichment ${enrichNum} (>30% diff — enrichment may match wrong entity)`);
               // Keep P1's value — it's from web search on the target URL
             }
-          } else if (apollo?.employeeCount && !current.employeeCount) {
-            current.employeeCount = apollo.employeeCount;
+          } else if (enrich?.employeeCount && !current.employeeCount) {
+            current.employeeCount = enrich.employeeCount;
           }
 
-          // HQ: p1 > Apollo (p1 is URL-anchored, enrichment matches by name and can hit wrong entity)
+          // HQ: p1 > enrichment (p1 is URL-anchored, enrichment matches by name and can hit wrong entity)
           // Use companySnapshot as tiebreaker — it's from P1's web search on the actual target URL
-          if (apollo?.headquarters && current.headquarters) {
-            const aHQ = (apollo.headquarters || "").toLowerCase();
+          if (enrich?.headquarters && current.headquarters) {
+            const aHQ = (enrich.headquarters || "").toLowerCase();
             const pHQ = (current.headquarters || "").toLowerCase();
             if (aHQ && pHQ && !pHQ.includes(aHQ.split(",")[0]) && !aHQ.includes(pHQ.split(",")[0])) {
               // They disagree — check companySnapshot for which city it mentions
               const snap = (current.companySnapshot || "").toLowerCase();
               const p1City = pHQ.split(",")[0].trim();
-              const apolloCity = aHQ.split(",")[0].trim();
-              if (snap && apolloCity && snap.includes(apolloCity) && !snap.includes(p1City)) {
-                console.log(`[corroboration] HQ: Apollo "${apollo.headquarters}" confirmed by snapshot, overrides p1 "${current.headquarters}"`);
-                current.headquarters = apollo.headquarters;
+              const enrichCity = aHQ.split(",")[0].trim();
+              if (snap && enrichCity && snap.includes(enrichCity) && !snap.includes(p1City)) {
+                console.log(`[corroboration] HQ: enrichment "${enrich.headquarters}" confirmed by snapshot, overrides p1 "${current.headquarters}"`);
+                current.headquarters = enrich.headquarters;
               } else {
-                console.log(`[corroboration] HQ: p1 "${current.headquarters}" wins over Apollo "${apollo.headquarters}" (p1 is URL-anchored)`);
+                console.log(`[corroboration] HQ: p1 "${current.headquarters}" wins over enrichment "${enrich.headquarters}" (p1 is URL-anchored)`);
                 // Keep P1's value — it's from web search on the target URL
               }
             }
-          } else if (apollo?.headquarters && !current.headquarters) {
-            // P1 didn't find HQ, use Apollo as fallback
-            current.headquarters = apollo.headquarters;
+          } else if (enrich?.headquarters && !current.headquarters) {
+            // P1 didn't find HQ, use enrichment as fallback
+            current.headquarters = enrich.headquarters;
           }
 
           // Key contacts (p4) vs executives (p2): p2 is web-searched, higher trust
@@ -10583,9 +10583,9 @@ Return ONLY raw JSON:
                 // Check if this name appears in the verified exec list (fuzzy — last name match)
                 const contactLastName = contactLower.split(" ").pop();
                 const isVerified = verifiedExecNames.some(n => n.includes(contactLastName));
-                const isFromApollo = apolloPeople.some(p => p.name?.toLowerCase().includes(contactLastName));
-                if (!isVerified && !isFromApollo) {
-                  console.warn(`[corroboration] Contact "${contact.name}" not in p2 executives or Apollo — stripping name (keeping role)`);
+                const isFromEnrich = enrichPeople.some(p => p.name?.toLowerCase().includes(contactLastName));
+                if (!isVerified && !isFromEnrich) {
+                  console.warn(`[corroboration] Contact "${contact.name}" not in p2 executives or enrichment — stripping name (keeping role)`);
                   contact.name = "";
                   contact.initials = "";
                 }
@@ -10961,7 +10961,7 @@ Return ONLY raw JSON:
               models_used: { p1: "sonnet", p2: "sonnet", p3: "opus", p4: "sonnet", p5: "haiku", p6: "haiku", p7: "sonnet", p8: "sonnet", p9: "sonnet", p10: "sonnet" },
               kl_versions: current._klVersions || [],
               data_confidence: current._dataConfidence || null,
-              apollo_enrichment_used: !!(member._enrichment?.organization),
+              apollo_enrichment_used: !!(member._enrichment?.organization), // column name is legacy; value = any enrichment used
             }),
           }).catch(() => {});
 
