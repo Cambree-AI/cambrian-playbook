@@ -3408,7 +3408,8 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
           const { sourceUrl: _modelUrl, ...clean } = (m || {});
           const _nl = (clean.name||"").toLowerCase().trim();
           if (_nl.length < 3) return clean;
-          const _hit = _p8Items.find(it=>it.url.startsWith("http") && it.text.includes(_nl));
+          const _reName = new RegExp("\\b" + _nl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+          const _hit = _p8Items.find(it=>it.url.startsWith("http") && _reName.test(it.text));
           if (!_hit) { console.warn(`[p8] Board name not in search corpus: "${clean.name}" — stays role-only`); return clean; }
           return { ...clean, sourceUrl: _hit.url };
         });
