@@ -9276,23 +9276,7 @@ Return ONLY raw JSON:
     return trimmed;
   }
 
-  // ── APOLLO ENRICHMENT — ground briefs with verified firmographic data ────
-  const enrichmentCacheRef = useRef({}); // domain → Apollo enrichment result
   const briefGenRef = useRef(0); // 1.4: monotonic brief-generation token — bumped per pickAccount; stale async writers compare and drop
-
-  async function fetchEnrichment(domain) {
-    if (!domain) return null;
-    if (enrichmentCacheRef.current[domain]) return enrichmentCacheRef.current[domain];
-    try {
-      const r = await fetch(`/api/enrich?domain=${encodeURIComponent(domain)}`, {
-        headers: authHeaders(),
-      });
-      if (!r.ok) return null;
-      const data = await r.json();
-      enrichmentCacheRef.current[domain] = data;
-      return data;
-    } catch { return null; }
-  }
 
   // ── COMPANY VERIFICATION — confirm identity before brief generation ─────
   // Prevents mixed-company briefs by verifying the exact entity before
@@ -9308,24 +9292,7 @@ Return ONLY raw JSON:
 
     // If user provided a URL/domain, skip disambiguation — the URL is the anchor
     if (domain) {
-      // Enrich with Apollo in background — don't block brief launch
-      const enrichPromise = fetchEnrichment(domain);
-      let member = { company: displayName, company_url: domain, ind: "", employees: "", publicPrivate: "" };
-      // Try to get enrichment data quickly (500ms timeout), fall through if slow
-      try {
-        const enriched = await Promise.race([enrichPromise, new Promise(r => setTimeout(() => r(null), 500))]);
-        if (enriched?.organization) {
-          const o = enriched.organization;
-          member = {
-            ...member,
-            company: o.name || member.company,
-            ind: o.industry || "",
-            employees: o.employeeCount ? String(o.employeeCount) : "",
-            publicPrivate: o.publiclyTraded || "Private",
-            _enrichment: enriched, // pass full enrichment to generateBrief
-          };
-        }
-      } catch {}
+      const member = { company: displayName, company_url: domain, ind: "", employees: "", publicPrivate: "" };
       if (overrideSellerUrl === "research-only") { setSellerUrl("research-only"); setSellerICP(null); }
       else if (!sellerUrl) setSellerUrl("research-only");
       pickAccount(member, overrideSellerUrl || "research-only");
