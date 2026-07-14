@@ -10545,6 +10545,16 @@ Return ONLY raw JSON:
             current.revenue = "";
           }
 
+          // HONEST-REVENUE CONVERGENCE (owner rule): a CONFIRMED private company with no
+          // public/verified revenue converges to the canonical honest string — never blank,
+          // never a funding/estimate number. Public + nonprofit excluded (they have real figures).
+          if ((!current.revenue || !String(current.revenue).trim())
+              && current.companySnapshot && !_companyUnconfirmed(current.companySnapshot)
+              && /priv/i.test(current.publicPrivate || "")
+              && !/public|nonprofit|501\(c\)/i.test(current.publicPrivate || "")) {
+            current.revenue = "Privately held — revenue figures not available";
+          }
+
           // Employee count: p1 > enrichment (p1 is URL-anchored, enrichment matches by name and can hit wrong entity)
           // enrichment is only used as fallback when P1 didn't find employee count
           if (enrich?.employeeCount && current.employeeCount) {
@@ -10778,11 +10788,14 @@ Return ONLY raw JSON:
             const p9Rev = current.financialDeepDive.revenueTrend;
             const dollarMatch = p9Rev.match(/\$[\d,.]+\s*(?:billion|B|million|M|trillion|T)/gi);
             if (dollarMatch?.length) {
-              // Find the first revenue-context match (exclude volume/transaction figures)
-              const revenueMatch = dollarMatch.find(m => {
+              // Find the first revenue-context match (exclude volume/transaction/funding figures)
+              const _p9NoPubRev = /^[^.]{0,90}?no\s+(?:published|verified|public|available|disclosed)\s+(?:annual\s+)?revenue/i.test(p9Rev.trim());
+              const revenueMatch = _p9NoPubRev ? undefined : dollarMatch.find(m => {
                 const idx = p9Rev.indexOf(m);
                 const context = p9Rev.slice(Math.max(0, idx - 80), idx + m.length + 40).toLowerCase();
                 if (_isRangeOrModeledFigure(p9Rev, idx, m.length)) return false;
+                // Reject non-revenue money: funding/round/valuation/acquisition/market/volume, and estimates.
+                if (/(fund(?:ing|ed)|raised|seed|series\s+[a-h]\b|round|pre-money|post-money|valuation|valued at|worth|acquir|acquisition|deal value|led by|investors?|market|tam|total addressable|segment|estimat|approximat|roughly|modeled)/.test(context)) return false;
                 return !context.includes("volume") && !context.includes("transaction") && !context.includes("payment volume") && !context.includes("trading volume");
               });
               if (revenueMatch) {
@@ -10799,7 +10812,7 @@ Return ONLY raw JSON:
                   || /(estimat|approximat|roughly|modeled|likely|~\s*\$)/.test(_revCtx);
                 const _revOut = _revIsEstimate ? `${revenueMatch.trim()} (estimated)` : revenueMatch.trim();
 
-                if (!current.revenue || current.revenue === "Not found" || current.revenue.toLowerCase().includes("not available") || current.revenue.toLowerCase().includes("estimated")) {
+                if (!current.revenue || current.revenue === "Not found" || (current.revenue.toLowerCase().includes("not available") && current.revenue !== "Privately held — revenue figures not available") || current.revenue.toLowerCase().includes("estimated")) {
                   // P1 has no revenue or just an estimate — use P9 (carrying the estimate label)
                   console.warn(`[consistency] Revenue from P9 (authoritative): "${_revOut}" overrides P1: "${current.revenue}"`);
                   current.revenue = _revOut;
