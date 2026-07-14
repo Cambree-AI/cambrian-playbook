@@ -12483,6 +12483,13 @@ Return ONLY raw JSON:
     const co = selectedAccount.company;
     if (briefPreCacheRef.current[co]) return;
 
+    const _qbUrl = selectedAccount.company_url || "";
+    const _qbVDesc = selectedAccount._verifiedDescription
+      ? `VERIFIED IDENTITY: "${co}" at ${_qbUrl} is: ${selectedAccount._verifiedDescription}. This was confirmed by the user. Do NOT describe this company as anything else.\n` : "";
+    const _qbAnchor = _qbUrl
+      ? `IDENTITY ANCHOR (CRITICAL — CONTAMINATION PREVENTION): Research ONLY the company at https://${_qbUrl}. ${_qbVDesc}Your FIRST search MUST be site:${_qbUrl}. "${co}" is a common name shared by multiple unrelated companies — any result NOT from ${_qbUrl} is a DIFFERENT company and must be discarded. NEVER list multiple companies in companySnapshot; this brief is about the ONE entity at ${_qbUrl}.\n\n`
+      : `IDENTITY ANCHOR: "${co}" is ONE specific entity. Do NOT mix facts from similarly-named companies; if search returns multiple companies with similar names, use ONLY "${co}" and NEVER list multiple companies in companySnapshot. A brief with wrong-company data is worse than one with missing data.\n\n`;
+
     const light = `Sales brief about TARGET PROSPECT "${co}" for seller at ${sellerUrl}.\nRULE: All fields describe ${co} NOT the seller. ASCII only. Empty string if unknown.\nCONSISTENCY: Return EXACTLY the structure shown.\n\n`;
 
     // p1 pre-fetch (overview) — web_search for accurate, current data
@@ -12493,8 +12500,10 @@ Return ONLY raw JSON:
           max_tokens: 2000,
           system: JSON_ONLY_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }],
-          messages: [{ role: "user", content: light +
-            `Search for "${co}" to get current, accurate company data.\n` +
+          messages: [{ role: "user", content: light + _qbAnchor +
+            (_qbUrl
+              ? `Search site:${_qbUrl} first, then "${co}" ${_qbUrl}, to get current, accurate company data.\n`
+              : `Search for "${co}" to get current, accurate company data.\n`) +
             `OWNERSHIP ACCURACY: Many companies have changed ownership status. If a company was acquired or taken private, say "Private" — NEVER include a stale/delisted ticker. Only include a ticker if verified as currently listed.\n\n` +
             `COMPETITOR GROUNDING: competitors must come from your web search results and must actually compete in ${co}'s market AND geography — if you are not confident a company operates where ${co} does, omit it. An empty array beats a guessed name. Never claim a company operates in or has a presence in a region unless search results confirm it, and never state specific dollar figures or market-share percentages that did not appear in search results.\n\n` +
             `Return ONLY raw JSON:\n` +
