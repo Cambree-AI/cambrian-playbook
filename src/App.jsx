@@ -3566,24 +3566,32 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       // Real-but-data-scarce companies still get their labeled "(estimated)" backfill.
       if (r9 && (!next.revenue || !next.revenue.trim()) && !(next.companySnapshot && _companyUnconfirmed(next.companySnapshot))) {
         const rt = r9.financialDeepDive.revenueTrend || "";
-        // Extract the dollar estimate: "$3-6M", "$3-6 million", "~$4.5M", etc.
-        const dollarMatch = rt.match(/(?:estimated\s+(?:annual\s+)?revenue\s+(?:is|of)\s+)?([\$~]\s*[\d.,]+-?[\d.,]*\s*(?:million|M|billion|B|K))/i)
-                         || rt.match(/([\$~]\s*[\d.,]+-[\d.,]*\s*(?:million|M))/i)
-                         || rt.match(/([\$~]\s*[\d.,]+\s*(?:million|M|billion|B))/i);
+        // HONEST-REVENUE GUARD (owner rule): the figure must be EXPLICITLY LABELED as revenue
+        // in the P9 prose (positive adjacency). Funding/seed/acquisition figures are not
+        // revenue-adjacent and will not match. Never an estimate. Never when the prose opens
+        // by declaring no published/verified/public/available/disclosed revenue.
+        const _noPubRev = /^[^.]{0,90}?no\s+(?:published|verified|public|available|disclosed|audited)\s+(?:annual\s+)?revenue/i.test(rt.trim());
+        // Positive revenue-adjacency patterns (figure must sit next to the word "revenue"):
+        //   revenue-before-figure: "total/annual/net revenue of $X", "revenue grew to $X"
+        //   figure-before-revenue: "$X in revenue", "$X revenue"
+        const dollarMatch = _noPubRev ? null : (
+          rt.match(/(?:(?:total|annual|net|consolidated|reported|full[- ]year)\s+)?revenue\s*(?:of|was|were|is|reached|totaled|grew\s+to|climbed\s+to|rose\s+to|stood\s+at|came\s+in\s+at|:|—)\s*([\$]\s*[\d.,]+\s*(?:million|M|billion|B|K))/i)
+          || rt.match(/([\$]\s*[\d.,]+\s*(?:million|M|billion|B|K))\s+(?:in\s+)?revenue/i)
+        );
         if (dollarMatch) {
           const fig = dollarMatch[1].trim();
-          // Label "(estimated)" only when the SOURCE signals an estimate — a numeric range,
-          // a leading "~", or an estimate word next to the figure. A plainly-stated disclosed
-          // figure (e.g. "reported total revenue of $2.907 billion for fiscal year 2024") stays
-          // bare, so the Overview field cannot contradict the Financial section's own wording.
           const _figIdx = rt.indexOf(dollarMatch[1]);
-          const _ctx = rt.slice(Math.max(0, _figIdx - 60), _figIdx + dollarMatch[1].length + 20).toLowerCase();
-          const _isEst = /\d\s*[-–]\s*\d/.test(fig)
-                       || /^~/.test(fig)
+          const _ctx = rt.slice(Math.max(0, _figIdx - 70), _figIdx + dollarMatch[1].length + 24).toLowerCase();
+          // ESTIMATE context → not a verified figure; owner rule bars estimates from the field
+          const _isEst = /\d\s*[-–]\s*\d/.test(fig) || /^~/.test(fig)
                        || /(estimat|approximat|roughly|modeled|likely|in the range)/.test(_ctx);
-          next.revenue = _isEst ? `${fig} (estimated)` : fig;
-          _revBackfilledFromP9 = true;
-          console.log(`[backfill] Revenue filled from P9: ${next.revenue}`);
+          if (!_isEst) {
+            next.revenue = fig;
+            _revBackfilledFromP9 = true;
+            console.log(`[backfill] Revenue filled from P9 (disclosed): ${next.revenue}`);
+          } else {
+            console.log(`[backfill] P9 figure rejected for revenue (estimate): "${fig}"`);
+          }
         }
       }
       // Revenue RECONCILIATION — if P1 has a sub-metric and P9 has total revenue, P9 wins.
