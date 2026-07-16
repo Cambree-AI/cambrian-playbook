@@ -7626,7 +7626,7 @@ Return ONLY raw JSON:
               console.warn(`[ICP cache] Stale localStorage: url="${url}" but sellerName="${parsed.sellerName}" — deleting`);
               localStorage.removeItem(icpCacheKey(url));
             } else {
-              setSellerICP(sanitizeICP(parsed)); return;
+              const _icp = sanitizeICP(parsed); _icp._forSellerUrl = url; setSellerICP(_icp); return;
             }
           }
         }
@@ -7641,7 +7641,7 @@ Return ONLY raw JSON:
             console.warn(`[ICP cache] Stale org cache: url="${orgUrl}" but sellerName="${orgCtx.icp.sellerName}" — clearing`);
             if(sbToken) sbPatch(`orgs?id=eq.${orgCtx.id}`, sbToken, { icp: null }).catch(()=>{});
           } else {
-            setSellerICP(sanitizeICP(orgCtx.icp));
+            const _icp = sanitizeICP(orgCtx.icp); _icp._forSellerUrl = url; setSellerICP(_icp);
             try{ localStorage.setItem(icpCacheKey(url), JSON.stringify(orgCtx.icp)); }catch{}
             return;
           }
@@ -7963,6 +7963,7 @@ Return ONLY raw JSON:
                 }
               }
             } catch {}
+            parsed._forSellerUrl = url;
             setSellerICP(parsed);
             lastGenSig.current.icp = getIcpSig();
 
@@ -8616,6 +8617,8 @@ Return ONLY raw JSON:
       if (rn && ru && !rn.includes(ru) && !ru.includes(rn)) {
         console.warn(`[restore] Session ICP mismatch: sellerName="${d.sellerICP.sellerName}" vs URL="${d.sellerUrl}" — ICP will rebuild`);
       } else {
+        d.sellerICP._forSellerUrl = (d.sellerUrl||"").trim().toLowerCase()
+          .replace(/^https?:\/\//,"").replace(/\/$/,"").replace(/^www\./,"");
         setSellerICP(d.sellerICP);
       }
     }
