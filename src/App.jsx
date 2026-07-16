@@ -5378,6 +5378,8 @@ export default function App(){
       setSellerExclusions([]);
       setIcpEdits([]);
       setUserEdits([]);
+      setRfpData({open:[],closed:[],signals:[],loading:false,error:null});
+      setAccountRfpData({open:[],closed:[],signals:[],loading:false,error:null,searched:false});
     }
     prevSellerUrlRef.current = sellerUrl;
   }, [sellerUrl]);
