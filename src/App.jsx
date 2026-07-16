@@ -7565,7 +7565,7 @@ Return ONLY raw JSON:
   // must NOT see each other's cached ICPs. Key includes sbUser.id (or
   // "guest" for not-logged-in). Bump ICP_CACHE_VERSION if the ICP schema
   // changes — old entries fall through to regeneration.
-  const ICP_CACHE_VERSION = "v3"; // bumped 2026-04-15: tier/wall vocabulary purge
+  const ICP_CACHE_VERSION = "v4"; // bumped 2026-07-16: #74 cross-seller contamination cache purge
   const icpCacheKey = (u) => {
     const userScope = sbUser?.id || "guest";
     const normalizedUrl = u.toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
