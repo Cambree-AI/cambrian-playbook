@@ -10564,6 +10564,41 @@ Return ONLY raw JSON:
             current.revenue = "";
           }
 
+          // #73 REVENUE SSOT: before converging to the honest string, PROMOTE a DISCLOSED
+          // (non-estimate, non-funding, non-volume) revenue figure the narrative already
+          // states, so the field agrees with the Overview/Financial sections. Runs when
+          // revenue is empty OR already the canonical honest string.
+          {
+            const _canonRev = "Privately held — revenue figures not available";
+            const _revEmptyOrCanon = !current.revenue || !String(current.revenue).trim() || current.revenue === _canonRev;
+            if (_revEmptyOrCanon && current.companySnapshot && !_companyUnconfirmed(current.companySnapshot)) {
+              const _scan = [
+                current.companySnapshot,
+                current.financialDeepDive?.revenueTrend,
+                current.financialDeepDive?.segmentBreakdown,
+                current.financialDeepDive?.earningsInsight,
+                current.financialDeepDive?.capitalPriorities,
+              ].filter(Boolean);
+              let _promoted = null;
+              for (const _txt of _scan) {
+                if (/^[^.]{0,90}?no\s+(?:published|verified|public|available|disclosed|audited)\s+(?:annual\s+)?revenue/i.test(_txt.trim())) continue;
+                const _m = _txt.match(/(?:(?:total|annual|net|consolidated|reported|full[- ]year)\s+)?revenue\s*(?:of|was|were|is|reached|totaled|grew\s+to|climbed\s+to|rose\s+to|stood\s+at|came\s+in\s+at|:|—)\s*([\$]\s*[\d.,]+\s*(?:million|M|billion|B|K|trillion|T))/i)
+                  || _txt.match(/([\$]\s*[\d.,]+\s*(?:million|M|billion|B|K|trillion|T))\s+(?:annualized|annual|recurring|run[-\s]?rate|net|gross|in\s+annual|in)?\s*revenue/i);
+                if (!_m) continue;
+                const _fig = _m[1].trim();
+                const _idx = _txt.indexOf(_m[1]);
+                const _ctx = _txt.slice(Math.max(0, _idx - 80), _idx + _m[1].length + 40).toLowerCase();
+                if (/(fund(?:ing|ed)|raised|seed|series\s+[a-h]\b|round|pre-money|post-money|valuation|valued at|worth|acquir|acquisition|deal value|led by|investors?|market|tam|total addressable|segment|volume|transaction|estimat|approximat|roughly|modeled|~\s*\$|\d\s*[-–]\s*\d)/.test(_ctx)) continue;
+                _promoted = _fig;
+                break;
+              }
+              if (_promoted) {
+                console.warn(`[consistency] Revenue promoted from narrative (disclosed): "${_promoted}" (was "${current.revenue}")`);
+                current.revenue = _promoted;
+              }
+            }
+          }
+
           // HONEST-REVENUE CONVERGENCE (owner rule): a CONFIRMED private company with no
           // public/verified revenue converges to the canonical honest string — never blank,
           // never a funding/estimate number. Public + nonprofit excluded (they have real figures).
