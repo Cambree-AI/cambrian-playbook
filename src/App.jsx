@@ -5404,6 +5404,13 @@ export default function App(){
   const[urlScanStatus,setUrlScanStatus]=useState(""); // "scanning"|"found"|"none"|""
   const[urlScanConfirmed,setUrlScanConfirmed]=useState(false);
   const[sellerICP,setSellerICP]=useState(null); // built from seller URL
+  // #74: an ICP is only valid for the seller URL it was built for (stamped in Commit 1).
+  // Normalize both sides identically (lowercase + strip scheme/www/trailing slash) so a
+  // mixed-case entry cannot cause a false mismatch.
+  const _normSeller = (u) => (u||"").trim().toLowerCase()
+    .replace(/^https?:\/\//,"").replace(/\/$/,"").replace(/^www\./,"");
+  const sellerIcpMatchesUrl = !!sellerICP?._forSellerUrl
+    && _normSeller(sellerICP._forSellerUrl) === _normSeller(sellerUrl);
   const[icpEdits,setIcpEdits]=useState([]); // [{field, oldValue, newValue, timestamp}]
   const[userEdits,setUserEdits]=useState([]); // [{source, field, oldValue, newValue, company, timestamp}]
   const[icpLastEditTime,setIcpLastEditTime]=useState(0); // timestamp of last ICP edit
@@ -9092,7 +9099,7 @@ Return ONLY raw JSON:
   // Uses cacheOnly — only serves from cache, never starts expensive fresh builds.
   // Fresh builds are triggered by explicit user action (Go button, Enter, onBlur).
   useEffect(()=>{
-    if(sellerUrl&&!sellerICP&&!icpLoading) buildSellerICP(sellerUrl, {cacheOnly:true});
+    if(sellerUrl && (!sellerICP || !sellerIcpMatchesUrl) && !icpLoading) buildSellerICP(sellerUrl, {cacheOnly:true});
   },[sellerUrl, step]);
 
   // Pre-fetch: kick off ICP build 900ms after the user stops typing a
