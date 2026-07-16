@@ -7960,15 +7960,21 @@ Return ONLY raw JSON:
             // High = 3+ core fields (normal). Medium = 1-2 (partial). Low = 0 (total failure).
             parsed._confidence = populatedCount >= 3 ? "high" : populatedCount >= 1 ? "medium" : "low";
             parsed._researchChars = 0;
-            // Re-apply manual customerExamples override — survives AI rebuilds
+            // Re-apply manual customerExamples override — survives AI rebuilds.
+            // #74: on a Force Rebuild the user asked for a clean slate — do NOT re-inject,
+            // and clear the stale override so poisoned cross-seller customers cannot resurface.
             try {
-              const override = localStorage.getItem(`manualCustomers:${url}`);
-              if (override) {
-                const customers = JSON.parse(override);
-                if (Array.isArray(customers) && customers.length) {
-                  if (!parsed.icp) parsed.icp = {};
-                  parsed.icp.customerExamples = customers;
-                  console.log(`[ICP] Manual customerExamples override applied: ${customers.length} customers`);
+              if (forceRefresh) {
+                localStorage.removeItem(`manualCustomers:${url}`);
+              } else {
+                const override = localStorage.getItem(`manualCustomers:${url}`);
+                if (override) {
+                  const customers = JSON.parse(override);
+                  if (Array.isArray(customers) && customers.length) {
+                    if (!parsed.icp) parsed.icp = {};
+                    parsed.icp.customerExamples = customers;
+                    console.log(`[ICP] Manual customerExamples override applied: ${customers.length} customers`);
+                  }
                 }
               }
             } catch {}
