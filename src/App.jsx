@@ -10767,7 +10767,7 @@ Return ONLY raw JSON:
           // ── NONPROFIT OWNERSHIP DETECTION ──
           const snap = (current.companySnapshot || "").toLowerCase();
           const isNonprofit = snap.includes("nonprofit") || snap.includes("non-profit") || snap.includes("501(c)") || snap.includes("tax-exempt") || snap.includes("charity") || snap.includes("charitable");
-          if (isNonprofit && current.publicPrivate && !current.publicPrivate.toLowerCase().includes("nonprofit")) {
+          if (isNonprofit && current.publicPrivate && current.publicPrivate !== "Nonprofit (501(c)(3))") {
             console.log(`[consistency] Nonprofit detected from snapshot — overriding ownership from "${current.publicPrivate}" to "Nonprofit"`);
             current.publicPrivate = "Nonprofit (501(c)(3))";
           }
