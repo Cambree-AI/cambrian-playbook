@@ -7533,7 +7533,7 @@ Return ONLY raw JSON:
   // the effect would skip forever after the first result — a regenerated
   // ICP would render against the old RFP data until the user clicked
   // Refresh. Fixed.
-  const icpSignature = sellerICP?.icp
+  const icpSignature = (sellerICP?.icp && sellerIcpMatchesUrl)
     ? `${sellerICP.sellerName||""}|${sellerICP.marketCategory||""}|${(sellerICP.icp.industries||[]).join(",")}|${sellerICP.icp.companySize||""}`
     : "";
   const lastIcpSigRef = React.useRef("");
