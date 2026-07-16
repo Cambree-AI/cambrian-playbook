@@ -15428,9 +15428,9 @@ Return ONLY raw JSON:
                     <div className="bb-icon">🎯</div>
                     <div style={{flex:1}}>
                       <div className="bb-title">Who's Already Buying</div>
-                      <div className="bb-sub">{(sellerICP.icp.customerExamples||[]).filter(Boolean).slice(0,4).join(", ") || "Named customers, pains, gains"}</div>
+                      <div className="bb-sub">{((sellerIcpMatchesUrl?sellerICP.icp.customerExamples:[])||[]).filter(Boolean).slice(0,4).join(", ") || "Named customers, pains, gains"}</div>
                     </div>
-                    {!bbIsOpen("icpCustomers") && (()=>{const count=(sellerICP.icp.customerExamples||[]).filter(Boolean).length;return count>0?<span style={{fontSize:10,fontWeight:700,background:"var(--navy-bg)",color:"var(--navy)",borderRadius:10,padding:"2px 8px",whiteSpace:"nowrap"}}>{count} customers</span>:null;})()}
+                    {!bbIsOpen("icpCustomers") && (()=>{const count=((sellerIcpMatchesUrl?sellerICP.icp.customerExamples:[])||[]).filter(Boolean).length;return count>0?<span style={{fontSize:10,fontWeight:700,background:"var(--navy-bg)",color:"var(--navy)",borderRadius:10,padding:"2px 8px",whiteSpace:"nowrap"}}>{count} customers</span>:null;})()}
                     {bbChevron("icpCustomers")}
                   </div>
                   <div className={`bb-body-wrap ${bbIsOpen("icpCustomers")?"":"collapsed"}`}><div className="bb-body" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
@@ -15490,7 +15490,7 @@ Return ONLY raw JSON:
                     <div>
                         <div className="field-label" style={{marginBottom:4}}>Known Customers</div>
                         <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                          {(sellerICP.icp.customerExamples||[]).filter(Boolean).map((c,i)=>(
+                          {((sellerIcpMatchesUrl?sellerICP.icp.customerExamples:[])||[]).filter(Boolean).map((c,i)=>(
                             <span key={i} style={{background:"var(--bg-0)",border:"1px solid var(--line-0)",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--ink-1)",display:"flex",alignItems:"center",gap:4}}>
                               <span contentEditable suppressContentEditableWarning
                                 onBlur={e=>{const v=e.target.textContent.trim();if(v&&v!==c)setSellerICP(p=>({...p,icp:{...p.icp,customerExamples:p.icp.customerExamples.map((x,j)=>j===i?v:x)}}));else if(!v)setSellerICP(p=>({...p,icp:{...p.icp,customerExamples:p.icp.customerExamples.filter((_,j)=>j!==i)}}));}}
