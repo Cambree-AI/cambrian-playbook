@@ -14702,6 +14702,7 @@ Return ONLY raw JSON:
                 <div style={{fontSize:15,color:"var(--ink-1)",fontWeight:500}}>{icpStatus || getQuip("icp")}</div>
                 <div style={{fontSize:13,color:"var(--ink-3)"}}>Building your ICP for {sellerUrl}</div>
                 {icpStatus && <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:-8}}>{icpStatus}</div>}
+                <div style={{fontSize:12.5,color:"var(--ink-3)",marginTop:10,maxWidth:360,lineHeight:1.55}}>Good intel takes a minute. ☕ Grab a coffee or knock out that email you've been dodging — we'll have this ready when you're back.</div>
               </div>
             )}
 
