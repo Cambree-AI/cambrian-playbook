@@ -28,7 +28,7 @@ function FitSortTh({ sortKey, sortDir, onSort, colKey, children, style }) {
 // IP/trade secret leakage via DevTools. Staging, preview, and local dev
 // always have full logging. Keep console.error everywhere for crash debugging.
 const _isProdDomain = typeof window !== "undefined" &&
-  window.location.hostname === "cambriancatalyst.ai";
+  ["cambriancatalyst.ai","www.cambriancatalyst.ai","cambree.ai","www.cambree.ai"].includes(window.location.hostname);
 if (_isProdDomain) {
   const noop = () => {};
   console.log = noop;
