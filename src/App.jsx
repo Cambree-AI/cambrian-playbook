@@ -13769,7 +13769,7 @@ Return ONLY raw JSON:
               {sbUser && (
                 <div style={{textAlign:"center",marginBottom:16}}>
                   <div style={{fontSize:14,color:"var(--ink-1)"}}>
-                    Welcome back{sbUser.user_metadata?.first_name ? `, ${sbUser.user_metadata.first_name}` : ""}. <span style={{color:"var(--ink-3)",fontSize:12}}>{Math.max(0,((orgCtx?.run_limit||3)+(orgCtx?.rollover_runs||0))-(orgCtx?.run_count||0))} runs available</span>
+                    Welcome back{sbUser.user_metadata?.first_name ? `, ${sbUser.user_metadata.first_name}` : ""}.
                   </div>
                 </div>
               )}
