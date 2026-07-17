@@ -10223,7 +10223,7 @@ Return ONLY raw JSON:
             current.tldr?.topFinding,
             current.tldr?.topOpportunity,
             current.tldr?.topRisk,
-          ].filter(Boolean).join("\n\n");
+          ].filter(Boolean).join("\n\n").slice(0, 20000);
 
           // Quick client-side checks before burning an API call
           // Check: does any text mention a CEO/leader name that contradicts the executives list?
@@ -10305,7 +10305,7 @@ Return ONLY raw JSON:
           if (Array.isArray(current.recentHeadlines) && Array.isArray(current.keyExecutives) && current.keyExecutives.length > 0) {
             const hlText = current.recentHeadlines
               .map(h => typeof h === "string" ? h : (h?.headline || ""))
-              .join(" | ");
+              .join(" | ").slice(0, 8000);
 
             const normRole = (t) => {
               const s = (t || "").toLowerCase();
@@ -10710,7 +10710,7 @@ Return ONLY raw JSON:
               current.financialDeepDive?.segmentBreakdown,
               current.financialDeepDive?.capitalPriorities,
               Array.isArray(current.watchOuts) ? current.watchOuts.join(" ") : (current.watchOuts || ""),
-            ].filter(Boolean).join(" ");
+            ].filter(Boolean).join(" ").slice(0, 8000);
             // Also scan recentSignals for "X employees as of [date]" — authoritative live data
             const recentSignalsText = Array.isArray(current.recentSignals)
               ? current.recentSignals.map(s => typeof s === "string" ? s : (s?.signal || "")).join(" ")
@@ -10888,7 +10888,7 @@ Return ONLY raw JSON:
               current.financialDeepDive?.capitalPriorities,
               current.financialDeepDive?.segmentBreakdown,
               Array.isArray(current.watchOuts) ? current.watchOuts.join(" ") : (current.watchOuts || ""),
-            ].filter(Boolean).join(" ");
+            ].filter(Boolean).join(" ").slice(0, 8000);
             const empMatches = [...allText.matchAll(/(?:(?:approximately|~|about|nearly|over|employs?|employing|has)\s*|[(]\s*)([\d,]+)\+?\s*(?:employees|people|staff|team members|workers|associates|colleagues)/gi)];
             if (empMatches.length > 0) {
               const p1Emp = parseInt(String(current.employeeCount).replace(/[^0-9]/g, ""), 10) || 0;
