@@ -14067,7 +14067,7 @@ Return ONLY raw JSON:
                     "Build ICP Now" EmptyState (@14666) — never a dead-end. */}
                 {(scanDone||urlScanStatus==="none") ? (
                   <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",marginTop:20}}
-                    onClick={()=>{if(sellerInput.trim()){setSellerUrl(sellerInput.trim());setStep(1);}}}
+                    onClick={()=>{if(sellerInput.trim()){const _u=sellerInput.trim();setSellerUrl(_u);setStep(1);if((!sellerICP||!sellerIcpMatchesUrl)&&!icpLoading)buildSellerICP(_u);}}}
                     disabled={!sellerInput.trim()}>
                     Start my session →
                   </button>
