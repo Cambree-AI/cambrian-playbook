@@ -259,7 +259,7 @@ export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, save
   };
 
   // ── Invite actions ──
-  const APP_URL = import.meta.env.VITE_APP_URL || "https://www.cambriancatalyst.ai";
+  const APP_URL = import.meta.env.VITE_APP_URL || "https://www.cambree.ai";
   const getInviteLink = (token) => `${APP_URL}?token=${token}`;
   const copyInviteLink = (token) => {
     navigator.clipboard.writeText(getInviteLink(token));
