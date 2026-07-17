@@ -265,6 +265,7 @@ function isAllowedOrigin(origin) {
   if (/^cambrian-playbook[a-z0-9-]*\.vercel\.app$/.test(h)) return true;
   if (h.includes("cambrian-playbook") && h.endsWith(".vercel.app")) return true;
   if (h === "cambriancatalyst.ai" || h.endsWith(".cambriancatalyst.ai")) return true;
+  if (h === "cambree.ai" || h.endsWith(".cambree.ai")) return true;
   if (h === "localhost" || h === "127.0.0.1") return true;
   return false;
 }
