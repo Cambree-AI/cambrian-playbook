@@ -15649,7 +15649,7 @@ Return ONLY raw JSON:
               <button className="btn btn-primary btn-lg"
                 onClick={()=>setStep(2)}
                 disabled={!sellerICP&&!icpLoading}>
-                {icpLoading&&!sellerICP?"Building ICP...":"Add Prospects →"}
+                {icpLoading&&!sellerICP?"Building ICP...":"Add Prospects / Target Companies →"}
               </button>
             </div>
             )}
@@ -15657,7 +15657,7 @@ Return ONLY raw JSON:
             <div style={{display:"flex",justifyContent:"space-between",marginTop:16,paddingTop:16,borderTop:"1px solid var(--line-0)"}}>
               <button className="btn btn-secondary" onClick={()=>setIcpTab("icp")}>← Back to ICP</button>
               <button className="btn btn-primary btn-lg" onClick={()=>setStep(2)}>
-                Add Prospects →
+                Add Prospects / Target Companies →
               </button>
             </div>
             )}
@@ -18383,7 +18383,7 @@ Return ONLY raw JSON:
                 {hubspotPushing==="push_brief"?"Pushing...":copied==="hs_ok"?"Pushed ✓":"Push to HubSpot"}
               </button>}
               <button className="btn btn-green btn-lg" onClick={()=>{setActiveRiver(0);setStep(7);}}>
-                Start In-Call →
+                Start the Call →
               </button>
             </div>
             <div style={{fontSize:11,color:"var(--ink-3)",textAlign:"center",marginTop:6,fontStyle:"italic"}}>You're about to be the most prepared person on this call.</div>
