@@ -13447,7 +13447,7 @@ Return ONLY raw JSON:
                     aria-current={step===i?"step":undefined}
                     title={STEP_TIPS[i] || s}
                     style={{position:"relative"}}>
-                    <div className={`step-num ${celebrateStep===i?"just-completed":""}`}>{step>i?"✓":i+1}</div>
+                    <div className={`step-num ${celebrateStep===i?"just-completed":""}`}>{step>i?"✓":(solConEnabled&&i>8?i:i+1)}</div>
                     <div className="step-label">{s}</div>
                     {i === 1 && ((rfpData.open?.length || 0) + (rfpData.signals?.length || 0) + (accountRfpData.open?.length || 0) + (accountRfpData.signals?.length || 0) > 0) && (
                       <span style={{position:"absolute",top:-4,right:-4,background:"var(--red)",color:"white",fontSize:8,fontWeight:800,width:16,height:16,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>
