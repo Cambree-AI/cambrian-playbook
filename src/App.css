@@ -271,7 +271,7 @@ body { font-family: var(--font-sans); background: var(--bg-0); color: var(--ink-
 .actions-row { display: flex; gap: 8px; margin-top: 24px; align-items: center; flex-wrap: wrap; }
 
 /* ── CARDS ───────────────────────────────────────────── */
-.card { background: var(--surface); box-shadow: none; border: 1px solid var(--line-0); border-left: 4px solid var(--line-2); border-radius: var(--r-md); padding: 16px 18px; margin-bottom: 12px; transition: border-color var(--t-med) var(--ease); }
+.card { background: var(--surface); box-shadow: var(--sh-1); border: 1px solid var(--line-0); border-top: 3px solid var(--tan-0); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; transition: border-color var(--t-med) var(--ease); }
 .card:hover { box-shadow: none; border-left-color: var(--tan-0); }
 .card-title { font-family: var(--font-sans); font-size: 14px; font-weight: 700; margin-bottom: 10px; color: var(--ink-0); }
 
