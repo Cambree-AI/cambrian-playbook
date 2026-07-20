@@ -3734,7 +3734,7 @@ const LOADER_QUIPS = {
     "Making you the most dangerous person in the room...",
     "Building your unfair advantage...",
     "Turning public intel into private insight...",
-    "Becoming an expert in 30 seconds...",
+    "Becoming an expert on your prospect...",
     "Almost there — this is the good part...",
     "This is the part where you stop guessing and start knowing...",
     "When you know more, the conversation is better for everyone...",
@@ -3895,7 +3895,7 @@ function InfoTip({ text }) {
 // ── STEP HINTS — first-timer contextual callouts ────────────────────────────
 // Shows once per step on first visit. Tracked in localStorage.
 const STEP_HINTS = {
-  0: { icon: "👋", text: "First time here? Enter your company URL below and Cambree builds your entire sales intelligence pipeline. Takes about 30 seconds." },
+  0: { icon: "👋", text: "First time here? Enter your company URL below and Cambree builds your entire sales intelligence pipeline. Give it a few minutes — good intel is worth the wait." },
   1: { icon: "🎯", text: "This is your Ideal Customer Profile — built automatically from your website. Every field is editable. Your changes flow into all downstream output." },
   2: { icon: "📂", text: "Three ways to add prospects: upload a CSV, type company names, or let AI generate 25-30 ICP-matched targets. All accounts get scored automatically." },
   3: { icon: "📊", text: "Every account scored on three dimensions: ICP fit, customer similarity, and competitive landscape. Use these scores to focus on the right targets." },
@@ -3931,7 +3931,7 @@ const MILESTONES = {
   icp_built:       { emoji: "🎯", title: "ICP Locked In", msg: "You now know more about your buyer than 90% of reps out there. That's not luck — that's preparation.", level: 1 },
   prospects_added: { emoji: "📋", title: "Prospects Loaded", msg: "Time to separate the signal from the noise. Your fit scores are cooking.", level: 1 },
   first_fit:       { emoji: "📊", title: "Fit Scores In", msg: "Now you know where to spend your time. No more chasing logos that were never going to close.", level: 2 },
-  brief_built:     { emoji: "🔥", title: "Brief Built", msg: "You just did in 3 minutes what takes most reps an hour. And yours is better. Way better.", level: 2 },
+  brief_built:     { emoji: "🔥", title: "Brief Built", msg: "You just did in minutes what takes most reps an hour. And yours is better. Way better.", level: 2 },
   hypothesis_ready:{ emoji: "🧪", title: "Game Plan Set", msg: "You're about to walk into this call more prepared than anyone they've talked to this quarter. Dangerous.", level: 3 },
   call_started:    { emoji: "🎙️", title: "You're Live", msg: "Discovery doesn't have to suck. Milton's got your back. Go make it count.", level: 3 },
   post_call:       { emoji: "🏆", title: "Deal Routed", msg: "CRM updated. Follow-up drafted. Next steps mapped. That's a full cycle of excellence right there.", level: 4 },
@@ -4465,7 +4465,7 @@ function PasswordGate({ onAuth }) {
               You only get one shot at a<br/>first <span style={{color:"var(--tan-0)"}}>impression.</span>
             </div>
             <div style={{fontSize:16,color:"var(--ink-1)",lineHeight:1.7,marginBottom:8,maxWidth:480}}>
-              Walk into every conversation as the most prepared person in the room. 30 seconds, a company name, and you'll know more about your prospect than most reps learn in a week.
+              Walk into every conversation as the most prepared person in the room. A company name and a few minutes, and you'll know more about your prospect than most reps learn in a week.
             </div>
             <div style={{fontSize:14,color:"var(--ink-2)",lineHeight:1.6,marginBottom:24,maxWidth:480,fontStyle:"italic"}}>
               Whether you're a seasoned closer or brand new to sales — Cambree levels you up. Think of it as the mentor who did the homework for you, every single time.
@@ -4558,7 +4558,7 @@ function PasswordGate({ onAuth }) {
             <div style={{background:"var(--green-bg)",border:"1.5px solid var(--green)",borderRadius:10,padding:"20px 18px"}}>
               <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>After Cambree</div>
               <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.8}}>
-                {["Deep research brief in under 30 seconds — not hours","Tailored pitch with teaching insights and proof from your customers","Structured call prep so every conversation has a plan","Prospects say \"you clearly understand our business\"","Buying committee mapped before the first call","CRM note, follow-up email, and deal routing in one click"].map(t=>(
+                {["Deep research brief in minutes — not hours","Tailored pitch with teaching insights and proof from your customers","Structured call prep so every conversation has a plan","Prospects say \"you clearly understand our business\"","Buying committee mapped before the first call","CRM note, follow-up email, and deal routing in one click"].map(t=>(
                   <div key={t} style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"var(--green)",flexShrink:0}}>✓</span>{t}</div>
                 ))}
               </div>
@@ -4580,7 +4580,7 @@ function PasswordGate({ onAuth }) {
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))",gap:14}}>
           {[
             {role:"New to Sales?",desc:"No more panic before calls. Cambree gives you exactly what to say, who to say it to, and why it matters. You'll sound like a 10-year vet on day one."},
-            {role:"Experienced AEs",desc:"Stop spending 60 minutes on research you can get in 30 seconds. Walk in knowing things about their company that even their team doesn't know."},
+            {role:"Experienced AEs",desc:"Stop spending an hour on research Cambree does in minutes. Walk in knowing things about their company that even their team doesn't know."},
             {role:"Sales Leaders",desc:"Give every rep on your team the preparation habits of your best closer. Consistent prep, consistent results, no more 'I didn't have time to research.'"},
             {role:"Solutions Architects",desc:"Dual-track discovery with architecture qualification baked in. Show up to the first technical call already knowing their stack, their gaps, and their timeline."},
           ].map(p=>(
@@ -12889,7 +12889,7 @@ Return ONLY raw JSON:
             You know that feeling — 10 minutes before the call, scrambling through LinkedIn and a stale CRM note, hoping something sticks.
           </p>
           <p style={{fontSize:"clamp(15px, 1.8vw, 18px)",color:"var(--ink-1)",lineHeight:1.7,marginBottom:36,maxWidth:600,margin:"0 auto 36px",fontWeight:500}}>
-            Give us 30 seconds and a company name. We'll hand you back a full intelligence brief, a conversation strategy, and an AI coach who's actually been paying attention.
+            Give us a company name. We'll hand you back a full intelligence brief, a conversation strategy, and an AI coach who's actually been paying attention.
           </p>
           <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",marginBottom:16}}>
             <button onClick={()=>setShowLanding(false)}
@@ -13783,7 +13783,7 @@ Return ONLY raw JSON:
                       <span style={{fontSize:22}}>🔍</span>
                       <div>
                         <div style={{fontSize:16,fontWeight:700,color:sessionMode==="quick"?"var(--green)":"var(--ink-1)"}}>Quick Brief</div>
-                        <div style={{fontSize:11,color:"var(--ink-2)"}}>Research any company in 30 seconds</div>
+                        <div style={{fontSize:11,color:"var(--ink-2)"}}>Research any company, fast</div>
                       </div>
                     </div>
                     <div style={{fontSize:12,color:"var(--ink-2)",lineHeight:1.6,marginBottom:12}}>
@@ -15882,7 +15882,7 @@ Return ONLY raw JSON:
                               <div className="load-spin" style={{width:12,height:12,borderWidth:2}}/> Scoring fit, mapping competitors, and validating targets
                             </div>
                             <div style={{fontSize:11,color:"var(--ink-3)",marginTop:6}}>
-                              This is deep research, not a quick list — we're building you a pipeline you can actually defend. Takes about 30 seconds.
+                              This is deep research, not a quick list — we're building you a pipeline you can actually defend. Give it a few minutes.
                             </div>
                           </div>
                         </div>
