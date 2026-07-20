@@ -4131,7 +4131,7 @@ function AuthShell({ children }) {
         </div>
       </header>
       {children}
-      <footer className="footer">© 2026 Cambrian Catalyst LLC · Seattle, WA · Evolve how you sell · <a href="mailto:info@cambriancatalyst.com" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambriancatalyst.com</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a></footer>
+      <footer className="footer">© 2026 Cambrian Catalyst LLC · Seattle, WA · Evolve how you sell · <a href="mailto:info@cambree.ai" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambree.ai</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a></footer>
     </div>
   );
 }
@@ -4633,7 +4633,7 @@ function PasswordGate({ onAuth }) {
             </div>
           </div>
           <div style={{textAlign:"center",marginTop:16,fontSize:13,color:"var(--ink-2)"}}>
-            Need custom volume, SSO, or invoice billing? <a href="mailto:joe@cambriancatalyst.ai" style={{color:"var(--tan-0)",fontWeight:600,textDecoration:"none"}}>joe@cambriancatalyst.ai</a>
+            Need custom volume, SSO, or invoice billing? <a href="mailto:joe@cambree.ai" style={{color:"var(--tan-0)",fontWeight:600,textDecoration:"none"}}>joe@cambree.ai</a>
           </div>
         </div>
       </div>
@@ -5093,7 +5093,7 @@ const APP_GUIDES = {
       { h: "Troubleshooting — Briefs", body: "Sections blank?\n1. Look for amber banner — \"X sections incomplete\"\n2. Hit Regenerate — free, doesn't count against runs\n3. Some sections (P3 Strategy with Opus) take 15-30 seconds\n4. Check console for specific failures" },
       { h: "Troubleshooting — HubSpot", body: "• Scope mismatch on connect → scopes in code must match HubSpot App Auth tab\n• Push returns error → Disconnect + Reconnect\n• Companies not in \"My Companies\" → owner_id issue, reconnect\n• Token expired → Disconnect + Reconnect" },
       { h: "Troubleshooting — Other", body: "Run limit reached: Check usage badge (bottom-left). Rollover credits included. Upgrade in Settings → Plan.\n\nSlow briefs: ICP build (Opus) = 15-25s, P3 (Opus) = 15-30s, other sections = 3-10s parallel. Total 20-40s expected.\n\nLogin issues: Forgot Password on login page. Invite links expire after 7 days.\n\nMilton not responding: Check run limit, refresh page, try simpler question." },
-      { h: "Support Escalation", body: "Level 1 (Self-service): Help \"?\" button, FAQ, Milton.\n\nLevel 2 (Email): joe@cambriancatalyst.ai — 24hr response (business days). Include what you did, what happened, screenshot.\n\nLevel 3 (Technical): Console errors, Network tab, Session ID." },
+      { h: "Support Escalation", body: "Level 1 (Self-service): Help \"?\" button, FAQ, Milton.\n\nLevel 2 (Email): joe@cambree.ai — 24hr response (business days). Include what you did, what happened, screenshot.\n\nLevel 3 (Technical): Console errors, Network tab, Session ID." },
     ],
   },
   reseller: {
@@ -5103,11 +5103,11 @@ const APP_GUIDES = {
     sections: [
       { h: "What You Get", body: "You operate your own org with admin access. You can:\n• Invite client users under your org\n• Set seller URLs per client engagement\n• Monitor usage across all clients\n• Run briefs on behalf of clients\n• Export session data for client delivery" },
       { h: "Client Setup — Option A", body: "Client under your org (simpler): Your org is the umbrella. Invite client team members as reps. Usage counts against your plan. Best for consulting engagements where you run briefs for them." },
-      { h: "Client Setup — Option B", body: "Dedicated client org (cleaner): Ask joe@cambriancatalyst.ai to create a separate org. They get their own plan, usage, and data. Best for clients who will self-serve after onboarding." },
+      { h: "Client Setup — Option B", body: "Dedicated client org (cleaner): Ask joe@cambree.ai to create a separate org. They get their own plan, usage, and data. Best for clients who will self-serve after onboarding." },
       { h: "First Walkthrough (25 min)", body: "Minutes 1-5: Quick Brief — enter a company they're pursuing, show the brief building live.\n\nMinutes 5-12: Full Session — walk through ICP, show fit scoring on 3-4 companies.\n\nMinutes 12-18: Call Prep — show RIVER hypothesis, discovery questions, Milton coaching.\n\nMinutes 18-23: Post-Call + CRM — demonstrate HubSpot push, follow-up email.\n\nMinutes 23-25: Close — show session saving, help button. \"Run 3 briefs this week.\"" },
-      { h: "Managing Clients", body: "Monitor usage: Reporting → org usage, sessions per user. Proactive check-in at day 7 if usage is low.\n\nPlan changes: Contact joe@cambriancatalyst.ai with org name, current plan, target plan.\n\nAdd members: Settings → Team → Invite, or have client admin do it.\n\nExport: From any brief — Copy Brief, Copy Summary, Export PDF, Export CSV." },
+      { h: "Managing Clients", body: "Monitor usage: Reporting → org usage, sessions per user. Proactive check-in at day 7 if usage is low.\n\nPlan changes: Contact joe@cambree.ai with org name, current plan, target plan.\n\nAdd members: Settings → Team → Invite, or have client admin do it.\n\nExport: From any brief — Copy Brief, Copy Summary, Export PDF, Export CSV." },
       { h: "Pricing", body: "Suggested wholesale (negotiate with Joe):\n• Starter (25 runs): Retail $99 → Reseller $69 (30% margin)\n• Pro (100 runs): Retail $349 → Reseller $244 (30% margin)\n• Team (250 runs): Retail $799 → Reseller $559 (30% margin)\n• Enterprise (1,000 runs): Retail $2,500 → Reseller $1,750 (30% margin)\n\nVolume pricing for 10+ client orgs." },
-      { h: "Support", body: "You handle: Feature questions, ICP corrections, brief regeneration.\n\nEscalate to joe@cambriancatalyst.ai: Technical issues (400 errors, blank screens, login), plan changes, feature requests, HubSpot issues.\n\nResponse: 24 hours on business days." },
+      { h: "Support", body: "You handle: Feature questions, ICP corrections, brief regeneration.\n\nEscalate to joe@cambree.ai: Technical issues (400 errors, blank screens, login), plan changes, feature requests, HubSpot issues.\n\nResponse: 24 hours on business days." },
       { h: "Client Success Factors", body: "1. Run 5 briefs in the first week — week 1 usage predicts retention\n2. Edit the ICP in session 1 — makes the tool theirs\n3. Push to HubSpot at least once — proves CRM integration\n4. Use Milton on a real call — the \"aha\" moment\n5. Review fit scores together — builds trust in scoring" },
     ],
   },
@@ -18914,23 +18914,23 @@ Return ONLY raw JSON:
               <button onClick={()=>setContactOpen(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
-              <a href="mailto:info@cambriancatalyst.com" style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:10,border:"1.5px solid var(--line-0)",textDecoration:"none",color:"var(--ink-0)",transition:"all 0.15s"}}
+              <a href="mailto:info@cambree.ai" style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:10,border:"1.5px solid var(--line-0)",textDecoration:"none",color:"var(--ink-0)",transition:"all 0.15s"}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--green)";e.currentTarget.style.background="var(--green-bg)";}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--line-0)";e.currentTarget.style.background="transparent";}}>
                 <span style={{fontSize:20}}>💼</span>
                 <div>
                   <div style={{fontSize:13,fontWeight:700}}>General Inquiries & Sales</div>
-                  <div style={{fontSize:12,color:"var(--ink-3)"}}>info@cambriancatalyst.com</div>
+                  <div style={{fontSize:12,color:"var(--ink-3)"}}>info@cambree.ai</div>
                   <div style={{fontSize:11,color:"var(--ink-3)",marginTop:2}}>Pricing, partnerships, demos, and general questions</div>
                 </div>
               </a>
-              <a href="mailto:support@cambriancatalyst.com" style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:10,border:"1.5px solid var(--line-0)",textDecoration:"none",color:"var(--ink-0)",transition:"all 0.15s"}}
+              <a href="mailto:support@cambree.ai" style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px",borderRadius:10,border:"1.5px solid var(--line-0)",textDecoration:"none",color:"var(--ink-0)",transition:"all 0.15s"}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor="var(--amber)";e.currentTarget.style.background="var(--amber-bg)";}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor="var(--line-0)";e.currentTarget.style.background="transparent";}}>
                 <span style={{fontSize:20}}>🛠</span>
                 <div>
                   <div style={{fontSize:13,fontWeight:700}}>Support & Troubleshooting</div>
-                  <div style={{fontSize:12,color:"var(--ink-3)"}}>support@cambriancatalyst.com</div>
+                  <div style={{fontSize:12,color:"var(--ink-3)"}}>support@cambree.ai</div>
                   <div style={{fontSize:11,color:"var(--ink-3)",marginTop:2}}>Technical issues, bug reports, and account help</div>
                 </div>
               </a>
@@ -19310,7 +19310,7 @@ Return ONLY raw JSON:
       )}
 
       <footer className="footer">
-        © 2026 Cambrian Catalyst LLC · Seattle, WA · All rights reserved · <a href="mailto:info@cambriancatalyst.com" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambriancatalyst.com</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a>
+        © 2026 Cambrian Catalyst LLC · Seattle, WA · All rights reserved · <a href="mailto:info@cambree.ai" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambree.ai</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a>
       </footer>
 
       {/* Print-only footer — appears on every printed page */}

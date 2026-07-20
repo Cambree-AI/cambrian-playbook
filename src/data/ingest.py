@@ -42,7 +42,7 @@ DATA_DIR = HERE / "data"
 DB_PATH = DATA_DIR / "knowledge_layer.sqlite"
 
 # Identify yourself to government APIs that require a UA string (SEC especially)
-USER_AGENT = os.environ.get("KL_USER_AGENT", "Cambrian Catalyst GTM Research contact@cambriancatalyst.com")
+USER_AGENT = os.environ.get("KL_USER_AGENT", "Cambrian Catalyst GTM Research info@cambree.ai")
 HEADERS = {"User-Agent": USER_AGENT, "Accept": "application/json, */*"}
 
 

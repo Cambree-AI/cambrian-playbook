@@ -963,7 +963,7 @@ export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, save
 
                 {/* Contact */}
                 <div style={{ fontSize: 11, color: "var(--ink-3)", lineHeight: 1.6, borderTop: "1px solid var(--line-0)", paddingTop: 12 }}>
-                  Need help? <a href="mailto:info@cambriancatalyst.com" style={{ color: "var(--tan-0)" }}>info@cambriancatalyst.com</a>
+                  Need help? <a href="mailto:info@cambree.ai" style={{ color: "var(--tan-0)" }}>info@cambree.ai</a>
                 </div>
               </div>
             </div>

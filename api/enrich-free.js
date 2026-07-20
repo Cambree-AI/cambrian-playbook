@@ -6,7 +6,7 @@
 //
 // Priority: SEC EDGAR (authoritative for public cos) > Wikidata (notable cos) > null
 
-const UA = "Cambrian-Catalyst info@cambriancatalyst.com";
+const UA = "Cambree info@cambree.ai";
 
 // ── In-memory cache (24hr TTL, max 500 entries) ──
 const cache = new Map();
