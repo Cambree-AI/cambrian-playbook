@@ -12871,7 +12871,7 @@ Return ONLY raw JSON:
     <div style={{minHeight:"100vh",fontFamily:"DM Sans,sans-serif",overflow:"hidden"}}>
       {/* ── Nav bar ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 32px",maxWidth:1200,margin:"0 auto"}}>
-        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Cam<span style={{color:"var(--tan-0)"}}>bree</span></div>
+        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:26,width:"auto",display:"block"}} /></div>
         <button onClick={()=>setShowLanding(false)}
           style={{padding:"8px 20px",borderRadius:8,background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>
           Sign In
