@@ -5,11 +5,11 @@
    values in CSS or inline styles without first adding the
    corresponding token here. See CHANGELOG.md v105 notes. */
 :root {
-  /* surfaces — clean, cool, modern */
-  --bg-0:       #F5F6F8;   /* app background */
-  --bg-1:       #F9FAFB;   /* raised surface · hover */
-  --bg-2:       #ECEEF2;   /* muted chip · subtle tint */
-  --surface:    #ffffff;
+  /* surfaces — warm ivory canvas */
+  --bg-0:       #F4EEE4;   /* warm ivory canvas */
+  --bg-1:       #FBF7EF;   /* raised surface · hover */
+  --bg-2:       #EDE6D8;   /* muted chip · subtle tint */
+  --surface:    #FFFDF9;   /* warm white cards */
 
   /* ink — midnight base, not brown-black */
   --ink-0:      #1A3D47;   /* primary */
@@ -45,10 +45,10 @@
   --citrus-bg:  #F7F7E1;
   --earth:      #2E291C;
 
-  /* lines — cooler, crisper */
-  --line-0:     #E2E4EA;   /* default border */
-  --line-1:     #ECEEF2;   /* subtle row separator */
-  --line-2:     #CBD0D8;   /* stronger border */
+  /* lines — warm */
+  --line-0:     #E7DFD0;   /* default border (warm) */
+  --line-1:     #EFE8DA;   /* subtle row separator */
+  --line-2:     #D9CFBD;   /* stronger border */
 
   /* radius — sharp, precise (not rounded/soft) */
   --r-sm:       2px;
