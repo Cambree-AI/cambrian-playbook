@@ -13778,11 +13778,11 @@ Return ONLY raw JSON:
               {sbUser && (
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
                   {/* Quick Brief card */}
-                  <div onClick={()=>setSessionMode("quick")} style={{background:sessionMode==="quick"?"var(--green-bg)":"var(--surface)",border:sessionMode==="quick"?"2px solid var(--green)":"2px solid var(--line-0)",borderRadius:14,padding:"22px",borderTop:sessionMode==="quick"?"4px solid var(--green)":"4px solid var(--line-0)",cursor:"pointer",transition:"all 0.15s",opacity:sessionMode==="quick"?1:0.7}}>
+                  <div onClick={()=>setSessionMode("quick")} style={{background:"var(--surface)",border:"1px solid var(--line-0)",borderRadius:14,padding:"22px",borderTop:"4px solid var(--tan-0)",cursor:"pointer",transition:"all 0.15s"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                       <span style={{fontSize:22}}>🔍</span>
                       <div>
-                        <div style={{fontSize:16,fontWeight:700,color:sessionMode==="quick"?"var(--green)":"var(--ink-1)"}}>Quick Brief</div>
+                        <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)"}}>Quick Brief</div>
                         <div style={{fontSize:11,color:"var(--ink-2)"}}>Research any company, fast</div>
                       </div>
                     </div>
@@ -13804,18 +13804,18 @@ Return ONLY raw JSON:
                   </div>
 
                   {/* Full Sales Session card */}
-                  <div onClick={()=>{setSessionMode("full");}} style={{background:sessionMode==="full"?"var(--navy-bg)":"var(--surface)",border:sessionMode==="full"?"2px solid var(--navy)":"2px solid var(--line-0)",borderRadius:14,padding:"22px",borderTop:sessionMode==="full"?"4px solid var(--navy)":"4px solid var(--line-0)",cursor:"pointer",transition:"all 0.15s",opacity:sessionMode==="full"?1:0.7}}>
+                  <div onClick={()=>{setSessionMode("full");}} style={{background:"var(--navy)",border:"none",borderRadius:14,padding:"22px",borderTop:"4px solid var(--citrus)",cursor:"pointer",transition:"all 0.15s"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                       <span style={{fontSize:22}}>🎯</span>
                       <div>
-                        <div style={{fontSize:16,fontWeight:700,color:sessionMode==="full"?"var(--navy)":"var(--ink-1)"}}>Full Sales Session</div>
-                        <div style={{fontSize:11,color:"var(--ink-2)"}}>The complete 9-step playbook</div>
+                        <div style={{fontSize:16,fontWeight:700,color:"#ffffff"}}>Full Sales Session</div>
+                        <div style={{fontSize:11,color:"rgba(255,255,255,0.65)"}}>The complete 9-step playbook</div>
                       </div>
                     </div>
-                    <div style={{fontSize:12,color:"var(--ink-2)",lineHeight:1.6,marginBottom:12}}>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,0.75)",lineHeight:1.6,marginBottom:12}}>
                       We deeply research your products, services, and proven wins — then find the companies most likely to buy from you and arm you with the exact intel to close them.
                     </div>
-                    <div style={{fontSize:13,fontWeight:700,color:"var(--navy)",display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"var(--citrus)",display:"flex",alignItems:"center",gap:6}}>
                       Start Full Session →
                     </div>
                   </div>
