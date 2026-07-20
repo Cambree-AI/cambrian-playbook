@@ -324,7 +324,7 @@ const CURRENT_RFP_VER = "v3";
 
 // ── CONSTANTS ─────────────────────────────────────────────────────────────────
 
-const COHORT_COLORS = ["#8B6F47","#4A7A9B","#6B8E6B","#9B6B8E","#7A7A4A","#C87533","#1B3A6B","#2E6B2E","#9B2C2C","#6B3A7A","#BA7517","#3A6B6B","#6B4A9B","#A84A4A","#4A9B7A"];
+const COHORT_COLORS = ["#BD6940","#4A7A9B","#6B8E6B","#9B6B8E","#7A7A4A","#C87533","#1B3A6B","#2E6B2E","#9B2C2C","#6B3A7A","#BA7517","#3A6B6B","#6B4A9B","#A84A4A","#4A9B7A"];
 
 // ── UNIVERSAL BUSINESS IMPERATIVES ─────────────────────────────────────────
 // Every company — regardless of industry, size, or stage — is always working on these.
@@ -3856,7 +3856,7 @@ function CompanyLogo({ domain, name, size = 40, style = {} }) {
     return (
       <div style={{
         width: size, height: size, borderRadius: "50%", background: "var(--ink-0)",
-        color: "var(--tan-0)", fontFamily: "Lora,serif", fontWeight: 700,
+        color: "var(--tan-0)", fontFamily: "'Crimson Pro',serif", fontWeight: 700,
         fontSize: size * 0.38, display: "flex", alignItems: "center",
         justifyContent: "center", flexShrink: 0, ...style,
       }}>
@@ -3970,7 +3970,7 @@ function MilestoneCelebration({ milestone, onDismiss }) {
       <div style={{display:"flex",gap:12,alignItems:"flex-start"}}>
         <span style={{fontSize: isHype ? 32 : 24, lineHeight:1}}>{m.emoji}</span>
         <div style={{flex:1}}>
-          <div style={{fontFamily:"'Lora',serif", fontSize: isHype ? 16 : 14, fontWeight:700, color: s.color, marginBottom:4}}>
+          <div style={{fontFamily:"'Crimson Pro',serif", fontSize: isHype ? 16 : 14, fontWeight:700, color: s.color, marginBottom:4}}>
             {m.title}{isHype ? " 🎉" : ""}
           </div>
           <div style={{fontSize:12, color:"var(--ink-1)", lineHeight:1.6}}>{m.msg}</div>
@@ -4461,7 +4461,7 @@ function PasswordGate({ onAuth }) {
           {/* Left — value prop */}
           <div style={{flex:"1 1 400px",minWidth:280}}>
             <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:8}}>Smart People Go Further.</div>
-            <div style={{fontFamily:"Lora,serif",fontSize:32,fontWeight:700,color:"var(--ink-0)",lineHeight:1.25,marginBottom:16}}>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:32,fontWeight:700,color:"var(--ink-0)",lineHeight:1.25,marginBottom:16}}>
               You only get one shot at a<br/>first <span style={{color:"var(--tan-0)"}}>impression.</span>
             </div>
             <div style={{fontSize:16,color:"var(--ink-1)",lineHeight:1.7,marginBottom:8,maxWidth:480}}>
@@ -4477,7 +4477,7 @@ function PasswordGate({ onAuth }) {
                 {num:"9",label:"step deal playbook"},
               ].map(s=>(
                 <div key={s.label} style={{textAlign:"center"}}>
-                  <div style={{fontSize:28,fontWeight:700,color:"var(--tan-0)",fontFamily:"Lora,serif"}}>{s.num}</div>
+                  <div style={{fontSize:28,fontWeight:700,color:"var(--tan-0)",fontFamily:"'Crimson Pro',serif"}}>{s.num}</div>
                   <div style={{fontSize:11,color:"var(--ink-3)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.3px"}}>{s.label}</div>
                 </div>
               ))}
@@ -4512,7 +4512,7 @@ function PasswordGate({ onAuth }) {
       <div style={{padding:"40px 20px",maxWidth:960,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:6}}>Your unfair advantage.</div>
-          <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
             Show up knowing things they didn't expect you to know
           </div>
           <div style={{fontSize:14,color:"var(--ink-2)",maxWidth:600,margin:"0 auto",lineHeight:1.6}}>
@@ -4531,7 +4531,7 @@ function PasswordGate({ onAuth }) {
           ].map(f=>(
             <div key={f.title} style={{background:"var(--surface)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"20px 18px"}}>
               <div style={{fontSize:24,marginBottom:8}}>{f.icon}</div>
-              <div style={{fontFamily:"Lora,serif",fontSize:15,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>{f.title}</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>{f.title}</div>
               <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.6}}>{f.desc}</div>
             </div>
           ))}
@@ -4542,13 +4542,13 @@ function PasswordGate({ onAuth }) {
       <div style={{background:"var(--bg-1)",padding:"40px 20px"}}>
         <div style={{maxWidth:960,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:28}}>
-            <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
               Be honest — how's your current process working?
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))",gap:20}}>
             <div style={{background:"var(--red-bg)",border:"1.5px solid var(--red)",borderRadius:10,padding:"20px 18px"}}>
-              <div style={{fontFamily:"Lora,serif",fontSize:15,fontWeight:700,color:"var(--red)",marginBottom:8}}>Before Cambree</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700,color:"var(--red)",marginBottom:8}}>Before Cambree</div>
               <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.8}}>
                 {["2-4 hours per account researching manually","Generic talk tracks that sound like every other vendor","No structured qualification framework","Executives feel like you didn't do your homework","Deals stall because you missed the real buying committee","Post-call notes are scattered across 5 tools"].map(t=>(
                   <div key={t} style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"var(--red)",flexShrink:0}}>✗</span>{t}</div>
@@ -4556,7 +4556,7 @@ function PasswordGate({ onAuth }) {
               </div>
             </div>
             <div style={{background:"var(--green-bg)",border:"1.5px solid var(--green)",borderRadius:10,padding:"20px 18px"}}>
-              <div style={{fontFamily:"Lora,serif",fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>After Cambree</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>After Cambree</div>
               <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.8}}>
                 {["Deep research brief in under 30 seconds — not hours","Tailored pitch with teaching insights and proof from your customers","Structured call prep so every conversation has a plan","Prospects say \"you clearly understand our business\"","Buying committee mapped before the first call","CRM note, follow-up email, and deal routing in one click"].map(t=>(
                   <div key={t} style={{display:"flex",gap:8,marginBottom:4}}><span style={{color:"var(--green)",flexShrink:0}}>✓</span>{t}</div>
@@ -4570,7 +4570,7 @@ function PasswordGate({ onAuth }) {
       {/* ── WHO IT'S FOR ── */}
       <div style={{padding:"40px 20px",maxWidth:960,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
             From "I'm not sure what to say" to "I own this conversation"
           </div>
           <div style={{fontSize:14,color:"var(--ink-2)",maxWidth:560,margin:"0 auto 4px",lineHeight:1.6}}>
@@ -4585,7 +4585,7 @@ function PasswordGate({ onAuth }) {
             {role:"Solutions Architects",desc:"Dual-track discovery with architecture qualification baked in. Show up to the first technical call already knowing their stack, their gaps, and their timeline."},
           ].map(p=>(
             <div key={p.role} style={{background:"var(--surface)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"16px 14px",textAlign:"center"}}>
-              <div style={{fontFamily:"Lora,serif",fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>{p.role}</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>{p.role}</div>
               <div style={{fontSize:12,color:"var(--ink-2)",lineHeight:1.5}}>{p.desc}</div>
             </div>
           ))}
@@ -4596,7 +4596,7 @@ function PasswordGate({ onAuth }) {
       <div style={{background:"var(--bg-1)",padding:"40px 20px"}}>
         <div style={{maxWidth:960,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:28}}>
-            <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
               Pricing that respects your intelligence
             </div>
             <div style={{fontSize:14,color:"var(--ink-2)",maxWidth:500,margin:"0 auto",lineHeight:1.6}}>
@@ -4609,7 +4609,7 @@ function PasswordGate({ onAuth }) {
                 {plan.popular&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--tan-0)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Most Popular</div>}
                 <div style={{fontSize:15,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>{plan.name}</div>
                 <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:4}}>
-                  <span style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",fontFamily:"Lora,serif"}}>{plan.price}</span>
+                  <span style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{plan.price}</span>
                   <span style={{fontSize:12,color:"var(--ink-3)"}}>{plan.period}</span>
                 </div>
                 <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>{plan.runs}</div>
@@ -4642,7 +4642,7 @@ function PasswordGate({ onAuth }) {
       <div style={{background:"var(--ink-0)",padding:"40px 20px",textAlign:"center"}}>
         <div style={{maxWidth:500,margin:"0 auto"}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:8}}>Make every first impression count.</div>
-          <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:"var(--surface)",marginBottom:8}}>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--surface)",marginBottom:8}}>
             The rep who shows up prepared<br/>wins the conversation. Every time.
           </div>
           <div style={{fontSize:14,color:"var(--ink-3)",lineHeight:1.6,marginBottom:20}}>
@@ -4724,10 +4724,10 @@ function CohortDrillDown({cohort, selected, onSelect, onPickAccount, fitScores =
   const hasGeo    = cohort.members.some(m=>m.geography);
   const hasEmp    = cohort.members.some(m=>m.employees);
 
-  const IND_COLORS = ["#4A7A9B","#6B8E6B","#9B6B8E","#7A7A4A","#8B6F47","#4A6B8E","#6B4A6B"];
-  const SRC_COLORS = ["#2E6B2E","#8B6F47","#1B3A6B","#6B3A3A","#3A6B6B","#6B6B3A"];
-  const PP_COLORS  = ["#1B3A6B","#2E6B2E","#8B6F47","#9B2C2C","#6B3A7A"];
-  const GEO_COLORS = ["#2E6B2E","#1B3A6B","#8B6F47","#9B2C2C"];
+  const IND_COLORS = ["#4A7A9B","#6B8E6B","#9B6B8E","#7A7A4A","#BD6940","#4A6B8E","#6B4A6B"];
+  const SRC_COLORS = ["#2E6B2E","#BD6940","#1B3A6B","#6B3A3A","#3A6B6B","#6B6B3A"];
+  const PP_COLORS  = ["#1B3A6B","#2E6B2E","#BD6940","#9B2C2C","#6B3A7A"];
+  const GEO_COLORS = ["#2E6B2E","#1B3A6B","#BD6940","#9B2C2C"];
   const EMP_COLORS = ["#4A7A9B","#6B8E6B","#9B6B8E","#7A7A4A","var(--ink-3)"];
 
   const MiniPie = ({title, data, colors}) => data.length<2?null:(
@@ -4836,7 +4836,7 @@ function RiverFieldCard({fieldKey, label, icon, sub, color, value, onChange}){
       <div className="bb-hdr" style={{paddingBottom:6}}>
         <div style={{fontSize:18,lineHeight:1}}>{icon}</div>
         <div style={{flex:1}}>
-          <div style={{fontFamily:"Lora,serif",fontSize:14,fontWeight:600,color:"var(--ink-0)"}}>{label}</div>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:14,fontWeight:600,color:"var(--ink-0)"}}>{label}</div>
           <div style={{fontSize:11,color:"var(--ink-3)",marginTop:1}}>{sub}</div>
         </div>
         {needsExpand&&(
@@ -5138,7 +5138,7 @@ function GuidePanel({ activeGuide, setActiveGuide, onClose }) {
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Lora:wght@700&family=Inter:wght@400;600;700&display=swap');
   body { font-family: Inter, -apple-system, sans-serif; max-width: 680px; margin: 40px auto; padding: 0 24px; color: #1a1a2e; line-height: 1.7; font-size: 13px; }
-  h1 { font-family: Lora, serif; font-size: 24px; margin-bottom: 4px; color: #1a1a2e; }
+  h1 { font-family: 'Crimson Pro', serif; font-size: 24px; margin-bottom: 4px; color: #1a1a2e; }
   .sub { font-size: 13px; color: #666; margin-bottom: 32px; }
   h2 { font-size: 15px; font-weight: 700; margin: 28px 0 8px; padding-bottom: 6px; border-bottom: 1.5px solid #e8e0d4; color: #1a1a2e; }
   p { margin: 0 0 10px; }
@@ -5170,7 +5170,7 @@ ${g.sections.map(s => {
         {/* Header */}
         <div style={{padding:"16px 20px",borderBottom:"1px solid var(--line-0)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
           <div>
-            <div style={{fontFamily:"Lora,serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Guides & Documentation</div>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Guides & Documentation</div>
             <div style={{fontSize:11,color:"var(--ink-3)",marginTop:2}}>Download as PDF or read in-app</div>
           </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
@@ -5187,7 +5187,7 @@ ${g.sections.map(s => {
         {/* Content */}
         <div style={{flex:1,overflow:"auto",padding:"20px 24px"}}>
           <div style={{marginBottom:20}}>
-            <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",fontFamily:"Lora,serif"}}>{g.icon} {g.title}</div>
+            <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{g.icon} {g.title}</div>
             <div style={{fontSize:12,color:"var(--ink-3)",marginTop:4}}>{g.subtitle}</div>
           </div>
           {g.sections.map((s, i) => (
@@ -11989,18 +11989,18 @@ Return ONLY raw JSON:
 
   /* Header */
   .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #1a1a18; }
-  .header-left h1 { font-family: 'Lora', serif; font-size: 26px; font-weight: 700; color: #1a1a18; margin-bottom: 4px; }
-  .header-left .sub { font-size: 13px; color: #8B6F47; font-weight: 600; letter-spacing: 0.3px; }
+  .header-left h1 { font-family: 'Crimson Pro', serif; font-size: 26px; font-weight: 700; color: #1a1a18; margin-bottom: 4px; }
+  .header-left .sub { font-size: 13px; color: #BD6940; font-weight: 600; letter-spacing: 0.3px; }
   .header-right { text-align: right; font-size: 12px; color: #777; line-height: 1.8; }
   .header-right strong { color: #1a1a18; font-weight: 600; }
 
   /* Section */
   .section { margin-bottom: 24px; }
-  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #8B6F47; margin-bottom: 10px; }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #BD6940; margin-bottom: 10px; }
   .section-body { font-size: 14px; line-height: 1.7; color: #333; }
 
   /* Summary box */
-  .summary-box { background: #F8F6F1; border-left: 3px solid #8B6F47; border-radius: 0 8px 8px 0; padding: 14px 16px; font-size: 14px; line-height: 1.7; color: #333; }
+  .summary-box { background: #F8F6F1; border-left: 3px solid #BD6940; border-radius: 0 8px 8px 0; padding: 14px 16px; font-size: 14px; line-height: 1.7; color: #333; }
 
   /* Solutions */
   .solutions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -12022,8 +12022,8 @@ Return ONLY raw JSON:
   .footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #E8E6DF; display: flex; justify-content: space-between; align-items: center; }
   .footer-left { font-size: 11px; color: #aaa; }
   .footer-right { font-size: 11px; color: #aaa; }
-  .footer-brand { font-family: 'Lora', serif; font-weight: 700; color: #1a1a18; font-size: 12px; }
-  .footer-brand span { color: #8B6F47; }
+  .footer-brand { font-family: 'Crimson Pro', serif; font-weight: 700; color: #1a1a18; font-size: 12px; }
+  .footer-brand span { color: #BD6940; }
 
   /* Divider */
   .divider { height: 1px; background: #E8E6DF; margin: 20px 0; }
@@ -12871,7 +12871,7 @@ Return ONLY raw JSON:
     <div style={{minHeight:"100vh",fontFamily:"DM Sans,sans-serif",overflow:"hidden"}}>
       {/* ── Nav bar ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 32px",maxWidth:1200,margin:"0 auto"}}>
-        <div style={{fontFamily:"Lora,serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Cam<span style={{color:"var(--tan-0)"}}>bree</span></div>
+        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Cam<span style={{color:"var(--tan-0)"}}>bree</span></div>
         <button onClick={()=>setShowLanding(false)}
           style={{padding:"8px 20px",borderRadius:8,background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>
           Sign In
@@ -12882,7 +12882,7 @@ Return ONLY raw JSON:
       <div style={{background:"linear-gradient(170deg, var(--surface) 0%, var(--bg-1) 50%, var(--tan-bg, #faf6f0) 100%)",padding:"80px 32px 60px",textAlign:"center"}}>
         <div style={{maxWidth:900,margin:"0 auto"}}>
           <div style={{fontSize:13,fontWeight:700,color:"var(--tan-0)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:20}}>Smart People Go Further</div>
-          <h1 style={{fontFamily:"Lora,serif",fontSize:"clamp(36px, 5vw, 56px)",fontWeight:700,color:"var(--ink-0)",lineHeight:1.15,marginBottom:16,letterSpacing:"-1px"}}>
+          <h1 style={{fontFamily:"'Crimson Pro',serif",fontSize:"clamp(36px, 5vw, 56px)",fontWeight:700,color:"var(--ink-0)",lineHeight:1.15,marginBottom:16,letterSpacing:"-1px"}}>
             Sales discovery<br/>doesn't have to <span style={{color:"var(--tan-0)"}}>suck.</span>
           </h1>
           <p style={{fontSize:"clamp(16px, 2vw, 20px)",color:"var(--ink-2)",lineHeight:1.7,marginBottom:12,maxWidth:620,margin:"0 auto 12px"}}>
@@ -12904,7 +12904,7 @@ Return ONLY raw JSON:
 
       {/* ── Tagline divider ── */}
       <div style={{textAlign:"center",padding:"32px 20px",background:"var(--ink-0)",color:"var(--surface)"}}>
-        <div style={{fontFamily:"Lora,serif",fontSize:"clamp(18px, 2.5vw, 24px)",fontWeight:600,fontStyle:"italic",letterSpacing:"0.3px"}}>Evolve How You Sell.</div>
+        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:"clamp(18px, 2.5vw, 24px)",fontWeight:600,fontStyle:"italic",letterSpacing:"0.3px"}}>Evolve How You Sell.</div>
       </div>
 
       {/* ── Value cards ── */}
@@ -12919,7 +12919,7 @@ Return ONLY raw JSON:
               <div key={f.title} style={{background:"var(--bg-0)",borderRadius:16,padding:"32px 28px",border:"1px solid var(--line-0)",borderTop:`3px solid ${f.accent}`,transition:"box-shadow 0.2s"}}
                 onMouseOver={e=>e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,0.08)"} onMouseOut={e=>e.currentTarget.style.boxShadow="none"}>
                 <div style={{fontSize:32,marginBottom:14}}>{f.icon}</div>
-                <div style={{fontSize:17,fontWeight:700,color:"var(--ink-0)",marginBottom:8,fontFamily:"Lora,serif"}}>{f.title}</div>
+                <div style={{fontSize:17,fontWeight:700,color:"var(--ink-0)",marginBottom:8,fontFamily:"'Crimson Pro',serif"}}>{f.title}</div>
                 <div style={{fontSize:14,color:"var(--ink-2)",lineHeight:1.7}}>{f.desc}</div>
               </div>
             ))}
@@ -13107,7 +13107,7 @@ Return ONLY raw JSON:
                 else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
               }
             }}>
-            <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",marginBottom:4,fontFamily:"Lora,serif"}}>Confirm the company</div>
+            <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",marginBottom:4,fontFamily:"'Crimson Pro',serif"}}>Confirm the company</div>
             <div style={{fontSize:12,color:"var(--ink-2)",marginBottom:6}}>
               {disambigOptions.matches.length > 1
                 ? `We found ${disambigOptions.matches.length} companies matching "${disambigOptions.input}" — pick the right one for an accurate brief.`
@@ -13192,7 +13192,7 @@ Return ONLY raw JSON:
         <div style={{position:"fixed",top:0,right:0,bottom:0,width:"min(380px, 92vw)",background:"var(--bg-0)",borderLeft:"1.5px solid var(--line-0)",boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",zIndex:1100,display:"flex",flexDirection:"column",overflow:"hidden"}}>
           {/* Header */}
           <div style={{padding:"16px 20px 12px",borderBottom:"1px solid var(--line-0)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{fontFamily:"Lora,serif",fontSize:17,fontWeight:700,color:"var(--ink-0)"}}>Resources</div>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:17,fontWeight:700,color:"var(--ink-0)"}}>Resources</div>
             <button onClick={()=>setResourcesOpen(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-2)"}} aria-label="Close">✕</button>
           </div>
 
@@ -13619,7 +13619,7 @@ Return ONLY raw JSON:
               }
             }} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"var(--surface)",borderRadius:"var(--r-lg)",padding:"28px 24px",maxWidth:380,width:"90%",zIndex:2001,textAlign:"center",boxShadow:"0 8px 48px rgba(0,0,0,0.15)",outline:"none"}}>
               <div style={{fontSize:28,marginBottom:12}}>💾</div>
-              <div style={{fontFamily:"Lora,serif",fontSize:18,fontWeight:700,marginBottom:8}}>Save your work</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,marginBottom:8}}>Save your work</div>
               <div style={{fontSize:14,color:"var(--ink-1)",lineHeight:1.7,marginBottom:24}}>Create a free account to save sessions and pick up where you left off.</div>
               <button onClick={()=>{setShowSavePrompt(false);setAuthed(false);}}
                 style={{width:"100%",padding:"13px 0",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontFamily:"DM Sans,sans-serif",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",marginBottom:10}}>
@@ -13640,7 +13640,7 @@ Return ONLY raw JSON:
             <div tabIndex={-1} ref={el=>el&&el.focus()} onKeyDown={e=>{if(e.key==="Escape")setShowSessions(false);}} style={{position:"fixed",top:0,right:0,height:"100vh",width:"min(320px, 92vw)",background:"var(--surface)",boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",zIndex:1000,display:"flex",flexDirection:"column",outline:"none"}}>
               <div style={{padding:"18px 18px 12px",borderBottom:"1px solid var(--line-0)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
-                  <div style={{fontFamily:"Lora,serif",fontSize:15,fontWeight:700}}>Saved Sessions</div>
+                  <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700}}>Saved Sessions</div>
                   <div style={{fontSize:11,color:"var(--ink-3)"}}>{sbUser.email}</div>
                 </div>
                 <button onClick={()=>setShowSessions(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
@@ -13761,7 +13761,7 @@ Return ONLY raw JSON:
           <div className="page" style={{maxWidth:1200,paddingTop:40}}>
             <div className="setup-card" style={{maxWidth:800,margin:"0 auto"}}>
               <div className="setup-logo" style={{fontSize:26}}>Cam<span>bree</span></div>
-              <div style={{fontFamily:"Lora,serif",fontSize:13,color:"var(--tan-0)",textAlign:"center",marginBottom:8,fontStyle:"italic",letterSpacing:"0.3px"}}>You only get one first impression. Make it count.</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:13,color:"var(--tan-0)",textAlign:"center",marginBottom:8,fontStyle:"italic",letterSpacing:"0.3px"}}>You only get one first impression. Make it count.</div>
               <div style={{textAlign:"center",marginBottom:10}}>
                 <span style={{display:"inline-block",background:"var(--green)",color:"var(--surface)",fontSize:11,fontWeight:700,padding:"3px 12px",borderRadius:20,letterSpacing:"0.4px",textTransform:"uppercase"}}>Private Beta</span>
               </div>
@@ -13862,7 +13862,7 @@ Return ONLY raw JSON:
               {/* Landing hero for guests */}
               {!sbUser && (
                 <div style={{textAlign:"center",marginBottom:32,padding:"20px 8px 0"}}>
-                  <div style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",lineHeight:1.3,marginBottom:6,fontFamily:"Lora,serif",letterSpacing:"-0.5px"}}>You only get one shot at a first impression.</div>
+                  <div style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",lineHeight:1.3,marginBottom:6,fontFamily:"'Crimson Pro',serif",letterSpacing:"-0.5px"}}>You only get one shot at a first impression.</div>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--tan-0)",letterSpacing:"0.3px",marginBottom:10,fontStyle:"italic"}}>Make it count. Every time.</div>
                   <div style={{fontSize:16,color:"var(--ink-2)",lineHeight:1.7,maxWidth:560,margin:"0 auto 20px"}}>Whether you're new to sales or a 20-year vet — Cambree makes you the most prepared person in every room. Real research, real strategy, real coaching. Not templates. Not guesswork.</div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12,maxWidth:600,margin:"0 auto 24px",textAlign:"left"}}>
@@ -14966,7 +14966,7 @@ Return ONLY raw JSON:
                 {accountRfpData.searched && (
                   <div style={{marginTop:32,borderTop:"2px solid var(--navy)",paddingTop:20}}>
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                      <div style={{fontSize:15,fontWeight:700,color:"var(--navy)",fontFamily:"Lora,serif"}}>Stage 2: Account-Level Intel</div>
+                      <div style={{fontSize:15,fontWeight:700,color:"var(--navy)",fontFamily:"'Crimson Pro',serif"}}>Stage 2: Account-Level Intel</div>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"var(--navy-bg)",color:"var(--navy)",textTransform:"uppercase",letterSpacing:"0.3px"}}>Your Prospects</span>
                       {accountRfpData.loading && <span style={{fontSize:11,color:"var(--amber)",fontStyle:"italic"}}>⏳ searching your accounts…</span>}
                     </div>
@@ -15373,7 +15373,7 @@ Return ONLY raw JSON:
                               setFitWeights({...fitWeights,[key]:val,[others[0]]:Math.round(remaining*ratio),[others[1]]:remaining-Math.round(remaining*ratio)});
                             }}
                             style={{width:"100%",accentColor:color}}/>
-                          <div style={{fontSize:22,fontWeight:700,color,fontFamily:"Lora,serif",textAlign:"center"}}>{fitWeights[key]}%</div>
+                          <div style={{fontSize:22,fontWeight:700,color,fontFamily:"'Crimson Pro',serif",textAlign:"center"}}>{fitWeights[key]}%</div>
                           <div style={{fontSize:10,color:"var(--ink-3)",lineHeight:1.4,fontStyle:"italic",marginTop:4}}>{high}</div>
                         </div>
                       ))}
@@ -15726,7 +15726,7 @@ Return ONLY raw JSON:
                     <div style={{background:"linear-gradient(135deg, var(--bg-1) 0%, var(--surface) 100%)",border:"1.5px solid var(--tan-2)",borderRadius:"var(--r-md)",padding:"18px 20px",marginBottom:18}}>
                       <div style={{textAlign:"center"}}>
                         <div style={{fontSize:22,marginBottom:6}}>✨</div>
-                        <div style={{fontFamily:"Lora,serif",fontSize:16,fontWeight:600,color:"var(--ink-0)",marginBottom:4}}>
+                        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:16,fontWeight:600,color:"var(--ink-0)",marginBottom:4}}>
                           Build Your Target Account List
                         </div>
                         <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.5,marginBottom:14,maxWidth:480,margin:"0 auto"}}>
@@ -15919,7 +15919,7 @@ Return ONLY raw JSON:
 
                 {quickEntries.map((entry,i)=>(
                   <div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"center",flexWrap:"wrap"}}>
-                    <div style={{width:28,height:28,borderRadius:"50%",background:"var(--ink-0)",color:"var(--tan-0)",fontFamily:"Lora,serif",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:"var(--ink-0)",color:"var(--tan-0)",fontFamily:"'Crimson Pro',serif",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                       {i+1}
                     </div>
                     <input type="text" value={entry.name} placeholder="Company name"
@@ -17028,7 +17028,7 @@ Return ONLY raw JSON:
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                       <span style={{fontSize:20}}>🎤</span>
                       <div style={{flex:1}}>
-                        <div style={{fontSize:14,fontWeight:700,color:"var(--green)",fontFamily:"Lora,serif"}}>Your Elevator Pitch</div>
+                        <div style={{fontSize:14,fontWeight:700,color:"var(--green)",fontFamily:"'Crimson Pro',serif"}}>Your Elevator Pitch</div>
                         <div style={{fontSize:11,color:"var(--ink-2)"}}>~45 seconds · Say this when you bump into them at a conference, on a cold call, or in an actual elevator</div>
                       </div>
                       <StarButton id={`pitch-${selectedAccount?.company}`} type="Brief" label="Elevator Pitch" content={brief?.elevatorPitch} company={selectedAccount?.company} step={5} favorites={favorites} setFavorites={setFavorites}/>
@@ -17045,7 +17045,7 @@ Return ONLY raw JSON:
                         onBlur={e=>{const v=e.target.textContent.trim();if(v&&v!==brief.elevatorPitch)patchBrief(b=>{b.elevatorPitch=v;},"elevatorPitch");}}
                         style={{
                           fontSize:15, lineHeight:1.7, color:"var(--ink-0)",
-                          fontFamily:"Lora,serif", fontStyle:"italic",
+                          fontFamily:"'Crimson Pro',serif", fontStyle:"italic",
                           letterSpacing:"0.2px", outline:"none", cursor:"text",
                         }}>
                         {brief.elevatorPitch ? `"${brief.elevatorPitch}"` : ""}
@@ -17161,7 +17161,7 @@ Return ONLY raw JSON:
                     {(brief.solutionMapping||[]).filter(item=>item?.product).map((item,i)=>(
                       <div key={i} style={{marginBottom:16,paddingBottom:16,borderBottom:i<((brief.solutionMapping||[]).filter(x=>x?.product).length-1)?"1px solid var(--tan-3)":"none"}}>
                         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                          <div style={{background:"var(--tan-3)",color:"var(--tan-ink)",border:"1px solid #D4C4A8",fontFamily:"Lora,serif",fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:6,whiteSpace:"nowrap"}}>
+                          <div style={{background:"var(--tan-3)",color:"var(--tan-ink)",border:"1px solid #D4C4A8",fontFamily:"'Crimson Pro',serif",fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:6,whiteSpace:"nowrap"}}>
                             {item.product}
                           </div>
                           {item.imperativeServed&&(
@@ -17384,7 +17384,7 @@ Return ONLY raw JSON:
                     })()
                       ? (brief.keyExecutives||[]).filter(e=>e?.name && e?.sourceUrl?.startsWith("http") && !/^(CEO|CFO|CTO|COO|CRO|CHRO|Founder|President)$/i.test(e?.name?.trim())).map((ex,i)=>(
                         <div key={i} className="contact-row" style={{margin:0}}>
-                          <div className="contact-av" style={{background:"#2C4A7A",color:"var(--surface)",fontFamily:"Lora,serif",fontWeight:700,fontSize:11}}>{ex.initials||ex.name?.split(" ").map(w=>w[0]).join("").slice(0,2)||"··"}</div>
+                          <div className="contact-av" style={{background:"#2C4A7A",color:"var(--surface)",fontFamily:"'Crimson Pro',serif",fontWeight:700,fontSize:11}}>{ex.initials||ex.name?.split(" ").map(w=>w[0]).join("").slice(0,2)||"··"}</div>
                           <div style={{flex:1,minWidth:0}}>
                             <div style={{fontSize:15,fontWeight:700,color:"var(--ink-0)"}}>{ex.name}</div>
                             <div style={{fontSize:13,color:"var(--ink-2)",marginBottom:4}}>{ex.title}</div>
@@ -17565,7 +17565,7 @@ Return ONLY raw JSON:
                               return(
                                 <div key={i} style={{background:bg,border:"1px solid "+c+"44",borderRadius:10,padding:"10px 14px",textAlign:"center",minWidth:80}}>
                                   <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",color:c,marginBottom:4}}>{s.label}</div>
-                                  <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:c,lineHeight:1}}>{s.val}</div>
+                                  <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:c,lineHeight:1}}>{s.val}</div>
                                   {s.max&&<div style={{fontSize:9,color:"var(--ink-3)",marginTop:3}}>{s.max}</div>}
                                 </div>
                               );
@@ -18103,7 +18103,7 @@ Return ONLY raw JSON:
                 {/* Research-only upsell to Full Session */}
                 {sellerUrl === "research-only" && (
                   <div style={{background:"var(--green-bg)",border:"2px solid var(--green)",borderRadius:"var(--r-lg)",padding:"20px 24px",marginTop:16,marginBottom:12}}>
-                    <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:6,fontFamily:"Lora,serif"}}>
+                    <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:6,fontFamily:"'Crimson Pro',serif"}}>
                       Want tailored pitches and coaching for {selectedAccount?.company || "this company"}?
                     </div>
                     <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.7,marginBottom:14}}>
@@ -18402,7 +18402,7 @@ Return ONLY raw JSON:
                 <div className="incall-meta">{contactRole||selectedAccount?.ind} · {selectedCohort?.name} · Discovery doesn't have to suck.</div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                <div style={{fontFamily:"Lora,serif",fontSize:20,fontWeight:600,color:confColor(confidence)}}>{confidence}%</div>
+                <div style={{fontFamily:"'Crimson Pro',serif",fontSize:20,fontWeight:600,color:confColor(confidence)}}>{confidence}%</div>
                 <div style={{fontSize:12,color:"var(--ink-3)"}}>confidence</div>
                 <button className="btn btn-secondary btn-sm" onClick={()=>setStep(6)}>← Hypothesis</button>
                 <ExportMenu locked={exportLocked} onPDF={doExport} onCSV={()=>csvExport("In-Call", {gateAnswers,riverData,gateNotes,notes,confidence})} />
@@ -18479,7 +18479,7 @@ Return ONLY raw JSON:
 
                     {/* Discovery Questions — product-specific */}
                     <div className="stage-card">
-                      <div style={{fontFamily:"Lora,serif",fontSize:15,fontWeight:600,marginBottom:16,color:"var(--ink-0)"}}>
+                      <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:600,marginBottom:16,color:"var(--ink-0)"}}>
                         🎯 Discovery Questions
                         <span style={{fontSize:11,fontWeight:400,color:"var(--ink-3)",marginLeft:8,fontFamily:"DM Sans,sans-serif"}}>product-specific · tailored to {selectedAccount?.company}</span>
                       </div>
@@ -18769,7 +18769,7 @@ Return ONLY raw JSON:
                       <div style={{display:"flex",gap:6}}>
                         {health.stages.map((s,i)=>(
                           <div key={i} style={{flex:1,textAlign:"center"}}>
-                            <div style={{fontSize:18,fontWeight:700,color:s.score>=75?"var(--green)":s.score>=40?"var(--amber)":"var(--red)",fontFamily:"Lora,serif"}}>{s.score}%</div>
+                            <div style={{fontSize:18,fontWeight:700,color:s.score>=75?"var(--green)":s.score>=40?"var(--amber)":"var(--red)",fontFamily:"'Crimson Pro',serif"}}>{s.score}%</div>
                             <div style={{fontSize:9,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase"}}>{s.letter}</div>
                             <div style={{fontSize:8,color:s.score>=75?"var(--green)":s.score>=40?"var(--amber)":"var(--red)",fontWeight:600}}>{s.label}</div>
                           </div>
@@ -18908,7 +18908,7 @@ Return ONLY raw JSON:
           <div tabIndex={-1} ref={el=>el&&el.focus()} onKeyDown={e=>{if(e.key==="Escape")setContactOpen(false);}} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"var(--surface)",borderRadius:"var(--r-lg)",padding:"32px 36px",maxWidth:420,width:"90%",zIndex:9999,boxShadow:"0 8px 48px rgba(0,0,0,0.15)",outline:"none"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div>
-                <div style={{fontFamily:"Lora,serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Contact Us</div>
+                <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Contact Us</div>
                 <div style={{fontSize:12,color:"var(--ink-3)",marginTop:2}}>Cambrian Catalyst LLC · Seattle, WA</div>
               </div>
               <button onClick={()=>setContactOpen(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
@@ -18956,7 +18956,7 @@ Return ONLY raw JSON:
             <div style={{background:"var(--surface)",borderRadius:"var(--r-lg)",width:"90%",maxWidth:600,maxHeight:"80vh",display:"flex",flexDirection:"column",overflow:"hidden",pointerEvents:"auto",boxShadow:"0 8px 48px rgba(0,0,0,0.15)"}}>
               <div style={{padding:"16px 20px",borderBottom:"1px solid var(--line-0)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div>
-                  <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",fontFamily:"Lora,serif"}}>★ Favorites</div>
+                  <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>★ Favorites</div>
                   <div style={{fontSize:11,color:"var(--ink-3)"}}>{favorites.length} saved item{favorites.length!==1?"s":""}</div>
                 </div>
                 <button onClick={()=>setFavPanelOpen(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">×</button>
@@ -19166,7 +19166,7 @@ Return ONLY raw JSON:
             {/* Header */}
             <div style={{padding:"24px 28px 16px",textAlign:"center",borderBottom:"1px solid var(--line-0)"}}>
               <div style={{fontSize:32,marginBottom:8}}>🚀</div>
-              <div style={{fontFamily:"Lora,serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>
                 {!sbUser ? "You've seen what prepared looks like" : `Ready for more?`}
               </div>
               <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.5}}>
@@ -19184,7 +19184,7 @@ Return ONLY raw JSON:
                   {plan.popular&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--tan-0)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Most Popular</div>}
                   <div style={{fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>{plan.name}</div>
                   <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:2}}>
-                    <span style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",fontFamily:"Lora,serif"}}>{plan.price}</span>
+                    <span style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{plan.price}</span>
                     <span style={{fontSize:12,color:"var(--ink-3)"}}>{plan.period}</span>
                   </div>
                   <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>{plan.runs}</div>

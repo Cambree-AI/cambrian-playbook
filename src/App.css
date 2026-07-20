@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@300;400;500;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ── DESIGN TOKENS ───────────────────────────────────────
    Single source of truth. Do NOT reintroduce raw hex
@@ -12,35 +12,38 @@
   --surface:    #ffffff;
 
   /* ink — midnight base, not brown-black */
-  --ink-0:      #1a1a2e;   /* primary */
+  --ink-0:      #1A3D47;   /* primary */
   --ink-1:      #4a4a5a;   /* secondary */
   --ink-2:      #7a7a8a;   /* tertiary */
   --ink-3:      #a8a8b8;   /* quaternary / placeholder */
 
   /* brand — coral: energetic, modern, memorable */
-  --tan-0:      #E85D3A;   /* primary brand — warm coral */
-  --tan-1:      #D14E2D;   /* hover · dark */
-  --tan-2:      #F5B8A8;   /* accent border */
-  --tan-3:      #FEF0EC;   /* soft tint bg */
-  --tan-ink:    #C04525;   /* text on brand tint */
-  --tan-bg:     #FEF0EC;
+  --tan-0:      #BD6940;   /* primary brand — burnt orange */
+  --tan-1:      #9E5533;   /* hover · dark */
+  --tan-2:      #E3B49E;   /* accent border */
+  --tan-3:      #F7ECE5;   /* soft tint bg */
+  --tan-ink:    #9E5533;   /* text on brand tint */
+  --tan-bg:     #F7ECE5;
 
   /* semantic — brighter, more alive */
-  --navy:       #2D3A8C;   /* deep blue-purple */
-  --navy-dark:  #1E2A6E;
-  --green:      #0EA47A;   /* fresh teal */
-  --green-dark: #0B8462;
+  --navy:       #1A3D47;   /* deep sea */
+  --navy-dark:  #122C34;
+  --green:      #365E4A;   /* forest */
+  --green-dark: #294839;
   --red:        #E03E3E;   /* vibrant red */
   --amber:      #F59E0B;   /* bright amber */
   --purple:     #7C3AED;   /* vivid purple */
   --violet:     #8B5CF6;
 
-  --green-bg:   #ECFDF5;
+  --green-bg:   #E9F0EC;
   --red-bg:     #FEF2F2;
   --amber-bg:   #FFFBEB;
-  --navy-bg:    #EEF0FA;
+  --navy-bg:    #E7EEF0;
   --purple-bg:  #F5F3FF;
   --violet-bg:  rgba(139, 92, 246, 0.08);
+  --citrus:     #D4D473;   /* citrus accent */
+  --citrus-bg:  #F7F7E1;
+  --earth:      #2E291C;
 
   /* lines — cooler, crisper */
   --line-0:     #E2E4EA;   /* default border */
@@ -57,13 +60,13 @@
   --sh-1:       0 1px 2px rgba(26,26,46,0.04);
   --sh-2:       0 2px 6px rgba(26,26,46,0.06);
   --sh-3:       0 8px 24px rgba(26,26,46,0.10);
-  --sh-ring:    0 0 0 2px rgba(232,93,58,0.15);
-  --sh-focus:   0 0 0 3px rgba(232,93,58,0.10);
+  --sh-ring:    0 0 0 2px rgba(189,105,64,0.15);
+  --sh-focus:   0 0 0 3px rgba(189,105,64,0.10);
 
   /* typography */
-  --font-sans:  'Inter', -apple-system, system-ui, sans-serif;
+  --font-sans:  'Barlow', -apple-system, system-ui, sans-serif;
   --font-mono:  'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
-  --font-serif: 'Lora', Georgia, serif;
+  --font-serif: 'Crimson Pro', Georgia, serif;
 
   /* spacing scale (4px grid — use for new code; legacy has ad-hoc values) */
   --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
@@ -305,9 +308,9 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .account-chip.active .account-chip-num { background: var(--ink-0); color: var(--tan-0); }
 
 .account-hero { display: flex; align-items: center; gap: 14px; padding: 16px 18px; background: var(--surface); box-shadow: var(--sh-2); border: none; border-radius: var(--r-md); margin-bottom: 12px; }
-.account-hero-av { width: 48px; height: 48px; border-radius: 50%; background: var(--ink-0); color: var(--tan-0); font-family: 'Lora', serif; font-weight: 700; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.account-hero-av { width: 48px; height: 48px; border-radius: 50%; background: var(--ink-0); color: var(--tan-0); font-family: 'Crimson Pro', serif; font-weight: 700; font-size: 17px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .account-hero-body { flex: 1; min-width: 0; }
-.account-hero-name { font-family: 'Lora', serif; font-size: 22px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.3px; line-height: 1.2; }
+.account-hero-name { font-family: 'Crimson Pro', serif; font-size: 22px; font-weight: 600; color: var(--ink-0); letter-spacing: -0.3px; line-height: 1.2; }
 .account-hero-meta { font-size: 13px; color: var(--ink-2); margin-top: 3px; }
 .account-hero-reason { font-size: 12px; color: var(--ink-1); line-height: 1.5; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line-1); }
 
@@ -332,7 +335,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 /* ── UPLOAD ──────────────────────────────────────────── */
 .upload-zone { border: 1.5px dashed var(--line-2); border-radius: var(--r-md); padding: 32px 20px; text-align: center; cursor: pointer; transition: all var(--t-med) var(--ease); background: var(--surface); }
 .upload-zone:hover, .upload-zone.drag { border-color: var(--tan-0); background: var(--bg-1); }
-.upload-label { font-family: 'Lora', serif; font-size: 16px; color: var(--ink-0); margin-bottom: 4px; }
+.upload-label { font-family: 'Crimson Pro', serif; font-size: 16px; color: var(--ink-0); margin-bottom: 4px; }
 .upload-hint { font-size: 13px; color: var(--ink-2); margin-bottom: 14px; }
 
 /* ── TABLE ───────────────────────────────────────────── */
@@ -346,13 +349,13 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .summary-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(160px,1fr)); gap: 10px; margin-bottom: 16px; }
 .stat-card { background: var(--surface); box-shadow: var(--sh-1); border: none; border-radius: var(--r-md); padding: 14px 12px; text-align: center; transition: box-shadow var(--t-med) var(--ease); }
 .stat-card:hover { box-shadow: var(--sh-2); }
-.stat-num { font-family: 'Lora', serif; font-size: 28px; color: var(--tan-0); margin-bottom: 2px; letter-spacing: -0.5px; }
+.stat-num { font-family: 'Crimson Pro', serif; font-size: 28px; color: var(--tan-0); margin-bottom: 2px; letter-spacing: -0.5px; }
 .stat-label { font-size: 11px; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.4px; }
 
 /* ── COHORT ──────────────────────────────────────────── */
 .cohort-chart-wrap { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 12px; margin-bottom: 16px; }
 .pie-card { background: var(--surface); box-shadow: var(--sh-1); border: none; border-radius: var(--r-md); padding: 14px; transition: box-shadow var(--t-med) var(--ease); }
-.pie-title { font-family: 'Lora', serif; font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ink-0); }
+.pie-title { font-family: 'Crimson Pro', serif; font-size: 13px; font-weight: 600; margin-bottom: 10px; color: var(--ink-0); }
 .pie-wrap { display: flex; align-items: center; gap: 12px; }
 .pie-legend { display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .pie-legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-1); }
@@ -363,7 +366,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .cohort-card:hover { box-shadow: var(--sh-2); transform: translateY(-1px); border-color: var(--tan-0); }
 .cohort-card.selected { background: var(--bg-1); border-color: var(--tan-0); box-shadow: var(--sh-2); }
 .cohort-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; flex-shrink: 0; }
-.cohort-name { font-family: 'Lora', serif; font-size: 14px; font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; }
+.cohort-name { font-family: 'Crimson Pro', serif; font-size: 14px; font-weight: 600; margin-bottom: 2px; display: flex; align-items: center; }
 .cohort-size { font-size: 11px; color: var(--ink-3); margin-bottom: 6px; }
 .cohort-drill { background: var(--surface); box-shadow: var(--sh-1); border: none; border-radius: var(--r-md); overflow: hidden; margin-bottom: 10px; transition: box-shadow var(--t-med) var(--ease); }
 .cohort-drill:hover { box-shadow: var(--sh-2); }
@@ -372,10 +375,10 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .cohort-drill-hdr.open { border-bottom-color: var(--line-0); }
 .cohort-drill-left { display: flex; align-items: center; gap: 8px; }
 .cohort-drill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.cohort-drill-name { font-family: 'Lora', serif; font-size: 14px; font-weight: 600; }
+.cohort-drill-name { font-family: 'Crimson Pro', serif; font-size: 14px; font-weight: 600; }
 .cohort-drill-meta { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
 .cohort-drill-right { display: flex; align-items: center; gap: 10px; }
-.cohort-drill-acv { font-family: 'Lora', serif; font-size: 15px; color: var(--tan-0); }
+.cohort-drill-acv { font-family: 'Crimson Pro', serif; font-size: 15px; color: var(--tan-0); }
 .cohort-drill-toggle { font-size: 11px; color: var(--ink-3); font-weight: 700; }
 .cohort-drill-body { padding: 0 14px 12px; }
 .cohort-member-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
@@ -424,7 +427,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .bb-sub { font-size: 11px; color: var(--ink-2); margin-top: 1px; }
 .bb-body { padding: 12px 14px; }
 .solution-item { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
-.sol-badge { font-size: 12px; font-weight: 700; background: var(--tan-3); color: var(--tan-ink); border: 1px solid var(--tan-2); padding: 3px 10px; border-radius: var(--r-sm); white-space: nowrap; flex-shrink: 0; margin-top: 1px; font-family: 'Lora', serif; }
+.sol-badge { font-size: 12px; font-weight: 700; background: var(--tan-3); color: var(--tan-ink); border: 1px solid var(--tan-2); padding: 3px 10px; border-radius: var(--r-sm); white-space: nowrap; flex-shrink: 0; margin-top: 1px; font-family: 'Crimson Pro', serif; }
 .signal-row { display: flex; gap: 7px; margin-bottom: 6px; align-items: flex-start; }
 .sig-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--tan-0); flex-shrink: 0; margin-top: 5px; }
 .contact-row { display: flex; gap: 10px; margin-bottom: 7px; background: var(--bg-0); border: 1px solid var(--line-0); border-radius: var(--r-md); padding: 9px 11px; align-items: flex-start; }
@@ -463,7 +466,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .incall-wrap { max-width: 1200px; margin: 0 auto; padding: 20px 24px 60px; width: 100%; }
 @media (max-width: 1024px) { .incall-wrap { max-width: 940px; } }
 .incall-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.incall-title { font-family: 'Lora', serif; font-size: 18px; font-weight: 600; color: var(--ink-0); }
+.incall-title { font-family: 'Crimson Pro', serif; font-size: 18px; font-weight: 600; color: var(--ink-0); }
 .incall-meta { font-size: 12px; color: var(--ink-2); margin-top: 1px; }
 .river-pills { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
 .river-pill { display: flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--r-pill); border: 1.5px solid var(--line-0); background: var(--surface); cursor: pointer; font-size: 12px; font-weight: 700; color: var(--ink-2); transition: all var(--t-fast) var(--ease); white-space: nowrap; }
@@ -471,12 +474,12 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .river-pill.active { background: var(--ink-0); border-color: var(--ink-0); color: var(--surface); }
 .river-pill.filled { border-color: var(--green); color: var(--green); }
 .river-pill.filled.active { background: var(--green); border-color: var(--green); color: var(--surface); }
-.river-pill-letter { font-family: 'Lora', serif; font-size: 13px; font-weight: 700; }
+.river-pill-letter { font-family: 'Crimson Pro', serif; font-size: 13px; font-weight: 700; }
 .river-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
 .stage-card { background: var(--surface); box-shadow: var(--sh-1); border: none; border-radius: var(--r-md); padding: 20px; margin-bottom: 12px; }
 .stage-card-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-.stage-letter-big { width: 40px; height: 40px; border-radius: 50%; background: var(--ink-0); color: var(--tan-0); font-family: 'Lora', serif; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.stage-name { font-family: 'Lora', serif; font-size: 17px; font-weight: 600; color: var(--ink-0); }
+.stage-letter-big { width: 40px; height: 40px; border-radius: 50%; background: var(--ink-0); color: var(--tan-0); font-family: 'Crimson Pro', serif; font-size: 18px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stage-name { font-family: 'Crimson Pro', serif; font-size: 17px; font-weight: 600; color: var(--ink-0); }
 .stage-sub { font-size: 12px; color: var(--ink-1); margin-top: 1px; }
 .gate-block { margin-bottom: 16px; }
 .gate-question { font-size: 14px; font-weight: 700; color: var(--ink-0); margin-bottom: 10px; line-height: 1.4; }
@@ -494,14 +497,14 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .dq-note:focus { border-color: var(--tan-0); }
 .incall-sidebar { background: var(--surface); border: 1px solid var(--line-0); border-radius: var(--r-md); padding: 14px; }
 .conf-bar-wrap { margin-bottom: 14px; }
-.conf-pct { font-family: 'Lora', serif; font-size: 26px; font-weight: 600; line-height: 1; }
+.conf-pct { font-family: 'Crimson Pro', serif; font-size: 26px; font-weight: 600; line-height: 1; }
 .incall-grid { display: grid; grid-template-columns: 1fr 290px; gap: 16px; align-items: start; }
 @media(max-width: 800px){ .incall-grid { grid-template-columns: 1fr; } }
 .call-layout { display: flex; flex: 1; height: calc(100vh - 64px); overflow: hidden; }
 .call-left { width: 55%; border-right: 1px solid var(--line-0); display: flex; flex-direction: column; background: var(--surface); overflow: hidden; }
 .call-right { width: 45%; display: flex; flex-direction: column; background: var(--bg-0); overflow: hidden; }
 .panel-hdr { padding: 10px 16px; border-bottom: 1px solid var(--line-0); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; background: var(--surface); }
-.panel-title { font-family: 'Lora', serif; font-size: 14px; font-weight: 600; }
+.panel-title { font-family: 'Crimson Pro', serif; font-size: 14px; font-weight: 600; }
 .panel-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
 .river-nav { display: flex; overflow-x: auto; border-bottom: 1px solid var(--line-0); background: var(--bg-0); flex-shrink: 0; }
 .r-tab { padding: 8px 12px; font-size: 11px; font-weight: 700; cursor: pointer; color: var(--ink-3); border-bottom: 2px solid transparent; white-space: nowrap; background: none; border-top: none; border-left: none; border-right: none; transition: all var(--t-fast) var(--ease); text-transform: uppercase; letter-spacing: 0.5px; font-family: var(--font-sans); display: flex; align-items: center; gap: 4px; }
@@ -518,7 +521,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .conf-wrap { margin-bottom: 12px; }
 .conf-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .conf-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-2); }
-.conf-score { font-family: 'Lora', serif; font-size: 20px; font-weight: 600; }
+.conf-score { font-family: 'Crimson Pro', serif; font-size: 20px; font-weight: 600; }
 .conf-track { height: 4px; background: var(--line-0); border-radius: 2px; overflow: hidden; }
 .conf-fill { height: 100%; border-radius: 2px; transition: width 0.5s, background 0.5s; }
 .right-tabs { display: flex; border-bottom: 1px solid var(--line-0); background: var(--surface); flex-shrink: 0; }
@@ -550,14 +553,14 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .route-fast .route-lbl { color: var(--green); }
 .route-nurture .route-lbl { color: var(--amber); }
 .route-disq .route-lbl { color: var(--red); }
-.route-title { font-family: 'Lora', serif; font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.route-title { font-family: 'Crimson Pro', serif; font-size: 16px; font-weight: 600; margin-bottom: 4px; }
 .route-desc { font-size: 13px; color: var(--ink-1); line-height: 1.5; }
 
 /* ── MISC ────────────────────────────────────────────── */
 .notice { background: var(--bg-0); border: 1px solid var(--line-0); border-radius: var(--r-md); padding: 10px 13px; font-size: 13px; color: var(--ink-1); line-height: 1.6; margin-bottom: 12px; }
 .notice strong { color: var(--ink-0); }
 .divider { height: 1px; background: var(--line-0); margin: 14px 0; }
-.r-icon { width: 22px; height: 22px; border-radius: var(--r-sm); background: var(--ink-0); display: flex; align-items: center; justify-content: center; font-family: 'Lora', serif; font-size: 12px; font-weight: 700; color: var(--tan-0); flex-shrink: 0; }
+.r-icon { width: 22px; height: 22px; border-radius: var(--r-sm); background: var(--ink-0); display: flex; align-items: center; justify-content: center; font-family: 'Crimson Pro', serif; font-size: 12px; font-weight: 700; color: var(--tan-0); flex-shrink: 0; }
 .doc-upload-zone { border: 1.5px dashed var(--line-2); border-radius: var(--r-md); padding: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: all var(--t-fast) var(--ease); background: var(--surface); flex-wrap: wrap; }
 .doc-upload-zone:hover, .doc-upload-zone.drag { border-color: var(--tan-0); background: var(--bg-1); }
 .doc-upload-icon { width: 30px; height: 30px; border-radius: var(--r-sm); background: var(--tan-3); display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
@@ -572,7 +575,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .doc-chip-label { font-size: 9px; background: #333; color: var(--tan-0); padding: 1px 4px; border-radius: var(--r-sm); white-space: nowrap; }
 .session-doc-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--tan-3); color: var(--tan-ink); padding: 2px 7px; border-radius: var(--r-md); font-size: 11px; font-weight: 700; }
 .prod-entry { display: flex; gap: 10px; padding: 9px 11px; background: var(--bg-0); border: 1px solid var(--line-0); border-radius: var(--r-md); margin-bottom: 6px; align-items: flex-start; }
-.prod-num { width: 20px; height: 20px; border-radius: 50%; background: var(--ink-0); color: var(--tan-0); font-family: 'Lora', serif; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.prod-num { width: 20px; height: 20px; border-radius: 50%; background: var(--ink-0); color: var(--tan-0); font-family: 'Crimson Pro', serif; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
 .prod-fields { flex: 1; display: flex; flex-direction: column; gap: 5px; }
 .prod-name-input { font-size: 13px; font-weight: 600; padding: 5px 9px; border: 1px solid var(--line-0); border-radius: var(--r-sm); background: var(--surface); font-family: var(--font-sans); color: var(--ink-0); outline: none; }
 .prod-name-input:focus { border-color: var(--tan-0); }
@@ -626,7 +629,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
   padding: 14px 18px; border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
 }
-.chat-header-title { font-family: 'Lora', serif; font-size: 15px; font-weight: 600; color: var(--ink-0); }
+.chat-header-title { font-family: 'Crimson Pro', serif; font-size: 15px; font-weight: 600; color: var(--ink-0); }
 .chat-header-close { background: none; border: none; font-size: 18px; color: var(--ink-2); cursor: pointer; padding: 4px; }
 .chat-header-close:hover { color: var(--ink-0); }
 .chat-messages {
@@ -786,7 +789,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
     border-top: 1px solid #eee;
     background: #fff; /* opaque — never interleaves even if overlap recurs */
   }
-  .print-footer .pf-brand { font-family: 'Lora', serif; font-weight: 700; color: #1a1a18; }
+  .print-footer .pf-brand { font-family: 'Crimson Pro', serif; font-weight: 700; color: #1a1a18; }
   .print-footer .pf-brand span { color: #8B6F47; }
 }
 
@@ -897,7 +900,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .admin-sidebar-item.active { background: var(--bg-1); color: var(--ink-0); font-weight: 600; border-right: 2px solid var(--tan-0); }
 .admin-sidebar-count { font-size: 10px; color: var(--ink-3); margin-left: auto; }
 .admin-content { flex: 1; overflow-y: auto; padding: 20px 24px; }
-.admin-section-title { font-family: 'Lora', serif; font-size: 18px; font-weight: 700; color: var(--ink-0); margin-bottom: 4px; }
+.admin-section-title { font-family: 'Crimson Pro', serif; font-size: 18px; font-weight: 700; color: var(--ink-0); margin-bottom: 4px; }
 .admin-section-sub { font-size: 12px; color: var(--ink-3); margin-bottom: 16px; }
 .admin-filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
 .admin-filters input, .admin-filters select { font-size: 12px; padding: 6px 10px; border: 1.5px solid var(--line-0); border-radius: 6px; background: var(--surface); font-family: inherit; }
@@ -920,7 +923,7 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .admin-toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); padding: 8px 20px; background: var(--ink-0); color: var(--surface); font-size: 13px; font-weight: 600; border-radius: 8px; z-index: 10000; box-shadow: 0 4px 16px rgba(0,0,0,0.2); animation: admin-toast-in 0.2s ease; }
 @keyframes admin-toast-in { from { opacity: 0; transform: translateX(-50%) translateY(10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 .admin-metric { background: var(--bg-1); border-radius: 8px; padding: 12px 14px; text-align: center; }
-.admin-metric-num { font-size: 24px; font-weight: 700; font-family: 'Lora', serif; line-height: 1; }
+.admin-metric-num { font-size: 24px; font-weight: 700; font-family: 'Crimson Pro', serif; line-height: 1; }
 .admin-metric-label { font-size: 9px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 4px; }
 .admin-mobile-tabs {
   display: none;
