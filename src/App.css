@@ -255,7 +255,7 @@ body { font-family: var(--font-sans); background: var(--bg-0); color: var(--ink-
 /* ── BUTTONS ─────────────────────────────────────────── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: var(--r-sm); font-family: var(--font-sans); font-size: 12px; font-weight: 700; cursor: pointer; transition: all var(--t-fast) var(--ease); border: none; line-height: 1.2; white-space: nowrap; letter-spacing: 0.2px; }
 .btn:disabled { opacity: 0.38; cursor: not-allowed; }
-.btn-primary { background: var(--ink-0); color: var(--surface); box-shadow: var(--sh-1); }
+.btn-primary { background: var(--tan-0); color: #ffffff; box-shadow: 0 1px 4px rgba(189,105,64,0.28); }
 .btn-primary:hover:not(:disabled) { background: #2d2d2b; box-shadow: var(--sh-2); transform: translateY(-1px); }
 .btn-primary:active:not(:disabled) { transform: translateY(0); }
 .btn-secondary { background: var(--surface); border: 1.5px solid var(--line-2); color: var(--ink-1); }
