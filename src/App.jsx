@@ -4149,6 +4149,8 @@ function PasswordGate({ onAuth }) {
   const[verifying,setVerifying]=React.useState(false);
   const[guestOk,setGuestOk]=React.useState(false);
   const[resetSent,setResetSent]=React.useState(false);
+  const[requestSent,setRequestSent]=React.useState(false);
+  const[company,setCompany]=React.useState("");
   const[recoveryToken,setRecoveryToken]=React.useState(null); // token from password reset email
   const[passwordUpdated,setPasswordUpdated]=React.useState(false);
 
@@ -4266,6 +4268,19 @@ function PasswordGate({ onAuth }) {
   const submit=async()=>{
     setErr("");setLoading(true);
     try {
+      if(mode==="request"){
+        const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if(!first||!last||!email||!company){setErr("Please fill in every field.");setLoading(false);return;}
+        if(!EMAIL_RE.test(email)){setErr("Please enter a valid work email.");setLoading(false);return;}
+        const r=await fetch("/api/request-access",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({name:(first+" "+last).trim(),email,company}),
+        });
+        if(r.ok){setRequestSent(true);setErr("");}
+        else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");}
+        setLoading(false);return;
+      }
       if(mode==="signup"){
         if(pw.length<8){setErr("Password must be at least 8 characters.");setLoading(false);return;}
         const d=await sbAuth('signup',{email,password:pw,data:{first_name:first,last_name:last,full_name:first+' '+last}});
