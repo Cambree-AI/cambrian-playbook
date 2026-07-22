@@ -4575,7 +4575,7 @@ function PasswordGate({ onAuth }) {
             {num:"05",title:"Walk In With a Plan",desc:"A structured game plan for every call — what to open with, what to ask, what to listen for, and when to push. Even your first call feels like your fifth."},
             {num:"06",title:"Get Better Every Call",desc:"Milton is your AI coach — he knows your full session and helps you think on your feet. From 'I'm nervous' to 'I own this room' in a few sessions."},
           ].map(f=>(
-            <div key={f.title} style={{background:"var(--surface)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"20px 18px"}}>
+            <div key={f.title} style={{background:"var(--surface)",border:"1.5px solid var(--line-0)",borderRadius:"var(--r-lg)",padding:"20px 18px"}}>
               <div style={{width:28,height:28,borderRadius:"var(--r-md)",background:"var(--ink-0)",color:"var(--citrus)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--font-mono)",fontWeight:600,fontSize:12,marginBottom:8}}>{f.num}</div>
               <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>{f.title}</div>
               <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.6}}>{f.desc}</div>
