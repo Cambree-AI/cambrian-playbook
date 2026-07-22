@@ -4421,9 +4421,9 @@ function PasswordGate({ onAuth }) {
 
   // ── Auth form (reused in hero and standalone) ──
   const authForm = (
-    <form className="card" style={{padding:22,minHeight:mode==="signup"?280:220,transition:"min-height 0.2s ease"}} onSubmit={e=>{e.preventDefault();submit();}}>
+    <form className="card" style={{padding:22,minHeight:(mode==="request"||mode==="signup")?300:220,transition:"min-height 0.2s ease"}} onSubmit={e=>{e.preventDefault();submit();}}>
       <div className="pw-tabs" role="tablist" style={{marginBottom:18}}>
-        {[["signup","Create Account"],["signin","Sign In"]].map(([m,label])=>(
+        {[["request","Request Access"],["signin","Sign In"]].map(([m,label])=>(
           <button key={m} role="tab" aria-selected={mode===m}
             className={`pw-tab ${mode===m?"active":""}`}
             onClick={()=>{setMode(m);setErr("");}}>
@@ -4431,6 +4431,36 @@ function PasswordGate({ onAuth }) {
           </button>
         ))}
       </div>
+      {mode==="request" ? (
+        requestSent ? (
+          <div style={{textAlign:"center",padding:"12px 4px"}}>
+            <div style={{fontSize:32,marginBottom:8}}>✓</div>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>Request received</div>
+            <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.6,marginBottom:16}}>
+              Thanks — we review every request and send invites personally. Watch your inbox.
+            </div>
+            <button type="button" className="btn btn-secondary" style={{width:"100%",justifyContent:"center"}}
+              onClick={()=>{setMode("signin");setErr("");setRequestSent(false);}}>Back to Sign In</button>
+          </div>
+        ) : (
+          <>
+            <div style={{fontSize:12,color:"var(--ink-2)",lineHeight:1.6,marginBottom:12}}>
+              Cambree is in private beta. Tell us who you are and we'll send an invite personally.
+            </div>
+            <div className="field-grid-2" style={{marginBottom:10}}>
+              <input placeholder="First name" value={first} onChange={e=>setFirst(e.target.value)} autoFocus/>
+              <input placeholder="Last name"  value={last}  onChange={e=>setLast(e.target.value)}/>
+            </div>
+            <input type="email" autoComplete="email" placeholder="Work email" value={email} onChange={e=>setEmail(e.target.value)} style={{marginBottom:10}}/>
+            <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{marginBottom:10}}/>
+            {err && <div className="pw-error">{err}</div>}
+            <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}}
+              disabled={loading||!first||!last||!email||!company}>
+              {loading?"Sending…":"Request Access →"}
+            </button>
+          </>
+        )
+      ) : (<>
       {/* Invite context banner */}
       {inviteEmail && mode==="signup" && (
         <div style={{fontSize:12,color:"var(--green)",fontWeight:600,marginBottom:10,padding:"8px 12px",background:"var(--green-bg)",borderRadius:8}}>
@@ -4465,6 +4495,7 @@ function PasswordGate({ onAuth }) {
             onClick={()=>{setMode("reset");setErr("");}}>Forgot password?</button>}
         </>
       )}
+      </>)}
     </form>
   );
 
