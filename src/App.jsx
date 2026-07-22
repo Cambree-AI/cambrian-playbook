@@ -4518,18 +4518,6 @@ function PasswordGate({ onAuth }) {
             <div style={{fontSize:14,color:"var(--ink-2)",lineHeight:1.6,marginBottom:24,maxWidth:480,fontStyle:"italic"}}>
               Whether you're a seasoned closer or brand new to sales — Cambree levels you up. Think of it as the mentor who did the homework for you, every single time.
             </div>
-            <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:24}}>
-              {[
-                {num:"30s",label:"to a full brief"},
-                {num:"38",label:"industry knowledge layers"},
-                {num:"9",label:"step deal playbook"},
-              ].map(s=>(
-                <div key={s.label} style={{textAlign:"center"}}>
-                  <div style={{fontSize:34,fontWeight:700,color:"var(--tan-0)",fontFamily:"'Crimson Pro',serif"}}>{s.num}</div>
-                  <div style={{fontSize:11,color:"var(--ink-3)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.3px"}}>{s.label}</div>
-                </div>
-              ))}
-            </div>
             <div style={{display:"flex",flexDirection:"column",gap:8,fontSize:13,color:"var(--ink-2)"}}>
               <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
                 <span style={{background:"var(--tan-0)",color:"#fff",borderRadius:"50%",width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,flexShrink:0}}>1</span>
