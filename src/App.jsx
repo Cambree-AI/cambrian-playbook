@@ -12919,7 +12919,7 @@ Return ONLY raw JSON:
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 32px",maxWidth:1200,margin:"0 auto"}}>
         <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
         <button onClick={()=>setShowLanding(false)}
-          style={{padding:"8px 20px",borderRadius:8,background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"var(--font-sans)"}}>
+          style={{padding:"8px 20px",borderRadius:"var(--r-lg)",background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"var(--font-sans)"}}>
           Sign In
         </button>
       </div>
@@ -12939,8 +12939,8 @@ Return ONLY raw JSON:
           </p>
           <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",marginBottom:16}}>
             <button onClick={()=>setShowLanding(false)}
-              style={{padding:"16px 40px",borderRadius:12,background:"var(--ink-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",boxShadow:"0 4px 16px rgba(0,0,0,0.12)",transition:"transform 0.15s",letterSpacing:"0.2px"}}
-              onMouseOver={e=>e.target.style.transform="translateY(-2px)"} onMouseOut={e=>e.target.style.transform="none"}>
+              style={{padding:"16px 40px",borderRadius:"var(--r-lg)",background:"var(--ink-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",transition:"background var(--t-fast) var(--ease)",letterSpacing:"0.2px"}}
+              onMouseOver={e=>e.target.style.background="var(--navy-dark)"} onMouseOut={e=>e.target.style.background="var(--ink-0)"}>
               Try It Free
             </button>
           </div>
@@ -12979,8 +12979,8 @@ Return ONLY raw JSON:
           Built for reps who take their craft seriously.
         </div>
         <button onClick={()=>setShowLanding(false)}
-          style={{padding:"14px 36px",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",boxShadow:"0 4px 16px rgba(0,0,0,0.1)"}}
-          onMouseOver={e=>e.target.style.transform="translateY(-2px)"} onMouseOut={e=>e.target.style.transform="none"}>
+          style={{padding:"14px 36px",borderRadius:"var(--r-lg)",background:"var(--ink-0)",color:"var(--surface)",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",transition:"background var(--t-fast) var(--ease)"}}
+          onMouseOver={e=>e.target.style.background="var(--navy-dark)"} onMouseOut={e=>e.target.style.background="var(--ink-0)"}>
           Get Started Free
         </button>
         <div style={{fontSize:12,color:"var(--ink-3)",marginTop:12}}>3 free runs. You'll know if it's for you by the second one.</div>
