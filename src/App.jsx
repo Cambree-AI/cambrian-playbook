@@ -12941,10 +12941,10 @@ Return ONLY raw JSON:
             <button onClick={()=>setShowLanding(false)}
               style={{padding:"16px 40px",borderRadius:"var(--r-lg)",background:"var(--ink-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",transition:"background var(--t-fast) var(--ease)",letterSpacing:"0.2px"}}
               onMouseOver={e=>e.target.style.background="var(--navy-dark)"} onMouseOut={e=>e.target.style.background="var(--ink-0)"}>
-              Try It Free
+              Request Access
             </button>
           </div>
-          <div style={{fontSize:13,color:"var(--ink-3)"}}>No credit card. No demo call. No 47-slide deck about our "synergies."</div>
+          <div style={{fontSize:13,color:"var(--ink-3)"}}>Now in private beta. No demo call. No 47-slide deck about our "synergies."</div>
         </div>
       </div>
 
@@ -12981,9 +12981,9 @@ Return ONLY raw JSON:
         <button onClick={()=>setShowLanding(false)}
           style={{padding:"14px 36px",borderRadius:"var(--r-lg)",background:"var(--ink-0)",color:"var(--surface)",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",transition:"background var(--t-fast) var(--ease)"}}
           onMouseOver={e=>e.target.style.background="var(--navy-dark)"} onMouseOut={e=>e.target.style.background="var(--ink-0)"}>
-          Get Started Free
+          Request Access →
         </button>
-        <div style={{fontSize:12,color:"var(--ink-3)",marginTop:12}}>3 free runs. You'll know if it's for you by the second one.</div>
+        <div style={{fontSize:12,color:"var(--ink-3)",marginTop:12}}>Invite-only while we're in private beta — request access and we'll send an invite personally.</div>
       </div>
     </div>
   );
