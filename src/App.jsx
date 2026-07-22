@@ -12962,8 +12962,8 @@ Return ONLY raw JSON:
               {icon:"🎙",title:"Walk in with a point of view",desc:"A structured conversation plan grounded in what you sell and what they need. Talk tracks that sound like you, not a script.",accent:"var(--navy)"},
               {icon:"🏆",title:"Leave with a next step",desc:"Real-time coaching during the call, a deal route when it's over, and a follow-up email that proves you were listening.",accent:"var(--tan-0)"},
             ].map(f=>(
-              <div key={f.title} style={{background:"var(--bg-0)",borderRadius:16,padding:"32px 28px",border:"1px solid var(--line-0)",borderTop:`3px solid ${f.accent}`,transition:"box-shadow 0.2s"}}
-                onMouseOver={e=>e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,0.08)"} onMouseOut={e=>e.currentTarget.style.boxShadow="none"}>
+              <div key={f.title} style={{background:"var(--bg-0)",borderRadius:"var(--r-lg)",padding:"32px 28px",border:"1px solid var(--line-0)",borderTop:`3px solid ${f.accent}`,transition:"background var(--t-med) var(--ease)"}}
+                onMouseOver={e=>e.currentTarget.style.background="var(--bg-1)"} onMouseOut={e=>e.currentTarget.style.background="var(--bg-0)"}>
                 <div style={{fontSize:32,marginBottom:14}}>{f.icon}</div>
                 <div style={{fontSize:20,fontWeight:700,color:"var(--ink-0)",marginBottom:8,fontFamily:"'Crimson Pro',serif"}}>{f.title}</div>
                 <div style={{fontSize:14,color:"var(--ink-2)",lineHeight:1.7}}>{f.desc}</div>
