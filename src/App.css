@@ -81,6 +81,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--font-sans); background: var(--bg-0); color: var(--ink-0); font-size: 13px; line-height: 1.55; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+button, input, select, textarea, optgroup { font-family: inherit; }
 .app { min-height: 100vh; display: flex; flex-direction: column; }
 
 /* ── PHASE 1c: Universal transitions ─────────────────────
