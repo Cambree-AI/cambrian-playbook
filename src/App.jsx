@@ -13819,26 +13819,6 @@ Return ONLY raw JSON:
                   <path d="M96,238 C86,218 88,200 100,186"/>
                   <circle cx="102" cy="182" r="2.6"/>
                 </g>
-                {/* LEFT: trilobite (Deep Sea outline) */}
-                <g transform="translate(232,118) scale(0.92)" fill="none"
-                  stroke="var(--navy)" strokeWidth="1.7" strokeLinecap="round" opacity=".8">
-                  <path d="M18,36 C16,13 31,5 50,5 C69,5 84,13 82,36 L78,104 C76,124 64,133 50,133 C36,133 24,124 22,104 Z"/>
-                  <path d="M20,41 Q50,49 80,41"/>
-                  <path d="M41,38 Q39,12 50,11 Q61,12 59,38"/>
-                  <path d="M28,26 q5,-5 10,-1"/>
-                  <path d="M62,25 q5,-4 10,0"/>
-                  <path d="M38,46 Q36,80 40,110"/>
-                  <path d="M62,46 Q64,80 60,110"/>
-                  <path d="M22,54 Q50,58 78,54"/>
-                  <path d="M22,62 Q50,66 78,62"/>
-                  <path d="M23,70 Q50,74 77,70"/>
-                  <path d="M24,78 Q50,82 76,78"/>
-                  <path d="M25,86 Q50,90 75,86"/>
-                  <path d="M27,94 Q50,98 73,94"/>
-                  <path d="M29,102 Q50,106 71,102"/>
-                  <path d="M33,111 Q50,115 67,111"/>
-                  <path d="M37,119 Q50,122 63,119"/>
-                </g>
                 {/* LEFT-TOP: molecular node-and-edge cluster */}
                 <g transform="translate(120,74)" strokeLinecap="round">
                   <g fill="none" stroke="var(--navy)" strokeWidth="1.4" opacity=".65">
