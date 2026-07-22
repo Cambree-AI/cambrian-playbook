@@ -14794,7 +14794,8 @@ Return ONLY raw JSON:
 
         {/* ── STEP 1: DEFINE YOUR BUYER ── */}
         {step===1&&(
-          <div className="page">
+          <div className="page" style={{position:"relative"}}>
+            <img src="/cambree-icon.svg" alt="" aria-hidden="true" style={{position:"absolute",right:0,top:24,width:420,height:420,opacity:0.05,pointerEvents:"none",userSelect:"none"}} />
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4,flexWrap:"wrap",gap:12}}>
               <div>
                 <div className="page-title" style={{margin:0}}>
