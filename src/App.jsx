@@ -12914,7 +12914,9 @@ Return ONLY raw JSON:
 
   // ── LANDING PAGE — visible to everyone, always the front door ──
   if(!authed && showLanding) return (
-    <div style={{minHeight:"100vh",fontFamily:"var(--font-sans)",overflow:"hidden"}}>
+    <div style={{minHeight:"100vh",fontFamily:"var(--font-sans)",overflow:"hidden",position:"relative"}}>
+      {/* ── Arc-mark watermark — decorative, behind the hero (same asset + 5% treatment as the in-app pages) ── */}
+      <img src="/cambree-icon.svg" alt="" aria-hidden="true" style={{position:"absolute",top:200,left:"50%",transform:"translateX(-50%)",width:"min(420px, 90vw)",opacity:0.05,pointerEvents:"none",userSelect:"none",zIndex:0}} />
       {/* ── Nav bar ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 32px",maxWidth:1200,margin:"0 auto"}}>
         <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
@@ -12926,7 +12928,7 @@ Return ONLY raw JSON:
 
       {/* ── Hero ── */}
       <div style={{background:"linear-gradient(170deg, var(--surface) 0%, var(--bg-1) 50%, var(--tan-bg, #faf6f0) 100%)",padding:"80px 32px 60px",textAlign:"center"}}>
-        <div style={{maxWidth:900,margin:"0 auto"}}>
+        <div style={{maxWidth:900,margin:"0 auto",position:"relative",zIndex:1}}>
           <div style={{fontSize:13,fontWeight:700,color:"var(--tan-0)",letterSpacing:"1.5px",textTransform:"uppercase",marginBottom:20}}>Smart People Go Further</div>
           <h1 style={{fontFamily:"'Crimson Pro',serif",fontSize:"clamp(36px, 5vw, 56px)",fontWeight:700,color:"var(--ink-0)",lineHeight:1.15,marginBottom:16,letterSpacing:"-1px"}}>
             Sales discovery<br/>doesn't have to <span style={{color:"var(--tan-0)"}}>suck.</span>
@@ -12949,12 +12951,12 @@ Return ONLY raw JSON:
       </div>
 
       {/* ── Tagline divider ── */}
-      <div style={{textAlign:"center",padding:"32px 20px",background:"var(--ink-0)",color:"var(--surface)"}}>
+      <div style={{textAlign:"center",padding:"32px 20px",background:"var(--ink-0)",color:"var(--surface)",position:"relative",zIndex:1}}>
         <div style={{fontFamily:"'Crimson Pro',serif",fontSize:"clamp(18px, 2.5vw, 24px)",fontWeight:600,fontStyle:"italic",letterSpacing:"0.3px"}}>Evolve How You Sell.</div>
       </div>
 
       {/* ── Value cards ── */}
-      <div style={{padding:"60px 32px",background:"var(--surface)"}}>
+      <div style={{padding:"60px 32px",background:"var(--surface)",position:"relative",zIndex:1}}>
         <div style={{maxWidth:1100,margin:"0 auto"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:24}}>
             {[
