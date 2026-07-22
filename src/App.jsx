@@ -4555,8 +4555,10 @@ function PasswordGate({ onAuth }) {
       </div>
 
       {/* ── WHAT YOU GET ── */}
-      <div style={{padding:"40px 20px",maxWidth:960,margin:"0 auto"}}>
-        <div style={{textAlign:"center",marginBottom:32}}>
+      <div style={{padding:"40px 20px",maxWidth:960,margin:"0 auto",position:"relative"}}>
+        {/* ── Arc-mark watermark — decorative, clear of the hero + Request Access form (same asset + 5% corner treatment as the in-app pages) ── */}
+        <img src="/cambree-icon.svg" alt="" aria-hidden="true" style={{position:"absolute",right:0,top:24,width:"min(420px, 90vw)",opacity:0.05,pointerEvents:"none",userSelect:"none",zIndex:0}} />
+        <div style={{textAlign:"center",marginBottom:32,position:"relative",zIndex:1}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:6}}>Your unfair advantage.</div>
           <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
             Show up knowing things they didn't expect you to know
@@ -4566,7 +4568,7 @@ function PasswordGate({ onAuth }) {
           </div>
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(250px, 1fr))",gap:16,marginBottom:40}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(250px, 1fr))",gap:16,marginBottom:40,position:"relative",zIndex:1}}>
           {[
             {num:"01",title:"Know Their World",desc:"Financials, competitors, hiring patterns, executive backgrounds, market sentiment — all researched live. You'll reference things in conversation that make them think 'how did they know that?'"},
             {num:"02",title:"Know Who You're Talking To",desc:"Real names, real titles, what they care about, and how to reach them. No more walking in blind and hoping to find the right person."},
