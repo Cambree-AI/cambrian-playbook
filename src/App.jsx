@@ -13806,7 +13806,7 @@ Return ONLY raw JSON:
         {step===0&&(
           <div className="page" style={{maxWidth:1200,paddingTop:40}}>
             <div className="setup-card" style={{maxWidth:800,margin:"0 auto",position:"relative"}}>
-              <img src="/cambree-mark.svg" alt="" aria-hidden="true" style={{position:"absolute",right:-70,top:10,width:340,height:340,opacity:0.07,pointerEvents:"none"}} />
+              <img src="/cambree-icon.svg" alt="" aria-hidden="true" style={{position:"absolute",right:-70,top:10,width:340,height:340,opacity:0.07,pointerEvents:"none"}} />
               <div className="setup-logo" style={{fontSize:26}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
               <div style={{fontFamily:"'Crimson Pro',serif",fontSize:13,color:"var(--tan-0)",textAlign:"center",marginBottom:8,fontStyle:"italic",letterSpacing:"0.3px"}}>You only get one first impression. Make it count.</div>
               <div style={{textAlign:"center",marginBottom:10}}>
