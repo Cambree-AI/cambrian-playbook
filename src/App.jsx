@@ -4120,7 +4120,7 @@ function AuthShell({ children }) {
     <div className="app">
       <header className="header">
         <div style={{display:"flex",flexDirection:"column",gap:2}}>
-          <div className="logo"><img src="/cambree-logo-rev.svg" alt="Cambree" style={{height:22,width:"auto",display:"block"}} /></div>
+          <div className="logo"><img src="/cambree-logo-rev.svg" alt="Cambree" style={{height:30,width:"auto",display:"block"}} /></div>
           <div style={{fontSize:9,letterSpacing:"0.7px",color:"var(--ink-3)",fontWeight:700,textTransform:"uppercase"}}>
             Evolve how you sell
           </div>
@@ -12917,7 +12917,7 @@ Return ONLY raw JSON:
     <div style={{minHeight:"100vh",fontFamily:"DM Sans,sans-serif",overflow:"hidden"}}>
       {/* ── Nav bar ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 32px",maxWidth:1200,margin:"0 auto"}}>
-        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:26,width:"auto",display:"block"}} /></div>
+        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
         <button onClick={()=>setShowLanding(false)}
           style={{padding:"8px 20px",borderRadius:8,background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>
           Sign In
@@ -13452,7 +13452,7 @@ Return ONLY raw JSON:
         {/* HEADER */}
         <header className="header">
           <div style={{display:"flex",flexDirection:"column",gap:2}}>
-            <div className="logo"><img src="/cambree-logo-rev.svg" alt="Cambree" style={{height:22,width:"auto",display:"block"}} /></div>
+            <div className="logo"><img src="/cambree-logo-rev.svg" alt="Cambree" style={{height:30,width:"auto",display:"block"}} /></div>
             <div style={{fontSize:9,letterSpacing:"0.7px",color:"var(--ink-3)",fontWeight:700,textTransform:"uppercase"}}>
               Smart People Go Further
             </div>
@@ -13807,7 +13807,7 @@ Return ONLY raw JSON:
           <div className="page" style={{maxWidth:1200,paddingTop:40}}>
             <div className="setup-card" style={{maxWidth:800,margin:"0 auto",position:"relative"}}>
               <img src="/cambree-mark.svg" alt="" aria-hidden="true" style={{position:"absolute",right:-70,top:10,width:340,height:340,opacity:0.07,pointerEvents:"none"}} />
-              <div className="setup-logo" style={{fontSize:26}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:34,width:"auto",display:"block"}} /></div>
+              <div className="setup-logo" style={{fontSize:26}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
               <div style={{fontFamily:"'Crimson Pro',serif",fontSize:13,color:"var(--tan-0)",textAlign:"center",marginBottom:8,fontStyle:"italic",letterSpacing:"0.3px"}}>You only get one first impression. Make it count.</div>
               <div style={{textAlign:"center",marginBottom:10}}>
                 <span style={{display:"inline-block",background:"var(--green)",color:"var(--surface)",fontSize:11,fontWeight:700,padding:"3px 12px",borderRadius:20,letterSpacing:"0.4px",textTransform:"uppercase"}}>Private Beta</span>
