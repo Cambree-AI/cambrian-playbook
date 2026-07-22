@@ -4156,6 +4156,8 @@ function PasswordGate({ onAuth }) {
 
   const[inviteEmail,setInviteEmail]=React.useState("");
 
+  React.useEffect(()=>{ setErr(""); },[mode]);
+
   React.useEffect(()=>{
     // Check for Supabase auth redirects in URL hash
     const hash = window.location.hash;
