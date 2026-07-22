@@ -13665,7 +13665,7 @@ Return ONLY raw JSON:
               }
             }} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"var(--surface)",borderRadius:"var(--r-lg)",padding:"28px 24px",maxWidth:380,width:"90%",zIndex:2001,textAlign:"center",boxShadow:"0 8px 48px rgba(0,0,0,0.15)",outline:"none"}}>
               <div style={{fontSize:28,marginBottom:12}}>💾</div>
-              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,marginBottom:8}}>Save your work</div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:21,fontWeight:700,marginBottom:8}}>Save your work</div>
               <div style={{fontSize:14,color:"var(--ink-1)",lineHeight:1.7,marginBottom:24}}>Create a free account to save sessions and pick up where you left off.</div>
               <button onClick={()=>{setShowSavePrompt(false);setAuthed(false);}}
                 style={{width:"100%",padding:"13px 0",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontFamily:"DM Sans,sans-serif",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",marginBottom:10}}>
@@ -13686,7 +13686,7 @@ Return ONLY raw JSON:
             <div tabIndex={-1} ref={el=>el&&el.focus()} onKeyDown={e=>{if(e.key==="Escape")setShowSessions(false);}} style={{position:"fixed",top:0,right:0,height:"100vh",width:"min(320px, 92vw)",background:"var(--surface)",boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",zIndex:1000,display:"flex",flexDirection:"column",outline:"none"}}>
               <div style={{padding:"18px 18px 12px",borderBottom:"1px solid var(--line-0)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div>
-                  <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:700}}>Saved Sessions</div>
+                  <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700}}>Saved Sessions</div>
                   <div style={{fontSize:11,color:"var(--ink-3)"}}>{sbUser.email}</div>
                 </div>
                 <button onClick={()=>setShowSessions(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
@@ -13909,7 +13909,7 @@ Return ONLY raw JSON:
               {/* Landing hero for guests */}
               {!sbUser && (
                 <div style={{textAlign:"center",marginBottom:32,padding:"20px 8px 0"}}>
-                  <div style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",lineHeight:1.3,marginBottom:6,fontFamily:"'Crimson Pro',serif",letterSpacing:"-0.5px"}}>You only get one shot at a first impression.</div>
+                  <div style={{fontSize:32,fontWeight:700,color:"var(--ink-0)",lineHeight:1.3,marginBottom:6,fontFamily:"'Crimson Pro',serif",letterSpacing:"-0.5px"}}>You only get one shot at a first impression.</div>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--tan-0)",letterSpacing:"0.3px",marginBottom:10,fontStyle:"italic"}}>Make it count. Every time.</div>
                   <div style={{fontSize:16,color:"var(--ink-2)",lineHeight:1.7,maxWidth:560,margin:"0 auto 20px"}}>Whether you're new to sales or a 20-year vet — Cambree makes you the most prepared person in every room. Real research, real strategy, real coaching. Not templates. Not guesswork.</div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:12,maxWidth:600,margin:"0 auto 24px",textAlign:"left"}}>
@@ -15013,7 +15013,7 @@ Return ONLY raw JSON:
                 {accountRfpData.searched && (
                   <div style={{marginTop:32,borderTop:"2px solid var(--navy)",paddingTop:20}}>
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-                      <div style={{fontSize:15,fontWeight:700,color:"var(--navy)",fontFamily:"'Crimson Pro',serif"}}>Stage 2: Account-Level Intel</div>
+                      <div style={{fontSize:18,fontWeight:700,color:"var(--navy)",fontFamily:"'Crimson Pro',serif"}}>Stage 2: Account-Level Intel</div>
                       <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:6,background:"var(--navy-bg)",color:"var(--navy)",textTransform:"uppercase",letterSpacing:"0.3px"}}>Your Prospects</span>
                       {accountRfpData.loading && <span style={{fontSize:11,color:"var(--amber)",fontStyle:"italic"}}>⏳ searching your accounts…</span>}
                     </div>
@@ -15420,7 +15420,7 @@ Return ONLY raw JSON:
                               setFitWeights({...fitWeights,[key]:val,[others[0]]:Math.round(remaining*ratio),[others[1]]:remaining-Math.round(remaining*ratio)});
                             }}
                             style={{width:"100%",accentColor:color}}/>
-                          <div style={{fontSize:22,fontWeight:700,color,fontFamily:"'Crimson Pro',serif",textAlign:"center"}}>{fitWeights[key]}%</div>
+                          <div style={{fontSize:26,fontWeight:700,color,fontFamily:"'Crimson Pro',serif",textAlign:"center"}}>{fitWeights[key]}%</div>
                           <div style={{fontSize:10,color:"var(--ink-3)",lineHeight:1.4,fontStyle:"italic",marginTop:4}}>{high}</div>
                         </div>
                       ))}
@@ -15773,7 +15773,7 @@ Return ONLY raw JSON:
                     <div style={{background:"linear-gradient(135deg, var(--bg-1) 0%, var(--surface) 100%)",border:"1.5px solid var(--tan-2)",borderRadius:"var(--r-md)",padding:"18px 20px",marginBottom:18}}>
                       <div style={{textAlign:"center"}}>
                         <div style={{fontSize:22,marginBottom:6}}>✨</div>
-                        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:16,fontWeight:600,color:"var(--ink-0)",marginBottom:4}}>
+                        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:19,fontWeight:600,color:"var(--ink-0)",marginBottom:4}}>
                           Build Your Target Account List
                         </div>
                         <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.5,marginBottom:14,maxWidth:480,margin:"0 auto"}}>
@@ -17075,7 +17075,7 @@ Return ONLY raw JSON:
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                       <span style={{fontSize:20}}>🎤</span>
                       <div style={{flex:1}}>
-                        <div style={{fontSize:14,fontWeight:700,color:"var(--green)",fontFamily:"'Crimson Pro',serif"}}>Your Elevator Pitch</div>
+                        <div style={{fontSize:16,fontWeight:700,color:"var(--green)",fontFamily:"'Crimson Pro',serif"}}>Your Elevator Pitch</div>
                         <div style={{fontSize:11,color:"var(--ink-2)"}}>~45 seconds · Say this when you bump into them at a conference, on a cold call, or in an actual elevator</div>
                       </div>
                       <StarButton id={`pitch-${selectedAccount?.company}`} type="Brief" label="Elevator Pitch" content={brief?.elevatorPitch} company={selectedAccount?.company} step={5} favorites={favorites} setFavorites={setFavorites}/>
@@ -17612,7 +17612,7 @@ Return ONLY raw JSON:
                               return(
                                 <div key={i} style={{background:bg,border:"1px solid "+c+"44",borderRadius:10,padding:"10px 14px",textAlign:"center",minWidth:80}}>
                                   <div style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",color:c,marginBottom:4}}>{s.label}</div>
-                                  <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:c,lineHeight:1}}>{s.val}</div>
+                                  <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:c,lineHeight:1}}>{s.val}</div>
                                   {s.max&&<div style={{fontSize:9,color:"var(--ink-3)",marginTop:3}}>{s.max}</div>}
                                 </div>
                               );
@@ -18150,7 +18150,7 @@ Return ONLY raw JSON:
                 {/* Research-only upsell to Full Session */}
                 {sellerUrl === "research-only" && (
                   <div style={{background:"var(--green-bg)",border:"2px solid var(--green)",borderRadius:"var(--r-lg)",padding:"20px 24px",marginTop:16,marginBottom:12}}>
-                    <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:6,fontFamily:"'Crimson Pro',serif"}}>
+                    <div style={{fontSize:18,fontWeight:700,color:"var(--green)",marginBottom:6,fontFamily:"'Crimson Pro',serif"}}>
                       Want tailored pitches and coaching for {selectedAccount?.company || "this company"}?
                     </div>
                     <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.7,marginBottom:14}}>
@@ -18449,7 +18449,7 @@ Return ONLY raw JSON:
                 <div className="incall-meta">{contactRole||selectedAccount?.ind} · {selectedCohort?.name} · Discovery doesn't have to suck.</div>
               </div>
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-                <div style={{fontFamily:"'Crimson Pro',serif",fontSize:20,fontWeight:600,color:confColor(confidence)}}>{confidence}%</div>
+                <div style={{fontFamily:"'Crimson Pro',serif",fontSize:24,fontWeight:600,color:confColor(confidence)}}>{confidence}%</div>
                 <div style={{fontSize:12,color:"var(--ink-3)"}}>confidence</div>
                 <button className="btn btn-secondary btn-sm" onClick={()=>setStep(6)}>← Hypothesis</button>
                 <ExportMenu locked={exportLocked} onPDF={doExport} onCSV={()=>csvExport("In-Call", {gateAnswers,riverData,gateNotes,notes,confidence})} />
@@ -18526,7 +18526,7 @@ Return ONLY raw JSON:
 
                     {/* Discovery Questions — product-specific */}
                     <div className="stage-card">
-                      <div style={{fontFamily:"'Crimson Pro',serif",fontSize:15,fontWeight:600,marginBottom:16,color:"var(--ink-0)"}}>
+                      <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:600,marginBottom:16,color:"var(--ink-0)"}}>
                         🎯 Discovery Questions
                         <span style={{fontSize:11,fontWeight:400,color:"var(--ink-3)",marginLeft:8,fontFamily:"DM Sans,sans-serif"}}>product-specific · tailored to {selectedAccount?.company}</span>
                       </div>
@@ -18816,7 +18816,7 @@ Return ONLY raw JSON:
                       <div style={{display:"flex",gap:6}}>
                         {health.stages.map((s,i)=>(
                           <div key={i} style={{flex:1,textAlign:"center"}}>
-                            <div style={{fontSize:18,fontWeight:700,color:s.score>=75?"var(--green)":s.score>=40?"var(--amber)":"var(--red)",fontFamily:"'Crimson Pro',serif"}}>{s.score}%</div>
+                            <div style={{fontSize:21,fontWeight:700,color:s.score>=75?"var(--green)":s.score>=40?"var(--amber)":"var(--red)",fontFamily:"'Crimson Pro',serif"}}>{s.score}%</div>
                             <div style={{fontSize:9,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase"}}>{s.letter}</div>
                             <div style={{fontSize:8,color:s.score>=75?"var(--green)":s.score>=40?"var(--amber)":"var(--red)",fontWeight:600}}>{s.label}</div>
                           </div>
@@ -18955,7 +18955,7 @@ Return ONLY raw JSON:
           <div tabIndex={-1} ref={el=>el&&el.focus()} onKeyDown={e=>{if(e.key==="Escape")setContactOpen(false);}} style={{position:"fixed",top:"50%",left:"50%",transform:"translate(-50%,-50%)",background:"var(--surface)",borderRadius:"var(--r-lg)",padding:"32px 36px",maxWidth:420,width:"90%",zIndex:9999,boxShadow:"0 8px 48px rgba(0,0,0,0.15)",outline:"none"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div>
-                <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Contact Us</div>
+                <div style={{fontFamily:"'Crimson Pro',serif",fontSize:21,fontWeight:700,color:"var(--ink-0)"}}>Contact Us</div>
                 <div style={{fontSize:12,color:"var(--ink-3)",marginTop:2}}>Cambrian Catalyst LLC · Seattle, WA</div>
               </div>
               <button onClick={()=>setContactOpen(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
@@ -19003,7 +19003,7 @@ Return ONLY raw JSON:
             <div style={{background:"var(--surface)",borderRadius:"var(--r-lg)",width:"90%",maxWidth:600,maxHeight:"80vh",display:"flex",flexDirection:"column",overflow:"hidden",pointerEvents:"auto",boxShadow:"0 8px 48px rgba(0,0,0,0.15)"}}>
               <div style={{padding:"16px 20px",borderBottom:"1px solid var(--line-0)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                 <div>
-                  <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>★ Favorites</div>
+                  <div style={{fontSize:19,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>★ Favorites</div>
                   <div style={{fontSize:11,color:"var(--ink-3)"}}>{favorites.length} saved item{favorites.length!==1?"s":""}</div>
                 </div>
                 <button onClick={()=>setFavPanelOpen(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">×</button>
@@ -19213,7 +19213,7 @@ Return ONLY raw JSON:
             {/* Header */}
             <div style={{padding:"24px 28px 16px",textAlign:"center",borderBottom:"1px solid var(--line-0)"}}>
               <div style={{fontSize:32,marginBottom:8}}>🚀</div>
-              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>
                 {!sbUser ? "You've seen what prepared looks like" : `Ready for more?`}
               </div>
               <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.5}}>
@@ -19231,7 +19231,7 @@ Return ONLY raw JSON:
                   {plan.popular&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--tan-0)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Most Popular</div>}
                   <div style={{fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>{plan.name}</div>
                   <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:2}}>
-                    <span style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{plan.price}</span>
+                    <span style={{fontSize:32,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{plan.price}</span>
                     <span style={{fontSize:12,color:"var(--ink-3)"}}>{plan.period}</span>
                   </div>
                   <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>{plan.runs}</div>
