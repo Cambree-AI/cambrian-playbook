@@ -16713,7 +16713,8 @@ Return ONLY raw JSON:
 
         {/* ── STEP 5: RESEARCH BRIEF ── */}
         {step===5&&(
-          <ErrorBoundary><div className="page">
+          <ErrorBoundary><div className="page" style={{position:"relative"}}>
+            <img src="/cambree-icon.svg" alt="" aria-hidden="true" style={{position:"absolute",right:0,top:24,width:420,height:420,opacity:0.05,pointerEvents:"none",userSelect:"none"}} />
             {/* Brief header with logos */}
             <div className="page-hero" style={{display:"flex",alignItems:"center",gap:16,marginBottom:6}}>
               {sellerUrl !== "research-only" && <>
