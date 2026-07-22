@@ -4137,7 +4137,7 @@ function AuthShell({ children }) {
 }
 
 function PasswordGate({ onAuth }) {
-  const[mode,setMode]=React.useState("signup");
+  const[mode,setMode]=React.useState("request");
   const[email,setEmail]=React.useState("");
   const[pw,setPw]=React.useState("");
   const[newPw,setNewPw]=React.useState("");
@@ -4547,7 +4547,7 @@ function PasswordGate({ onAuth }) {
           {/* Right — auth form */}
           <div style={{flex:"0 1 380px",minWidth:280}}>
             <div style={{fontSize:13,fontWeight:600,color:"var(--ink-2)",marginBottom:8}}>
-              {mode==="signup"?"Start free — 3 full runs, no credit card":mode==="reset"?"Reset your password":"Welcome back"}
+              {mode==="request"?"Private beta — request an invite":mode==="reset"?"Reset your password":"Welcome back"}
             </div>
             {authForm}
           </div>
