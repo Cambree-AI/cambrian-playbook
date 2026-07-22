@@ -13805,16 +13805,131 @@ Return ONLY raw JSON:
         {/* ── STEP 0: SESSION SETUP ── */}
         {step===0&&(
           <div className="page" style={{maxWidth:1200,paddingTop:40}}>
-            <div className="setup-card" style={{maxWidth:800,margin:"0 auto",position:"relative"}}>
+            <div className="setup-card" style={{maxWidth:800,margin:"0 auto",position:"relative",overflow:"hidden"}}>
+              {/* ── Cambrian hero band — decorative, behind the lockup (from Cambree_Landing_Cambrian.html) ── */}
+              <svg viewBox="0 0 1440 420" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true" focusable="false"
+                style={{position:"absolute",top:0,left:0,width:"100%",height:190,pointerEvents:"none",userSelect:"none"}}>
+                {/* dashed meandering path line, low in the band */}
+                <path d="M-30,338 C180,378 380,298 700,346 C980,388 1160,306 1470,336"
+                  fill="none" stroke="var(--tan-0)" strokeWidth="1.6"
+                  strokeDasharray="7 9" strokeLinecap="round" opacity=".5"/>
+                {/* LEFT: botanical branching stem with seed nodes */}
+                <g fill="none" stroke="var(--green)" strokeWidth="1.6" strokeLinecap="round" opacity=".85">
+                  <path d="M58,424 C70,352 48,296 96,238 C122,206 160,192 194,196"/>
+                  <path d="M68,330 C104,316 138,318 164,334"/>
+                  <path d="M84,268 C112,254 138,254 158,264"/>
+                  <circle cx="198" cy="195" r="4"/>
+                  <circle cx="168" cy="336" r="3.4"/>
+                  <circle cx="162" cy="262" r="3"/>
+                  <path d="M96,238 C86,218 88,200 100,186"/>
+                  <circle cx="102" cy="182" r="2.6"/>
+                </g>
+                {/* LEFT: trilobite (Deep Sea outline) */}
+                <g transform="translate(232,118) scale(0.92)" fill="none"
+                  stroke="var(--navy)" strokeWidth="1.7" strokeLinecap="round" opacity=".8">
+                  <path d="M18,36 C16,13 31,5 50,5 C69,5 84,13 82,36 L78,104 C76,124 64,133 50,133 C36,133 24,124 22,104 Z"/>
+                  <path d="M20,41 Q50,49 80,41"/>
+                  <path d="M41,38 Q39,12 50,11 Q61,12 59,38"/>
+                  <path d="M28,26 q5,-5 10,-1"/>
+                  <path d="M62,25 q5,-4 10,0"/>
+                  <path d="M38,46 Q36,80 40,110"/>
+                  <path d="M62,46 Q64,80 60,110"/>
+                  <path d="M22,54 Q50,58 78,54"/>
+                  <path d="M22,62 Q50,66 78,62"/>
+                  <path d="M23,70 Q50,74 77,70"/>
+                  <path d="M24,78 Q50,82 76,78"/>
+                  <path d="M25,86 Q50,90 75,86"/>
+                  <path d="M27,94 Q50,98 73,94"/>
+                  <path d="M29,102 Q50,106 71,102"/>
+                  <path d="M33,111 Q50,115 67,111"/>
+                  <path d="M37,119 Q50,122 63,119"/>
+                </g>
+                {/* LEFT-TOP: molecular node-and-edge cluster */}
+                <g transform="translate(120,74)" strokeLinecap="round">
+                  <g fill="none" stroke="var(--navy)" strokeWidth="1.4" opacity=".65">
+                    <path d="M4,2 L36,-14"/>
+                    <path d="M36,-14 L64,8"/>
+                    <path d="M64,8 L32,30"/>
+                    <path d="M36,-14 L78,-30"/>
+                  </g>
+                  <circle cx="2" cy="3" r="4.2" fill="none" stroke="var(--green)" strokeWidth="1.5"/>
+                  <circle cx="36" cy="-14" r="3" fill="var(--navy)" opacity=".85"/>
+                  <circle cx="65" cy="9" r="4.2" fill="none" stroke="var(--navy)" strokeWidth="1.5" opacity=".8"/>
+                  <circle cx="31" cy="31" r="2.6" fill="var(--tan-0)"/>
+                  <circle cx="80" cy="-31" r="2.4" fill="var(--green)" opacity=".85"/>
+                </g>
+                {/* RIGHT: ammonite spiral (Deep Sea) with chamber ticks */}
+                <g transform="translate(1236,158) scale(1.55)" fill="none" strokeLinecap="round">
+                  <path d="M0,-2 A2,2 0 1 1 0,2 A4,4 0 1 1 0,-6 A8,8 0 1 1 0,10 A14,14 0 1 1 0,-18 A22,22 0 1 1 0,26 A32,32 0 1 1 0,-38"
+                    stroke="var(--navy)" strokeWidth="1.5" opacity=".85"/>
+                  <g stroke="var(--green)" strokeWidth="1.1" opacity=".75">
+                    <path d="M11.5,-25.9 L15.5,-32.8"/>
+                    <path d="M0,-29 L0,-37"/>
+                    <path d="M-11.5,-25.9 L-15.5,-32.8"/>
+                    <path d="M-19.9,-17.5 L-26.8,-21.5"/>
+                    <path d="M-23,-6 L-31,-6"/>
+                    <path d="M-19.9,5.5 L-26.8,9.5"/>
+                    <path d="M-11.5,13.9 L-15.5,20.8"/>
+                  </g>
+                </g>
+                {/* RIGHT-BOTTOM: fern / frond (Forest outline) */}
+                <g transform="translate(1346,424) rotate(-6)" fill="none"
+                  stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" opacity=".85">
+                  <path d="M0,0 C-12,-46 -26,-92 -26,-142"/>
+                  <path d="M-5,-28 q-14,-4 -22,4"/>
+                  <path d="M-5,-28 q12,-10 18,-6"/>
+                  <path d="M-10,-52 q-13,-4 -20,3"/>
+                  <path d="M-10,-52 q11,-10 17,-6"/>
+                  <path d="M-15,-76 q-12,-4 -18,3"/>
+                  <path d="M-15,-76 q10,-9 15,-5"/>
+                  <path d="M-20,-100 q-10,-3 -15,3"/>
+                  <path d="M-20,-100 q9,-8 13,-4"/>
+                  <path d="M-24,-122 q-8,-2 -12,3"/>
+                  <path d="M-24,-122 q7,-7 10,-3"/>
+                  <circle cx="-26" cy="-147" r="2.4"/>
+                </g>
+                {/* RIGHT-TOP: second botanical branch with seed nodes */}
+                <g fill="none" stroke="var(--green)" strokeWidth="1.5" strokeLinecap="round" opacity=".8">
+                  <path d="M1332,-6 C1310,64 1344,116 1290,158 C1266,176 1240,180 1220,172"/>
+                  <path d="M1322,86 C1294,92 1272,86 1256,70"/>
+                  <circle cx="1216" cy="171" r="3.6"/>
+                  <circle cx="1252" cy="67" r="3"/>
+                </g>
+                {/* burnt-orange accent dashes + dots (scattered) */}
+                <g stroke="var(--tan-0)" strokeWidth="2" strokeLinecap="round" opacity=".8">
+                  <path d="M336,58 l15,-5"/>
+                  <path d="M415,150 l12,8"/>
+                  <path d="M170,150 l13,-7"/>
+                  <path d="M1092,84 l15,4"/>
+                  <path d="M1150,268 l13,-8"/>
+                  <path d="M1030,190 l14,2"/>
+                  <path d="M560,72 l13,-4"/>
+                  <path d="M880,64 l13,6"/>
+                </g>
+                <g fill="var(--tan-0)" opacity=".8">
+                  <circle cx="300" cy="212" r="2.2"/>
+                  <circle cx="452" cy="94" r="2.6"/>
+                  <circle cx="640" cy="46" r="2"/>
+                  <circle cx="806" cy="380" r="2.4"/>
+                  <circle cx="988" cy="112" r="2.2"/>
+                  <circle cx="1122" cy="342" r="2.6"/>
+                  <circle cx="510" cy="356" r="2.2"/>
+                  <circle cx="212" cy="52" r="2.4"/>
+                </g>
+                {/* two tiny citrus seeds */}
+                <circle cx="742" cy="66" r="3" fill="var(--citrus)" stroke="var(--green)" strokeWidth="1"/>
+                <circle cx="1268" cy="304" r="3" fill="var(--citrus)" stroke="var(--green)" strokeWidth="1"/>
+              </svg>
               <img src="/cambree-icon.svg" alt="" aria-hidden="true" style={{position:"absolute",right:-70,top:10,width:340,height:340,opacity:0.07,pointerEvents:"none"}} />
-              <div className="setup-logo" style={{fontSize:26}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
-              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:13,color:"var(--tan-0)",textAlign:"center",marginBottom:8,fontStyle:"italic",letterSpacing:"0.3px"}}>You only get one first impression. Make it count.</div>
-              <div style={{textAlign:"center",marginBottom:10}}>
+              <div className="setup-logo" style={{fontSize:26,position:"relative",zIndex:1}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
+              <div style={{fontFamily:"'Crimson Pro',serif",fontSize:13,color:"var(--tan-0)",textAlign:"center",marginBottom:8,fontStyle:"italic",letterSpacing:"0.3px",position:"relative",zIndex:1}}>You only get one first impression. Make it count.</div>
+              <div style={{textAlign:"center",marginBottom:10,position:"relative",zIndex:1}}>
                 <span style={{display:"inline-block",background:"var(--green)",color:"var(--surface)",fontSize:11,fontWeight:700,padding:"3px 12px",borderRadius:20,letterSpacing:"0.4px",textTransform:"uppercase"}}>Private Beta</span>
               </div>
               {/* Welcome line + runs — compact, above the two cards */}
               {sbUser && (
-                <div style={{textAlign:"center",marginBottom:16}}>
+                <div style={{textAlign:"center",marginBottom:16,position:"relative",zIndex:1}}>
                   <div style={{fontSize:14,color:"var(--ink-1)"}}>
                     Welcome back{sbUser.user_metadata?.first_name ? `, ${sbUser.user_metadata.first_name}` : ""}.
                   </div>
@@ -13823,7 +13938,7 @@ Return ONLY raw JSON:
 
               {/* Two equal-weight options: Quick Brief + Full Session */}
               {sbUser && (
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:20,position:"relative",zIndex:1}}>
                   {/* Quick Brief card */}
                   <div onClick={()=>setSessionMode("quick")} style={{background:"var(--surface)",border:"1px solid var(--line-0)",borderRadius:14,padding:"22px",borderTop:"4px solid var(--tan-0)",cursor:"pointer",transition:"all 0.15s"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
@@ -13908,7 +14023,7 @@ Return ONLY raw JSON:
 
               {/* Landing hero for guests */}
               {!sbUser && (
-                <div style={{textAlign:"center",marginBottom:32,padding:"20px 8px 0"}}>
+                <div style={{textAlign:"center",marginBottom:32,padding:"20px 8px 0",position:"relative",zIndex:1}}>
                   <div style={{fontSize:32,fontWeight:700,color:"var(--ink-0)",lineHeight:1.3,marginBottom:6,fontFamily:"'Crimson Pro',serif",letterSpacing:"-0.5px"}}>You only get one shot at a first impression.</div>
                   <div style={{fontSize:13,fontWeight:600,color:"var(--tan-0)",letterSpacing:"0.3px",marginBottom:10,fontStyle:"italic"}}>Make it count. Every time.</div>
                   <div style={{fontSize:16,color:"var(--ink-2)",lineHeight:1.7,maxWidth:560,margin:"0 auto 20px"}}>Whether you're new to sales or a 20-year vet — Cambree makes you the most prepared person in every room. Real research, real strategy, real coaching. Not templates. Not guesswork.</div>
