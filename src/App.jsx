@@ -12952,7 +12952,7 @@ Return ONLY raw JSON:
 
       {/* ── Tagline divider ── */}
       <div style={{textAlign:"center",padding:"32px 20px",background:"var(--ink-0)",color:"var(--surface)",position:"relative",zIndex:1}}>
-        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:"clamp(18px, 2.5vw, 24px)",fontWeight:600,fontStyle:"italic",letterSpacing:"0.3px"}}>Evolve How You Sell.</div>
+        <div style={{fontFamily:"'Crimson Pro',serif",fontSize:"clamp(18px, 2.5vw, 24px)",fontWeight:600,fontStyle:"italic",letterSpacing:"0.3px"}}>Evolve how you sell.</div>
       </div>
 
       {/* ── Value cards ── */}
