@@ -4665,9 +4665,9 @@ function PasswordGate({ onAuth }) {
                     <span style={{color:"var(--green)",flexShrink:0}}>✓</span>{f}
                   </div>
                 ))}
-                <button onClick={()=>{window.scrollTo({top:0,behavior:"smooth"});setMode("signup");}}
+                <button onClick={()=>{window.scrollTo({top:0,behavior:"smooth"});setMode("request");}}
                   style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:plan.popular?"var(--tan-0)":"var(--ink-0)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:14,fontFamily:"DM Sans,sans-serif"}}>
-                  Start with {plan.name}
+                  Request Access
                 </button>
               </div>
             ))}
@@ -4692,12 +4692,12 @@ function PasswordGate({ onAuth }) {
             The rep who shows up prepared<br/>wins the conversation. Every time.
           </div>
           <div style={{fontSize:14,color:"var(--ink-3)",lineHeight:1.6,marginBottom:20}}>
-            3 full runs free. No credit card. No demo required. Just sign up and see what walking in prepared actually feels like.
+            Cambree is invite-only while we're in private beta. Request access and we'll send an invite personally.
           </div>
           <button className="btn btn-lg"
-            onClick={()=>{window.scrollTo({top:0,behavior:"smooth"});setMode("signup");}}
+            onClick={()=>{window.scrollTo({top:0,behavior:"smooth"});setMode("request");}}
             style={{padding:"14px 36px",borderRadius:10,background:"var(--tan-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>
-            Get Started Free →
+            Request Access →
           </button>
         </div>
       </div>
