@@ -4666,7 +4666,7 @@ function PasswordGate({ onAuth }) {
                   </div>
                 ))}
                 <button onClick={()=>{window.scrollTo({top:0,behavior:"smooth"});setMode("request");}}
-                  style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:plan.popular?"var(--tan-0)":"var(--ink-0)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:14,fontFamily:"DM Sans,sans-serif"}}>
+                  style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:plan.popular?"var(--tan-0)":"var(--ink-0)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:14,fontFamily:"var(--font-sans)"}}>
                   Request Access
                 </button>
               </div>
@@ -4696,7 +4696,7 @@ function PasswordGate({ onAuth }) {
           </div>
           <button className="btn btn-lg"
             onClick={()=>{window.scrollTo({top:0,behavior:"smooth"});setMode("request");}}
-            style={{padding:"14px 36px",borderRadius:10,background:"var(--tan-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>
+            style={{padding:"14px 36px",borderRadius:10,background:"var(--tan-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)"}}>
             Request Access →
           </button>
         </div>
@@ -5309,7 +5309,7 @@ class ErrorBoundary extends React.Component {
   render(){
     if(this.state.hasError){
       return(
-        <div style={{padding:40,maxWidth:600,margin:"60px auto",fontFamily:"DM Sans,sans-serif"}}>
+        <div style={{padding:40,maxWidth:600,margin:"60px auto",fontFamily:"var(--font-sans)"}}>
           <div style={{background:"var(--red-bg)",border:"1px solid var(--red)",borderRadius:"var(--r-md)",padding:24}}>
             <div style={{fontSize:16,fontWeight:700,color:"var(--red)",marginBottom:8}}>Render Error</div>
             <div style={{fontSize:13,color:"var(--ink-1)",marginBottom:16}}>{this.state.error?.message||"Unknown error"}</div>
@@ -12914,12 +12914,12 @@ Return ONLY raw JSON:
 
   // ── LANDING PAGE — visible to everyone, always the front door ──
   if(!authed && showLanding) return (
-    <div style={{minHeight:"100vh",fontFamily:"DM Sans,sans-serif",overflow:"hidden"}}>
+    <div style={{minHeight:"100vh",fontFamily:"var(--font-sans)",overflow:"hidden"}}>
       {/* ── Nav bar ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 32px",maxWidth:1200,margin:"0 auto"}}>
         <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}><img src="/cambree-logo.svg" alt="Cambree" style={{height:44,width:"auto",display:"block"}} /></div>
         <button onClick={()=>setShowLanding(false)}
-          style={{padding:"8px 20px",borderRadius:8,background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"DM Sans,sans-serif"}}>
+          style={{padding:"8px 20px",borderRadius:8,background:"none",color:"var(--ink-0)",fontSize:13,fontWeight:700,border:"1.5px solid var(--ink-0)",cursor:"pointer",fontFamily:"var(--font-sans)"}}>
           Sign In
         </button>
       </div>
@@ -12939,7 +12939,7 @@ Return ONLY raw JSON:
           </p>
           <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",marginBottom:16}}>
             <button onClick={()=>setShowLanding(false)}
-              style={{padding:"16px 40px",borderRadius:12,background:"var(--ink-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"DM Sans,sans-serif",boxShadow:"0 4px 16px rgba(0,0,0,0.12)",transition:"transform 0.15s",letterSpacing:"0.2px"}}
+              style={{padding:"16px 40px",borderRadius:12,background:"var(--ink-0)",color:"var(--surface)",fontSize:16,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",boxShadow:"0 4px 16px rgba(0,0,0,0.12)",transition:"transform 0.15s",letterSpacing:"0.2px"}}
               onMouseOver={e=>e.target.style.transform="translateY(-2px)"} onMouseOut={e=>e.target.style.transform="none"}>
               Try It Free
             </button>
@@ -12979,7 +12979,7 @@ Return ONLY raw JSON:
           Built for reps who take their craft seriously.
         </div>
         <button onClick={()=>setShowLanding(false)}
-          style={{padding:"14px 36px",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"DM Sans,sans-serif",boxShadow:"0 4px 16px rgba(0,0,0,0.1)"}}
+          style={{padding:"14px 36px",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"var(--font-sans)",boxShadow:"0 4px 16px rgba(0,0,0,0.1)"}}
           onMouseOver={e=>e.target.style.transform="translateY(-2px)"} onMouseOut={e=>e.target.style.transform="none"}>
           Get Started Free
         </button>
@@ -13668,11 +13668,11 @@ Return ONLY raw JSON:
               <div style={{fontFamily:"'Crimson Pro',serif",fontSize:21,fontWeight:700,marginBottom:8}}>Save your work</div>
               <div style={{fontSize:14,color:"var(--ink-1)",lineHeight:1.7,marginBottom:24}}>Create a free account to save sessions and pick up where you left off.</div>
               <button onClick={()=>{setShowSavePrompt(false);setAuthed(false);}}
-                style={{width:"100%",padding:"13px 0",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontFamily:"DM Sans,sans-serif",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",marginBottom:10}}>
+                style={{width:"100%",padding:"13px 0",borderRadius:10,background:"var(--ink-0)",color:"var(--surface)",fontFamily:"var(--font-sans)",fontSize:15,fontWeight:700,border:"none",cursor:"pointer",marginBottom:10}}>
                 Create Free Account →
               </button>
               <button onClick={()=>setShowSavePrompt(false)}
-                style={{width:"100%",padding:"11px 0",borderRadius:10,background:"var(--surface)",color:"var(--ink-2)",fontFamily:"DM Sans,sans-serif",fontSize:14,border:"1.5px solid var(--line-0)",cursor:"pointer"}}>
+                style={{width:"100%",padding:"11px 0",borderRadius:10,background:"var(--surface)",color:"var(--ink-2)",fontFamily:"var(--font-sans)",fontSize:14,border:"1.5px solid var(--line-0)",cursor:"pointer"}}>
                 I like living dangerously
               </button>
             </div>
@@ -13693,7 +13693,7 @@ Return ONLY raw JSON:
               </div>
               <div style={{padding:"8px 10px 0"}}>
                 <button onClick={()=>{clearSession();setShowSessions(false);}}
-                  style={{width:"100%",padding:"10px",borderRadius:8,background:"var(--surface)",border:"1.5px solid var(--green)",color:"var(--green)",fontFamily:"DM Sans,sans-serif",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  style={{width:"100%",padding:"10px",borderRadius:8,background:"var(--surface)",border:"1.5px solid var(--green)",color:"var(--green)",fontFamily:"var(--font-sans)",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                   + New Session
                 </button>
               </div>
@@ -13721,7 +13721,7 @@ Return ONLY raw JSON:
               </div>
               <div style={{padding:12,borderTop:"1px solid var(--line-0)"}}>
                 <input value={sessionName} onChange={e=>setSessionName(e.target.value)} placeholder={sellerUrl||"Session name..."} style={{width:"100%",padding:"8px 12px",borderRadius:8,border:"1.5px solid var(--line-0)",fontSize:13,marginBottom:8,boxSizing:"border-box"}}/>
-                <button onClick={saveSession} style={{width:"100%",padding:"10px",borderRadius:8,background:"var(--ink-0)",color:"var(--surface)",fontFamily:"DM Sans,sans-serif",fontSize:13,fontWeight:700,border:"none",cursor:"pointer"}}>
+                <button onClick={saveSession} style={{width:"100%",padding:"10px",borderRadius:8,background:"var(--ink-0)",color:"var(--surface)",fontFamily:"var(--font-sans)",fontSize:13,fontWeight:700,border:"none",cursor:"pointer"}}>
                   {saveStatus==="saving"?"Saving...":saveStatus==="saved"?"✓ Saved":saveStatus==="auto-saved"?"✓ Auto-saved":"Save Session"}
                 </button>
               </div>
@@ -18645,7 +18645,7 @@ Return ONLY raw JSON:
                     <div className="stage-card">
                       <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:600,marginBottom:16,color:"var(--ink-0)"}}>
                         🎯 Discovery Questions
-                        <span style={{fontSize:11,fontWeight:400,color:"var(--ink-3)",marginLeft:8,fontFamily:"DM Sans,sans-serif"}}>product-specific · tailored to {selectedAccount?.company}</span>
+                        <span style={{fontSize:11,fontWeight:400,color:"var(--ink-3)",marginLeft:8,fontFamily:"var(--font-sans)"}}>product-specific · tailored to {selectedAccount?.company}</span>
                       </div>
 
                       {/* Static RIVER stage questions */}
@@ -18720,7 +18720,7 @@ Return ONLY raw JSON:
                       <div style={{fontSize:13,fontWeight:700,color:"var(--red)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:12}}>⚡ Objection Handling</div>
                       {stage.objections.map((o,oi)=>(
                         <div key={oi} style={{marginBottom:10}}>
-                          <button style={{width:"100%",textAlign:"left",padding:"10px 14px",borderRadius:8,border:"1px solid var(--line-0)",background:"var(--red-bg)",cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--red)",fontFamily:"DM Sans,sans-serif"}}
+                          <button style={{width:"100%",textAlign:"left",padding:"10px 14px",borderRadius:8,border:"1px solid var(--line-0)",background:"var(--red-bg)",cursor:"pointer",fontSize:13,fontWeight:600,color:"var(--red)",fontFamily:"var(--font-sans)"}}
                             onClick={()=>setExpandedObjs(s=>({...s,[si+"-"+oi]:!s[si+"-"+oi]}))}>
                             "{o.q}" <span style={{float:"right",color:"var(--ink-3)"}}>{expandedObjs[si+"-"+oi]?"▲":"▼"}</span>
                           </button>
@@ -18764,7 +18764,7 @@ Return ONLY raw JSON:
                 {/* Notes */}
                 <div className="incall-sidebar" style={{marginBottom:14}}>
                   <div style={{fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.5px",color:"var(--tan-0)",marginBottom:8}}>Call Notes</div>
-                  <textarea style={{width:"100%",minHeight:160,padding:10,border:"1px solid var(--line-0)",borderRadius:8,fontSize:13,fontFamily:"DM Sans",background:"#FAFAF8",resize:"vertical"}}
+                  <textarea style={{width:"100%",minHeight:160,padding:10,border:"1px solid var(--line-0)",borderRadius:8,fontSize:13,fontFamily:"var(--font-sans)",background:"#FAFAF8",resize:"vertical"}}
                     placeholder="Free-form notes... Tab = timestamp"
                     value={notes} onChange={e=>setNotes(e.target.value)}
                     onKeyDown={e=>{if(e.key==="Tab"){e.preventDefault();const ts=new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});const el=e.target;const b=el.value.slice(0,el.selectionStart);const a=el.value.slice(el.selectionStart);el.value=b+"\n["+ts+"] "+a;setNotes(el.value);}}}/>
@@ -18855,7 +18855,7 @@ Return ONLY raw JSON:
                 </div>
                 <textarea
                   placeholder={"Paste your call transcript here…\n\nAccepted: plain text, Gong/Chorus/Otter export, VTT/SRT subtitles.\n\nOr click 'Upload file' below."}
-                  style={{width:"100%",minHeight:120,fontSize:13,padding:12,borderRadius:"var(--r-md)",border:"1.5px solid var(--line-0)",fontFamily:"DM Sans,sans-serif",resize:"vertical",marginBottom:10}}
+                  style={{width:"100%",minHeight:120,fontSize:13,padding:12,borderRadius:"var(--r-md)",border:"1.5px solid var(--line-0)",fontFamily:"var(--font-sans)",resize:"vertical",marginBottom:10}}
                   id="transcript-input"
                 />
                 <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -19267,7 +19267,7 @@ Return ONLY raw JSON:
                 value={intelAdjustments[intelModalTarget]?.reason||""}
                 onChange={e=>{const val=e.target.value;const t=intelModalTarget;setIntelAdjustments(prev=>({...prev,[t]:{...(prev[t]||{}),reason:val}}));}}
                 placeholder="e.g., Warm intro to CTO via board member · Recently lost vendor and actively evaluating · Just signed 3-year deal with competitor..."
-                style={{width:"100%",minHeight:70,padding:10,borderRadius:8,border:"1.5px solid var(--line-0)",fontSize:13,fontFamily:"DM Sans,sans-serif",resize:"vertical",boxSizing:"border-box"}}/>
+                style={{width:"100%",minHeight:70,padding:10,borderRadius:8,border:"1.5px solid var(--line-0)",fontSize:13,fontFamily:"var(--font-sans)",resize:"vertical",boxSizing:"border-box"}}/>
             </div>
             <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
               {intelAdjustments[intelModalTarget]?.modifier!=null && (
@@ -19367,7 +19367,7 @@ Return ONLY raw JSON:
                       else alert(d.error||"Checkout failed — please try again.");
                     }catch{alert("Failed to start checkout — check your connection.");}
                   }}
-                    style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:plan.popular?"var(--tan-0)":"var(--ink-0)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:12,fontFamily:"DM Sans,sans-serif"}}>
+                    style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:plan.popular?"var(--tan-0)":"var(--ink-0)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:12,fontFamily:"var(--font-sans)"}}>
                     Start with {plan.name} →
                   </button>
                 </div>
@@ -19388,7 +19388,7 @@ Return ONLY raw JSON:
                     <div style={{fontSize:12,color:"var(--ink-2)"}}>Custom volume, SSO, dedicated onboarding, and NET-30 invoicing for procurement teams.</div>
                   </div>
                   <button onClick={()=>{setContactFormOpen(true);setContactFormMsg("");}}
-                    style={{padding:"10px 20px",borderRadius:8,border:"1.5px solid var(--ink-0)",background:"var(--surface)",color:"var(--ink-0)",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"DM Sans,sans-serif"}}>
+                    style={{padding:"10px 20px",borderRadius:8,border:"1.5px solid var(--ink-0)",background:"var(--surface)",color:"var(--ink-0)",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",fontFamily:"var(--font-sans)"}}>
                     Request Invoice / Enterprise
                   </button>
                 </div>
