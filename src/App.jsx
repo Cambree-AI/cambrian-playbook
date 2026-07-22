@@ -4507,7 +4507,7 @@ function PasswordGate({ onAuth }) {
           {/* Left — value prop */}
           <div style={{flex:"1 1 400px",minWidth:280}}>
             <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:8}}>Smart People Go Further.</div>
-            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:32,fontWeight:700,color:"var(--ink-0)",lineHeight:1.25,marginBottom:16}}>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:38,fontWeight:700,color:"var(--ink-0)",lineHeight:1.25,marginBottom:16}}>
               You only get one shot at a<br/>first <span style={{color:"var(--tan-0)"}}>impression.</span>
             </div>
             <div style={{fontSize:16,color:"var(--ink-1)",lineHeight:1.7,marginBottom:8,maxWidth:480}}>
@@ -4523,7 +4523,7 @@ function PasswordGate({ onAuth }) {
                 {num:"9",label:"step deal playbook"},
               ].map(s=>(
                 <div key={s.label} style={{textAlign:"center"}}>
-                  <div style={{fontSize:28,fontWeight:700,color:"var(--tan-0)",fontFamily:"'Crimson Pro',serif"}}>{s.num}</div>
+                  <div style={{fontSize:34,fontWeight:700,color:"var(--tan-0)",fontFamily:"'Crimson Pro',serif"}}>{s.num}</div>
                   <div style={{fontSize:11,color:"var(--ink-3)",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.3px"}}>{s.label}</div>
                 </div>
               ))}
@@ -4558,7 +4558,7 @@ function PasswordGate({ onAuth }) {
       <div style={{padding:"40px 20px",maxWidth:960,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:32}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:6}}>Your unfair advantage.</div>
-          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
             Show up knowing things they didn't expect you to know
           </div>
           <div style={{fontSize:14,color:"var(--ink-2)",maxWidth:600,margin:"0 auto",lineHeight:1.6}}>
@@ -4588,7 +4588,7 @@ function PasswordGate({ onAuth }) {
       <div style={{background:"var(--bg-1)",padding:"40px 20px"}}>
         <div style={{maxWidth:960,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:28}}>
-            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
               Be honest — how's your current process working?
             </div>
           </div>
@@ -4616,7 +4616,7 @@ function PasswordGate({ onAuth }) {
       {/* ── WHO IT'S FOR ── */}
       <div style={{padding:"40px 20px",maxWidth:960,margin:"0 auto"}}>
         <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
             From "I'm not sure what to say" to "I own this conversation"
           </div>
           <div style={{fontSize:14,color:"var(--ink-2)",maxWidth:560,margin:"0 auto 4px",lineHeight:1.6}}>
@@ -4642,7 +4642,7 @@ function PasswordGate({ onAuth }) {
       <div style={{background:"var(--bg-1)",padding:"40px 20px"}}>
         <div style={{maxWidth:960,margin:"0 auto"}}>
           <div style={{textAlign:"center",marginBottom:28}}>
-            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--ink-0)",marginBottom:8}}>
               Pricing that respects your intelligence
             </div>
             <div style={{fontSize:14,color:"var(--ink-2)",maxWidth:500,margin:"0 auto",lineHeight:1.6}}>
@@ -4655,7 +4655,7 @@ function PasswordGate({ onAuth }) {
                 {plan.popular&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--tan-0)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Most Popular</div>}
                 <div style={{fontSize:15,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>{plan.name}</div>
                 <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:4}}>
-                  <span style={{fontSize:28,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{plan.price}</span>
+                  <span style={{fontSize:34,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>{plan.price}</span>
                   <span style={{fontSize:12,color:"var(--ink-3)"}}>{plan.period}</span>
                 </div>
                 <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>{plan.runs}</div>
@@ -4688,7 +4688,7 @@ function PasswordGate({ onAuth }) {
       <div style={{background:"var(--ink-0)",padding:"40px 20px",textAlign:"center"}}>
         <div style={{maxWidth:500,margin:"0 auto"}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"1.5px",marginBottom:8}}>Make every first impression count.</div>
-          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:22,fontWeight:700,color:"var(--surface)",marginBottom:8}}>
+          <div style={{fontFamily:"'Crimson Pro',serif",fontSize:26,fontWeight:700,color:"var(--surface)",marginBottom:8}}>
             The rep who shows up prepared<br/>wins the conversation. Every time.
           </div>
           <div style={{fontSize:14,color:"var(--ink-3)",lineHeight:1.6,marginBottom:20}}>
@@ -5216,7 +5216,7 @@ ${g.sections.map(s => {
         {/* Header */}
         <div style={{padding:"16px 20px",borderBottom:"1px solid var(--line-0)",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
           <div>
-            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:18,fontWeight:700,color:"var(--ink-0)"}}>Guides & Documentation</div>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:21,fontWeight:700,color:"var(--ink-0)"}}>Guides & Documentation</div>
             <div style={{fontSize:11,color:"var(--ink-3)",marginTop:2}}>Download as PDF or read in-app</div>
           </div>
           <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
@@ -12965,7 +12965,7 @@ Return ONLY raw JSON:
               <div key={f.title} style={{background:"var(--bg-0)",borderRadius:16,padding:"32px 28px",border:"1px solid var(--line-0)",borderTop:`3px solid ${f.accent}`,transition:"box-shadow 0.2s"}}
                 onMouseOver={e=>e.currentTarget.style.boxShadow="0 8px 32px rgba(0,0,0,0.08)"} onMouseOut={e=>e.currentTarget.style.boxShadow="none"}>
                 <div style={{fontSize:32,marginBottom:14}}>{f.icon}</div>
-                <div style={{fontSize:17,fontWeight:700,color:"var(--ink-0)",marginBottom:8,fontFamily:"'Crimson Pro',serif"}}>{f.title}</div>
+                <div style={{fontSize:20,fontWeight:700,color:"var(--ink-0)",marginBottom:8,fontFamily:"'Crimson Pro',serif"}}>{f.title}</div>
                 <div style={{fontSize:14,color:"var(--ink-2)",lineHeight:1.7}}>{f.desc}</div>
               </div>
             ))}
@@ -13153,7 +13153,7 @@ Return ONLY raw JSON:
                 else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
               }
             }}>
-            <div style={{fontSize:16,fontWeight:700,color:"var(--ink-0)",marginBottom:4,fontFamily:"'Crimson Pro',serif"}}>Confirm the company</div>
+            <div style={{fontSize:19,fontWeight:700,color:"var(--ink-0)",marginBottom:4,fontFamily:"'Crimson Pro',serif"}}>Confirm the company</div>
             <div style={{fontSize:12,color:"var(--ink-2)",marginBottom:6}}>
               {disambigOptions.matches.length > 1
                 ? `We found ${disambigOptions.matches.length} companies matching "${disambigOptions.input}" — pick the right one for an accurate brief.`
@@ -13238,7 +13238,7 @@ Return ONLY raw JSON:
         <div style={{position:"fixed",top:0,right:0,bottom:0,width:"min(380px, 92vw)",background:"var(--bg-0)",borderLeft:"1.5px solid var(--line-0)",boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",zIndex:1100,display:"flex",flexDirection:"column",overflow:"hidden"}}>
           {/* Header */}
           <div style={{padding:"16px 20px 12px",borderBottom:"1px solid var(--line-0)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:17,fontWeight:700,color:"var(--ink-0)"}}>Resources</div>
+            <div style={{fontFamily:"'Crimson Pro',serif",fontSize:20,fontWeight:700,color:"var(--ink-0)"}}>Resources</div>
             <button onClick={()=>setResourcesOpen(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-2)"}} aria-label="Close">✕</button>
           </div>
 
