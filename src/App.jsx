@@ -12958,13 +12958,13 @@ Return ONLY raw JSON:
         <div style={{maxWidth:1100,margin:"0 auto"}}>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:24}}>
             {[
-              {icon:"🔍",title:"Know more than they expect",desc:"Live research on their strategy, leadership, pain points, and the competitors they're already talking to. Not last quarter's data — today's.",accent:"var(--green)"},
-              {icon:"🎙",title:"Walk in with a point of view",desc:"A structured conversation plan grounded in what you sell and what they need. Talk tracks that sound like you, not a script.",accent:"var(--navy)"},
-              {icon:"🏆",title:"Leave with a next step",desc:"Real-time coaching during the call, a deal route when it's over, and a follow-up email that proves you were listening.",accent:"var(--tan-0)"},
+              {num:"01",title:"Know more than they expect",desc:"Live research on their strategy, leadership, pain points, and the competitors they're already talking to. Not last quarter's data — today's.",accent:"var(--green)"},
+              {num:"02",title:"Walk in with a point of view",desc:"A structured conversation plan grounded in what you sell and what they need. Talk tracks that sound like you, not a script.",accent:"var(--navy)"},
+              {num:"03",title:"Leave with a next step",desc:"Real-time coaching during the call, a deal route when it's over, and a follow-up email that proves you were listening.",accent:"var(--tan-0)"},
             ].map(f=>(
               <div key={f.title} style={{background:"var(--bg-0)",borderRadius:"var(--r-lg)",padding:"32px 28px",border:"1px solid var(--line-0)",borderTop:`3px solid ${f.accent}`,transition:"background var(--t-med) var(--ease)"}}
                 onMouseOver={e=>e.currentTarget.style.background="var(--bg-1)"} onMouseOut={e=>e.currentTarget.style.background="var(--bg-0)"}>
-                <div style={{fontSize:32,marginBottom:14}}>{f.icon}</div>
+                <div style={{width:28,height:28,borderRadius:"var(--r-md)",background:"var(--ink-0)",color:"var(--citrus)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"var(--font-mono)",fontWeight:600,fontSize:12,marginBottom:14}}>{f.num}</div>
                 <div style={{fontSize:20,fontWeight:700,color:"var(--ink-0)",marginBottom:8,fontFamily:"'Crimson Pro',serif"}}>{f.title}</div>
                 <div style={{fontSize:14,color:"var(--ink-2)",lineHeight:1.7}}>{f.desc}</div>
               </div>
