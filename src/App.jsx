@@ -4677,7 +4677,7 @@ function PasswordGate({ onAuth }) {
           <div style={{background:"var(--bg-1)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"16px 20px",marginTop:20,maxWidth:600,margin:"20px auto 0"}}>
             <div style={{fontSize:13,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>How runs work</div>
             <div style={{fontSize:12,color:"var(--ink-2)",lineHeight:1.7}}>
-              Each plan includes a monthly run allocation. One run = one full research brief with all 10 sections. <strong>Unused runs roll over to the next month</strong> (up to one month's worth). Use them when you need them — no pressure to burn through credits before the clock resets. If you cancel, the current month is refundable. Rollover credits carry no cash value.
+              Each plan includes a monthly run allocation. One run = one full research brief with all 10 sections. <strong>Unused runs roll over to the next month</strong> (up to one month's worth). Use them when you need them — no pressure to burn through credits before the clock resets. Rollover credits carry no cash value.
             </div>
           </div>
           <div style={{textAlign:"center",marginTop:16,fontSize:13,color:"var(--ink-2)"}}>
