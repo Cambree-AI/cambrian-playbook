@@ -15567,7 +15567,7 @@ Return ONLY raw JSON:
 
                 {/* Buyer Personas — collapsible */}
                 <div className="bb">
-                  <div className="bb-hdr" onClick={()=>toggleBB("icpPersonas")} style={{cursor:"pointer",background:bbIsOpen("icpPersonas")?"var(--bg-0)":"var(--bg-1)",borderLeft:bbIsOpen("icpPersonas")?"none":"3px solid var(--green)"}}>
+                  <div className="bb-hdr bb-hdr-light" onClick={()=>toggleBB("icpPersonas")} style={{cursor:"pointer",background:bbIsOpen("icpPersonas")?"var(--bg-0)":"var(--bg-1)",borderLeft:bbIsOpen("icpPersonas")?"none":"3px solid var(--green)"}}>
                     <div className="bb-icon">👤</div>
                     <div style={{flex:1}}>
                       <div className="bb-title">The People You're Selling To</div>
@@ -15609,7 +15609,7 @@ Return ONLY raw JSON:
 
                 {/* 5 Rings of Buying Insight — collapsible */}
                 <div className="bb">
-                  <div className="bb-hdr" onClick={()=>toggleBB("icpBuyingInsight")} style={{cursor:"pointer",background:bbIsOpen("icpBuyingInsight")?"var(--bg-0)":"var(--bg-1)",borderLeft:bbIsOpen("icpBuyingInsight")?"none":"3px solid var(--amber)"}}>
+                  <div className="bb-hdr bb-hdr-light" onClick={()=>toggleBB("icpBuyingInsight")} style={{cursor:"pointer",background:bbIsOpen("icpBuyingInsight")?"var(--bg-0)":"var(--bg-1)",borderLeft:bbIsOpen("icpBuyingInsight")?"none":"3px solid var(--amber)"}}>
                     <div className="bb-icon">💡</div>
                     <div style={{flex:1}}>
                       <div className="bb-title">Why They Buy (and Why They Don't)</div>
@@ -15637,7 +15637,7 @@ Return ONLY raw JSON:
 
                 {/* Customer Jobs + Pains + Gains — collapsible */}
                 <div className="bb">
-                  <div className="bb-hdr" onClick={()=>toggleBB("icpCustomers")} style={{cursor:"pointer",background:bbIsOpen("icpCustomers")?"var(--bg-0)":"var(--bg-1)",borderLeft:bbIsOpen("icpCustomers")?"none":"3px solid var(--navy)"}}>
+                  <div className="bb-hdr bb-hdr-light" onClick={()=>toggleBB("icpCustomers")} style={{cursor:"pointer",background:bbIsOpen("icpCustomers")?"var(--bg-0)":"var(--bg-1)",borderLeft:bbIsOpen("icpCustomers")?"none":"3px solid var(--navy)"}}>
                     <div className="bb-icon">🎯</div>
                     <div style={{flex:1}}>
                       <div className="bb-title">Who's Already Buying</div>

@@ -425,6 +425,8 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 .bb-icon { width: 26px; height: 26px; border-radius: 7px; background: rgba(212,212,115,0.18); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--citrus); flex-shrink: 0; }
 .bb-title { font-family: var(--font-sans); font-size: 13px; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.5px; }
 .bb-sub { font-size: 11px; color: #A9BCC0; margin-top: 1px; }
+.bb-hdr-light .bb-title { color: var(--ink-0); }
+.bb-hdr-light .bb-sub { color: var(--ink-2); }
 .bb-body { padding: 12px 14px; }
 .solution-item { display: flex; gap: 10px; margin-bottom: 10px; align-items: flex-start; }
 .sol-badge { font-size: 12px; font-weight: 700; background: var(--tan-3); color: var(--tan-ink); border: 1px solid var(--tan-2); padding: 3px 10px; border-radius: var(--r-sm); white-space: nowrap; flex-shrink: 0; margin-top: 1px; font-family: 'Crimson Pro', serif; }
