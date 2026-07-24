@@ -4151,6 +4151,7 @@ function PasswordGate({ onAuth }) {
   const[resetSent,setResetSent]=React.useState(false);
   const[requestSent,setRequestSent]=React.useState(false);
   const[company,setCompany]=React.useState("");
+  const[promoCode,setPromoCode]=React.useState("");
   const[recoveryToken,setRecoveryToken]=React.useState(null); // token from password reset email
   const[passwordUpdated,setPasswordUpdated]=React.useState(false);
 
@@ -4277,7 +4278,7 @@ function PasswordGate({ onAuth }) {
         const r=await fetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({name:(first+" "+last).trim(),email,company}),
+          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{note:"Promo code: "+promoCode.trim()}:{})}),
         });
         if(r.ok){setRequestSent(true);setErr("");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");}
@@ -4454,7 +4455,10 @@ function PasswordGate({ onAuth }) {
               <input placeholder="Last name"  value={last}  onChange={e=>setLast(e.target.value)}/>
             </div>
             <input type="email" autoComplete="email" placeholder="Work email" value={email} onChange={e=>setEmail(e.target.value)} style={{marginBottom:10}}/>
-            <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{marginBottom:10}}/>
+            <div className="field-grid-2" style={{marginBottom:10}}>
+              <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+              <input placeholder="Promo code (optional)" value={promoCode} onChange={e=>setPromoCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+            </div>
             {err && <div className="pw-error">{err}</div>}
             <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}}
               disabled={loading||!first||!last||!email||!company}>
