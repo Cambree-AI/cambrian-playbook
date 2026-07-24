@@ -1310,7 +1310,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
 //   - Track content block types — only feed TEXT blocks to onChunk
 //   - Use extractJsonWithKey for final parse (handles preamble text)
 // anchorKey: the expected top-level JSON key to find (e.g. "elevatorPitch")
-async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false } = {}) {
+async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let response = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -1324,7 +1324,7 @@ async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1,
           model: model || activeModel(),
           max_tokens: maxTok,
           temperature: 0,
-          system: ANTI_HALLUCINATION_SYSTEM,
+          system: system || ANTI_HALLUCINATION_SYSTEM,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: maxSearches }],
           messages: [
             { role: 'user', content: prompt },
@@ -7656,6 +7656,36 @@ Return ONLY raw JSON:
     return out;
   };
 
+  // ── ICP PASS-1 RESEARCH — static instruction block ──────────────────────
+  // Byte-identical strings moved out of researchPrompt so they can ride in a
+  // cached system block (same transform Pass 2 uses: _icpStaticInstructions /
+  // _icpSystemArray inside buildSellerICP). Contains NO seller-specific content —
+  // identical for every seller and every build.
+  const _researchStaticInstructions =
+    `OWNERSHIP-DRIVEN SEARCH STRATEGY:\n`+
+    `First, determine: is this company PUBLIC, PE-BACKED, VC-BACKED, PRIVATE, NONPROFIT, or GOVERNMENT?\n`+
+    `- If PUBLIC: also search for SEC filings, 10-K product segments, investor relations. Revenue/products are in annual reports.\n`+
+    `- If PE-BACKED: search for acquisition press releases, PE firm portfolio page, deal details, add-on acquisitions.\n`+
+    `- If VC-BACKED: search Crunchbase for funding rounds, total raised, lead investors, valuation.\n`+
+    `- If NONPROFIT: search for Form 990, annual report, program descriptions.\n`+
+    `Use this context to ground your research in authoritative sources for this ownership type.\n\n`+
+    `Return a structured research summary:\n`+
+    `1. COMPANY: What they do (2 sentences, specific). Include ownership type, approximate revenue, and employee count if findable.\n`+
+    `2. PRODUCTS/SERVICES: List each product/service found on their website with a 1-sentence description and the URL where you found it\n`+
+    `3. NAMED CUSTOMERS: Every customer name found in case studies, press releases, partner pages, or logo walls — with the source URL for each\n`+
+    `4. COMPETITORS: Named competitors found in the research, with any evidence of their customers\n`+
+    `5. DIFFERENTIATORS: What makes this company different from competitors (specific, not generic)\n`+
+    `6. FINANCIAL CONTEXT: Revenue, funding, ownership details. For PUBLIC companies: total revenue from most recent annual report. For PE: deal details. For VC: funding rounds and total raised.\n\n`+
+    `Be thorough. This research determines the quality of everything downstream. "AI platform" is useless — "AI for fraud detection and ACH return reduction in banking" is actionable.`;
+
+  // Cached system block for the Pass-1 research call. _guard.js prepends
+  // SERVER_PREAMBLE as block[0] and passes cache_control through unchanged.
+  const _researchSystemArray = [{
+    type: "text",
+    text: ANTI_HALLUCINATION_SYSTEM + "\n\n" + _researchStaticInstructions,
+    cache_control: { type: "ephemeral" },
+  }];
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -7784,13 +7814,6 @@ Return ONLY raw JSON:
           `Research the company at https://${url}. Use BOTH web searches.\n\n`+
           sellerDocsCtx +
           productPagesCtx +
-          `OWNERSHIP-DRIVEN SEARCH STRATEGY:\n`+
-          `First, determine: is this company PUBLIC, PE-BACKED, VC-BACKED, PRIVATE, NONPROFIT, or GOVERNMENT?\n`+
-          `- If PUBLIC: also search for SEC filings, 10-K product segments, investor relations. Revenue/products are in annual reports.\n`+
-          `- If PE-BACKED: search for acquisition press releases, PE firm portfolio page, deal details, add-on acquisitions.\n`+
-          `- If VC-BACKED: search Crunchbase for funding rounds, total raised, lead investors, valuation.\n`+
-          `- If NONPROFIT: search for Form 990, annual report, program descriptions.\n`+
-          `Use this context to ground your research in authoritative sources for this ownership type.\n\n`+
           (hasSellerContext
             ? `You have the seller's own materials and/or validated product pages above. ` +
               `You already know what this company sells. Use your searches for EXTERNAL validation:\n` +
@@ -7798,15 +7821,7 @@ Return ONLY raw JSON:
               `Search 2: "${url.split('.')[0]}" competitors OR "vs" OR "alternative to" OR funding OR revenue\n\n`
             : `Search 1: site:${url} products OR solutions OR services OR "case study" OR "customer story" OR "powered by"\n` +
               `Search 2: "${url.split('.')[0]}" customers OR "selected by" OR "case study" OR "works with" press release\n\n`
-          ) +
-          `Return a structured research summary:\n`+
-          `1. COMPANY: What they do (2 sentences, specific). Include ownership type, approximate revenue, and employee count if findable.\n`+
-          `2. PRODUCTS/SERVICES: List each product/service found on their website with a 1-sentence description and the URL where you found it\n`+
-          `3. NAMED CUSTOMERS: Every customer name found in case studies, press releases, partner pages, or logo walls — with the source URL for each\n`+
-          `4. COMPETITORS: Named competitors found in the research, with any evidence of their customers\n`+
-          `5. DIFFERENTIATORS: What makes this company different from competitors (specific, not generic)\n`+
-          `6. FINANCIAL CONTEXT: Revenue, funding, ownership details. For PUBLIC companies: total revenue from most recent annual report. For PE: deal details. For VC: funding rounds and total raised.\n\n`+
-          `Be thorough. This research determines the quality of everything downstream. "AI platform" is useless — "AI for fraud detection and ACH return reduction in banking" is actionable.`;
+          );
         const researchAbort = new AbortController();
         const researchTimeout = new Promise((_, reject) => setTimeout(() => { researchAbort.abort(); reject(new Error("timeout")); }, 100000));
         const researchCall = streamAIWithSearch(researchPrompt, (partial) => {
@@ -7814,7 +7829,7 @@ Return ONLY raw JSON:
           if (partial.includes("PRODUCTS") || partial.includes("products")) setIcpStatus("Analyzing products and services...");
           if (partial.includes("CUSTOMERS") || partial.includes("customers")) setIcpStatus("Identifying customers and case studies...");
           if (partial.includes("COMPETITORS") || partial.includes("competitors")) setIcpStatus("Mapping competitive landscape...");
-        }, 4000, { maxSearches: 2, anchorKey: null, model: OPUS, returnRawOnFailure: true, signal: researchAbort.signal });
+        }, 4000, { maxSearches: 2, anchorKey: null, model: OPUS, returnRawOnFailure: true, signal: researchAbort.signal, system: _researchSystemArray });
         const research = await Promise.race([researchCall, researchTimeout]);
         sellerResearch = !research ? "" : (typeof research === "string" ? research : JSON.stringify(research));
         // Store in research cache for same-week rebuilds (targeting changes, etc.)
