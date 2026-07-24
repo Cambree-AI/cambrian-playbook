@@ -5515,6 +5515,9 @@ export default function App(){
   // Track input signatures for each stage to detect "no change" on regenerate.
   // Each key stores a JSON string of the inputs used for the last generation.
   const lastGenSig = useRef({ icp: "", brief: "", hypo: "", postCall: "" });
+  // Speculative ICP Pass-1 research: fired at scan-complete, consumed by buildSellerICP.
+  // At most one record: { key, url, abort: AbortController, onPartialRef: {current: fn}, promise }
+  const specResearchRef = useRef(null);
   const getIcpSig = () => JSON.stringify([sellerUrl, sellerStage, icpTargeting]);
   const getBriefSig = () => JSON.stringify([selectedAccount?.company, sellerICP?.marketCategory, icpEdits.length, contactRole]);
   const getHypoSig = () => JSON.stringify([brief?.companySnapshot?.slice(0,50), brief?.strategicTheme?.slice(0,50), selectedAccount?.company]);
@@ -5856,6 +5859,7 @@ export default function App(){
   });
 
   const handleDocFiles = async files => {
+    _abortSpeculativeResearch(); // docs feed the Pass-1 research prompt — in-flight speculation is stale
     const arr = Array.from(files).slice(0,6); // max 6 docs
     const results = await Promise.all(arr.map(readDocFile));
     setSellerDocs(prev=>{
@@ -7686,12 +7690,131 @@ Return ONLY raw JSON:
     cache_control: { type: "ephemeral" },
   }];
 
-  const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
-    // Catch both "research-only" and "research-only.com" before any processing
-    if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
+  // ── SPECULATIVE PASS-1 RESEARCH ─────────────────────────────────────────
+  // Shared helpers — single source of truth so the speculative call and
+  // buildSellerICP produce byte-identical prompts. Strings below are MOVED
+  // verbatim from buildSellerICP (see the paired deletions in this commit).
+
+  // URL normalization — byte-identical to the logic previously inlined in buildSellerICP.
+  const _normalizeSellerUrl = (rawUrl) => {
     let url = rawUrl.trim().replace(/^https?:\/\//,"").replace(/\/$/,"").replace(/^www\./,"");
     // Auto-add .com if no TLD present — "meritincentives" → "meritincentives.com"
     if (url && !url.includes(".")) url = url + ".com";
+    return url;
+  };
+
+  // ── SELLER CONTEXT (same pattern as brief's P3/P4) ──
+  // Moved verbatim from buildSellerICP; parameterized on the page/doc arrays so the
+  // speculative starter can build identical context from the just-scanned pages.
+  const _buildResearchCtx = (pUrls, sDocs) => {
+    const activeProductUrls = pUrls.filter(u => u.url?.trim());
+    const activeSellerDocs = sDocs.filter(d => d.content?.trim());
+
+    const sellerDocsCtx = activeSellerDocs.length > 0
+      ? `═══ SELLER'S OWN MATERIALS (uploaded by the seller — PRIMARY source of truth) ═══\n` +
+        activeSellerDocs.map(d =>
+          `${sanitizeForPrompt(d.label)}: ${sanitizeForPrompt(d.content.slice(0, 2000))}`
+        ).join("\n\n") +
+        `\n═══ END SELLER MATERIALS ═══\n` +
+        `These are the seller's own documents. They are the definitive source for what this ` +
+        `company sells, who they serve, and how they position. Web searches should ` +
+        `VERIFY and EXTEND — not contradict.\n\n`
+      : ``;
+
+    const productPagesCtx = activeProductUrls.length > 0
+      ? `VALIDATED PRODUCT PAGES (confirmed by the seller — these pages define what this company sells):\n` +
+        activeProductUrls.map(u => `  - ${u.label || "Page"}: ${u.url}`).join("\n") +
+        `\nThe seller confirmed these pages. Ground your understanding of their products in these pages.\n\n`
+      : ``;
+
+    const hasSellerContext = !!(sellerDocsCtx || productPagesCtx);
+    return { activeProductUrls, activeSellerDocs, sellerDocsCtx, productPagesCtx, hasSellerContext };
+  };
+
+  // Dynamic research prompt — moved verbatim from buildSellerICP (post prompt-cache split).
+  const _buildResearchPrompt = (url, sellerDocsCtx, productPagesCtx, hasSellerContext) =>
+    `Research the company at https://${url}. Use BOTH web searches.\n\n`+
+    sellerDocsCtx +
+    productPagesCtx +
+    (hasSellerContext
+      ? `You have the seller's own materials and/or validated product pages above. ` +
+        `You already know what this company sells. Use your searches for EXTERNAL validation:\n` +
+        `Search 1: site:${url} "case study" OR customers OR "powered by" OR partners OR "trusted by"\n` +
+        `Search 2: "${url.split('.')[0]}" competitors OR "vs" OR "alternative to" OR funding OR revenue\n\n`
+      : `Search 1: site:${url} products OR solutions OR services OR "case study" OR "customer story" OR "powered by"\n` +
+        `Search 2: "${url.split('.')[0]}" customers OR "selected by" OR "case study" OR "works with" press release\n\n`
+    );
+
+  // Status callback — moved verbatim from the inline callback in buildSellerICP.
+  const _researchOnPartial = (partial) => {
+    if (partial.length > 50 && partial.length < 200) setIcpStatus("Found the company...");
+    if (partial.includes("PRODUCTS") || partial.includes("products")) setIcpStatus("Analyzing products and services...");
+    if (partial.includes("CUSTOMERS") || partial.includes("customers")) setIcpStatus("Identifying customers and case studies...");
+    if (partial.includes("COMPETITORS") || partial.includes("competitors")) setIcpStatus("Mapping competitive landscape...");
+  };
+
+  // Identity of a research context. Any change to seller URL, product pages, or docs
+  // between speculative fire and buildSellerICP consume changes this key → stale.
+  const _specResearchKeyFor = (url, activeProductUrls, activeSellerDocs) =>
+    `${url}::${activeProductUrls.map(u => u.url.trim()).sort().join(",")}::${activeSellerDocs.map(d => `${d.label || d.name || ""}:${(d.content || "").length}`).join("|")}`;
+
+  const _abortSpeculativeResearch = () => {
+    const rec = specResearchRef.current;
+    if (rec) {
+      try { rec.abort.abort(); } catch { /* already settled */ }
+      specResearchRef.current = null;
+      console.log(`[ICP] Speculative research discarded for "${rec.url}"`);
+    }
+  };
+
+  // Fire Pass-1 research the moment the product-page scan completes, so the Opus
+  // call overlaps with the user reviewing "Are these the right product pages?".
+  // `pages` is the freshly scanned array (state updates are async — do NOT read productUrls here).
+  // No UI change, no metering change: this call carries no billable headers (same as today),
+  // and consume-once in buildSellerICP guarantees the research runs ONCE per build.
+  const _maybeStartSpeculativeResearch = (rawUrl, pages) => {
+    try {
+      if (!sbToken) return; // guests: never burn guest quota on a call that may be discarded
+      if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
+      const url = _normalizeSellerUrl(rawUrl || "");
+      if (!url) return;
+      if (icpLoading) return; // a real build is already running
+      // Skip whenever buildSellerICP would NOT run live research anyway:
+      try { if (localStorage.getItem(icpCacheKey(url))) return; } catch {}
+      if (orgCtx?.icp && orgCtx?.seller_url) {
+        const orgUrl = orgCtx.seller_url.toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"").replace(/^www\./, "");
+        if (orgUrl === url.toLowerCase()) return;
+      }
+      if (orgCtx && orgCtx.run_count >= orgCtx.run_limit) return; // same gate as buildSellerICP (silent — no modal here)
+      const pUrls = (pages || []).map(p => ({ url: p.url, label: p.label || "", type: p.type || "" }));
+      const { activeProductUrls, activeSellerDocs, sellerDocsCtx, productPagesCtx, hasSellerContext } = _buildResearchCtx(pUrls, sellerDocs);
+      // Research cache hit → Pass 1 would be skipped; nothing to speculate.
+      const _week = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
+      try {
+        const c = localStorage.getItem(`research:v1:${url}:${_week}:${hasSellerContext ? "1" : "0"}`);
+        if (c && c.length > 100) return;
+      } catch {}
+      const key = _specResearchKeyFor(url, activeProductUrls, activeSellerDocs);
+      if (specResearchRef.current) {
+        if (specResearchRef.current.key === key) return; // identical context already in flight
+        _abortSpeculativeResearch(); // different context — replace
+      }
+      const abort = new AbortController();
+      const onPartialRef = { current: () => {} }; // no-op until buildSellerICP consumes
+      const promise = streamAIWithSearch(
+        _buildResearchPrompt(url, sellerDocsCtx, productPagesCtx, hasSellerContext),
+        (partial) => { onPartialRef.current(partial); },
+        4000, { maxSearches: 2, anchorKey: null, model: OPUS, returnRawOnFailure: true, signal: abort.signal, system: _researchSystemArray }
+      ).catch(() => null); // never an unhandled rejection if discarded; null = "no research" (same downstream handling as today)
+      specResearchRef.current = { key, url, abort, onPartialRef, promise };
+      console.log(`[ICP] Speculative research started for "${url}" (${activeProductUrls.length} pages)`);
+    } catch { /* speculation is best-effort — must never break the scan flow */ }
+  };
+
+  const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
+    // Catch both "research-only" and "research-only.com" before any processing
+    if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
+    let url = _normalizeSellerUrl(rawUrl);
 
     // Cache hit — instant, deterministic. Check localStorage first, then org-level Supabase cache.
     if(!forceRefresh){
@@ -7754,28 +7877,9 @@ Return ONLY raw JSON:
     setRfpData({ open: [], closed: [], signals: [], loading: false, error: null }); // Reset RFP UI
 
     // ── SELLER CONTEXT (same pattern as brief's P3/P4) ──
-    // Declared at function scope — accessible in both Pass 1 and Pass 2. No scoping bugs.
-    const activeProductUrls = productUrls.filter(u => u.url?.trim());
-    const activeSellerDocs = sellerDocs.filter(d => d.content?.trim());
-
-    const sellerDocsCtx = activeSellerDocs.length > 0
-      ? `═══ SELLER'S OWN MATERIALS (uploaded by the seller — PRIMARY source of truth) ═══\n` +
-        activeSellerDocs.map(d =>
-          `${sanitizeForPrompt(d.label)}: ${sanitizeForPrompt(d.content.slice(0, 2000))}`
-        ).join("\n\n") +
-        `\n═══ END SELLER MATERIALS ═══\n` +
-        `These are the seller's own documents. They are the definitive source for what this ` +
-        `company sells, who they serve, and how they position. Web searches should ` +
-        `VERIFY and EXTEND — not contradict.\n\n`
-      : ``;
-
-    const productPagesCtx = activeProductUrls.length > 0
-      ? `VALIDATED PRODUCT PAGES (confirmed by the seller — these pages define what this company sells):\n` +
-        activeProductUrls.map(u => `  - ${u.label || "Page"}: ${u.url}`).join("\n") +
-        `\nThe seller confirmed these pages. Ground your understanding of their products in these pages.\n\n`
-      : ``;
-
-    const hasSellerContext = !!(sellerDocsCtx || productPagesCtx);
+    // Built by the shared helper (also used by the speculative starter) — values are
+    // identical to the previously inlined block. Used in both Pass 1 and Pass 2.
+    const { activeProductUrls, activeSellerDocs, sellerDocsCtx, productPagesCtx, hasSellerContext } = _buildResearchCtx(productUrls, sellerDocs);
 
     // TWO-PASS ICP BUILD:
     // Pass 1 (Opus + web search): Deep research — products, case studies, customers, competitors
@@ -7810,26 +7914,28 @@ Return ONLY raw JSON:
     if (!sellerResearch) {
       // No cache (or forceRefresh) — run Opus research live
       try {
-        const researchPrompt =
-          `Research the company at https://${url}. Use BOTH web searches.\n\n`+
-          sellerDocsCtx +
-          productPagesCtx +
-          (hasSellerContext
-            ? `You have the seller's own materials and/or validated product pages above. ` +
-              `You already know what this company sells. Use your searches for EXTERNAL validation:\n` +
-              `Search 1: site:${url} "case study" OR customers OR "powered by" OR partners OR "trusted by"\n` +
-              `Search 2: "${url.split('.')[0]}" competitors OR "vs" OR "alternative to" OR funding OR revenue\n\n`
-            : `Search 1: site:${url} products OR solutions OR services OR "case study" OR "customer story" OR "powered by"\n` +
-              `Search 2: "${url.split('.')[0]}" customers OR "selected by" OR "case study" OR "works with" press release\n\n`
-          );
-        const researchAbort = new AbortController();
+        // Speculative consume: if a matching Pass-1 call was fired at scan-complete,
+        // await THAT call instead of issuing a second one (the call runs ONCE total).
+        const _specKey = _specResearchKeyFor(url, activeProductUrls, activeSellerDocs);
+        let _spec = null;
+        if (specResearchRef.current) {
+          if (!forceRefresh && specResearchRef.current.key === _specKey) {
+            _spec = specResearchRef.current;
+            specResearchRef.current = null; // consume-once — can never be awaited twice
+            _spec.onPartialRef.current = _researchOnPartial; // live status updates from here on
+            console.log(`[ICP] Consuming speculative research for "${url}"`);
+          } else {
+            // Stale (seller URL / product pages / docs changed since fire) or forceRefresh
+            // (Regenerate must get genuinely fresh research) — abort + discard, run normally.
+            _abortSpeculativeResearch();
+          }
+        }
+        const researchAbort = _spec ? _spec.abort : new AbortController();
         const researchTimeout = new Promise((_, reject) => setTimeout(() => { researchAbort.abort(); reject(new Error("timeout")); }, 100000));
-        const researchCall = streamAIWithSearch(researchPrompt, (partial) => {
-          if (partial.length > 50 && partial.length < 200) setIcpStatus("Found the company...");
-          if (partial.includes("PRODUCTS") || partial.includes("products")) setIcpStatus("Analyzing products and services...");
-          if (partial.includes("CUSTOMERS") || partial.includes("customers")) setIcpStatus("Identifying customers and case studies...");
-          if (partial.includes("COMPETITORS") || partial.includes("competitors")) setIcpStatus("Mapping competitive landscape...");
-        }, 4000, { maxSearches: 2, anchorKey: null, model: OPUS, returnRawOnFailure: true, signal: researchAbort.signal, system: _researchSystemArray });
+        const researchCall = _spec ? _spec.promise : streamAIWithSearch(
+          _buildResearchPrompt(url, sellerDocsCtx, productPagesCtx, hasSellerContext),
+          _researchOnPartial,
+          4000, { maxSearches: 2, anchorKey: null, model: OPUS, returnRawOnFailure: true, signal: researchAbort.signal, system: _researchSystemArray });
         const research = await Promise.race([researchCall, researchTimeout]);
         sellerResearch = !research ? "" : (typeof research === "string" ? research : JSON.stringify(research));
         // Store in research cache for same-week rebuilds (targeting changes, etc.)
@@ -8484,6 +8590,7 @@ Return ONLY raw JSON:
     setUrlScanStatus("scanning");
     setUrlScanConfirmed(false);
     setProductUrls([]); // Clear stale results from prior scan
+    _abortSpeculativeResearch(); // new scan — any in-flight speculative research is stale
 
     // Cache check — serve cached scan results instantly
     const scanCacheKey = `scan:v2:${url.toLowerCase()}`;
@@ -8495,6 +8602,7 @@ Return ONLY raw JSON:
           console.log(`[scan] Cache hit for "${url}": ${parsed.pages.length} pages`);
           setProductUrls(parsed.pages.map(p => ({ url: p.url, label: p.label || "", type: p.type || "" })));
           setUrlScanStatus("found");
+          _maybeStartSpeculativeResearch(rawUrl, parsed.pages); // overlap Pass-1 research with the user's page review
           return;
         }
       }
@@ -8612,6 +8720,7 @@ Return ONLY raw JSON:
       if(pages.length>0){
         setProductUrls(pages.map(p=>({url:p.url,label:p.label||"",type:p.type||""})));
         setUrlScanStatus("found");
+        _maybeStartSpeculativeResearch(rawUrl, pages); // overlap Pass-1 research with the user's page review
         // Cache results for instant repeat loads (7-day TTL)
         try { localStorage.setItem(scanCacheKey, JSON.stringify({ pages, _cachedAt: Date.now() })); } catch {}
       } else {
@@ -14085,7 +14194,7 @@ Return ONLY raw JSON:
                       {urlReady ? "✓" : isLoading ? "⏳" : "Seller URL"}
                     </div>
                     <input className="setup-url-input" type="text" placeholder="e.g. yourcompany.com"
-                      value={sellerInput} onChange={e=>{setSellerInput(e.target.value);setUrlScanStatus("");setUrlScanConfirmed(false);}}
+                      value={sellerInput} onChange={e=>{_abortSpeculativeResearch();setSellerInput(e.target.value);setUrlScanStatus("");setUrlScanConfirmed(false);}}
                       onKeyDown={e=>{if(e.key==="Enter"&&sellerInput.trim()&&!isLoading&&!disambigLoading) handleSellerGo();}}
                       style={{color: icpVerified ? "var(--green)" : undefined, fontWeight: icpVerified ? 600 : undefined}}
                     />
@@ -14114,7 +14223,7 @@ Return ONLY raw JSON:
                       <div style={{fontSize:13,fontWeight:600,color:"var(--ink-0)",marginBottom:10}}>Are these the right product pages?</div>
                       <div style={{display:"flex",gap:8}}>
                         <button className="btn btn-green btn-sm" onClick={()=>{setUrlScanConfirmed(true); if(!sellerICP && !icpLoading) buildSellerICP(sellerUrl);}}>✓ Yes, looks right</button>
-                        <button className="btn btn-secondary btn-sm" onClick={()=>{setProductUrls([{url:"",label:""}]);setUrlScanStatus("");}}>✕ Clear, I'll add manually</button>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>{_abortSpeculativeResearch();setProductUrls([{url:"",label:""}]);setUrlScanStatus("");}}>✕ Clear, I'll add manually</button>
                       </div>
                     </div>
                   )}
@@ -14263,7 +14372,7 @@ Return ONLY raw JSON:
                     {urlReady ? "✓" : isLoading ? "⏳" : "Seller URL"}
                   </div>
                   <input className="setup-url-input" type="text" placeholder="e.g. yourcompany.com"
-                    value={sellerInput} onChange={e=>{setSellerInput(e.target.value);setUrlScanStatus("");setUrlScanConfirmed(false);}}
+                    value={sellerInput} onChange={e=>{_abortSpeculativeResearch();setSellerInput(e.target.value);setUrlScanStatus("");setUrlScanConfirmed(false);}}
                     onKeyDown={e=>{if(e.key==="Enter"&&sellerInput.trim()&&!sellerDocs.length){
                       const norm=sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
                       setSellerUrl(norm);
@@ -14324,7 +14433,7 @@ Return ONLY raw JSON:
                       <div style={{fontSize:13,fontWeight:600,color:"var(--ink-0)",marginBottom:10}}>Are these the right product pages?</div>
                       <div style={{display:"flex",gap:8}}>
                         <button className="btn btn-green btn-sm" onClick={()=>{setUrlScanConfirmed(true); if(!sellerICP && !icpLoading) buildSellerICP(sellerUrl);}}>✓ Yes, looks right</button>
-                        <button className="btn btn-secondary btn-sm" onClick={()=>{setProductUrls([{url:"",label:""}]);setUrlScanStatus("");}}>✕ Clear, I'll add manually</button>
+                        <button className="btn btn-secondary btn-sm" onClick={()=>{_abortSpeculativeResearch();setProductUrls([{url:"",label:""}]);setUrlScanStatus("");}}>✕ Clear, I'll add manually</button>
                       </div>
                     </div>
                   )}
