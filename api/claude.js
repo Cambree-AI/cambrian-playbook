@@ -20,6 +20,7 @@ async function callAnthropic(body) {
 }
 
 export default async function handler(req, res) {
+  const _t0 = Date.now(); // request receipt — for api_usage_log.duration_ms
   const body = await guard(req, res, { stream: false });
   if (!body) return;
 
@@ -130,6 +131,7 @@ export default async function handler(req, res) {
       cacheCreationTokens: data.usage.cache_creation_input_tokens || 0,
       webSearches,
       endpoint: "claude",
+      durationMs: Date.now() - _t0,
       ...tracking,
     });
   }
