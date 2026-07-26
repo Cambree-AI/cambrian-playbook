@@ -112,12 +112,20 @@ export default async function handler(req, res) {
   // Parse token usage from SSE stream for cost tracking
   const userId = extractUserId(req);
   try {
-    // Extract usage from message_start and message_delta events
-    const msgStart = streamedText.match(/"message_start".*?"usage"\s*:\s*(\{[^}]+\})/);
-    const msgDelta = streamedText.match(/"message_delta".*?"usage"\s*:\s*(\{[^}]+\})/);
-    const startUsage = msgStart ? JSON.parse(msgStart[1]) : {};
-    const deltaUsage = msgDelta ? JSON.parse(msgDelta[1]) : {};
-    const modelMatch = streamedText.match(/"model"\s*:\s*"([^"]+)"/);
+    // Extract usage by parsing SSE data lines as complete JSON. The old regex
+    // truncated at the first "}" inside nested usage objects (cache_creation,
+    // server_tool_use), so JSON.parse threw and NOTHING ever logged for streams.
+    let startUsage = {}, deltaUsage = {}, modelFromStream = null;
+    for (const line of streamedText.split("\n")) {
+      if (!line.startsWith("data:")) continue;
+      let evt; try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+      if (evt?.type === "message_start" && evt.message) {
+        if (evt.message.usage) startUsage = evt.message.usage;
+        if (evt.message.model) modelFromStream = evt.message.model;
+      } else if (evt?.type === "message_delta" && evt.usage) {
+        deltaUsage = evt.usage;
+      }
+    }
     const cacheReadTokens = startUsage.cache_read_input_tokens || 0;
     const cacheCreationTokens = startUsage.cache_creation_input_tokens || 0;
     const inputTokens = (startUsage.input_tokens || 0) + cacheCreationTokens + cacheReadTokens;
@@ -129,7 +137,7 @@ export default async function handler(req, res) {
       logTokenUsage({
         userId,
         orgId: usageOrgId,
-        model: modelMatch?.[1] || body.model,
+        model: modelFromStream || body.model,
         inputTokens, outputTokens,
         cacheReadTokens,
         cacheCreationTokens,
