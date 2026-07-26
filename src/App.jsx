@@ -5617,6 +5617,7 @@ export default function App(){
   const[thePlay,setThePlay]=useState(null);
   const[playState,setPlayState]=useState("idle");
   const playBuiltRef=useRef(false); // prevents double-fire per account
+  const autoSectionRetryRef=useRef(null); // company already auto-retried once — golden-goose guard, can never loop
   const playBuiltFromSigRef = useRef(null); // buyerRole signature the Play last built from (C2.4: detect superseded solutions)
   const solutionFitBuiltRef=useRef(false); // prevents double-fire of pre-call SA (solConEnabled path only)
   // ── SOLUTION CONSOLIDATION FEATURE FLAG ─────────────────────────────────────
@@ -9202,6 +9203,19 @@ Return ONLY raw JSON:
     // Exec state deliberately excluded: zero/withheld execs must not block the Play (§2.10 rule 5)
     const missingData = !hasOverview || !hasSolutions || !hasSignals;
     if (allSettled && missingData) {
+      // GOLDEN-GOOSE GUARD: if sections actually FAILED (transient web-search/API
+      // hiccups), silently fire the exact "Retry Brief (free)" path ONCE before
+      // surfacing failure. Metering-exempt (forceRebuild). Ref-keyed per account —
+      // a second failure falls through to the weak-inputs card exactly as today.
+      // Genuinely thin companies (no failed sections) skip straight to the card.
+      const _retryCo = selectedAccount?.company;
+      if (_retryCo && autoSectionRetryRef.current !== _retryCo && (brief?._failedSections||[]).length > 0 && !briefLoading) {
+        autoSectionRetryRef.current = _retryCo;
+        console.warn("[ThePlay] Auto-retrying failed sections once before declaring weak inputs:", brief?._failedSections);
+        setBriefError("");
+        pickAccount(selectedAccount, null, true);
+        return;
+      }
       const flagVal = (() => { try { return localStorage.getItem("cc_play_synthesis") || "on"; } catch { return "on"; } })();
       console.warn("[ThePlay] Weak inputs: all sections settled, required data missing", settled);
       if (flagVal !== "shadow") setPlayState("weak-inputs");
