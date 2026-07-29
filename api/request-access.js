@@ -38,6 +38,22 @@ export default async function handler(req, res) {
 
   const created_at = new Date().toISOString();
 
+  // Idempotency: if the same email was already submitted within the last 15 minutes, return
+  // success without inserting a duplicate row or re-sending the founder notification email.
+  const idempotencyWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  try {
+    const dupCheck = await fetch(
+      `${SB_URL}/rest/v1/access_requests?email=eq.${encodeURIComponent(email.trim())}&created_at=gte.${encodeURIComponent(idempotencyWindow)}&select=id&limit=1`,
+      { headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` } }
+    );
+    if (dupCheck.ok) {
+      const rows = await dupCheck.json();
+      if (Array.isArray(rows) && rows.length > 0) {
+        return res.json({ ok: true, message: "Request received. We review every request and send invites personally." });
+      }
+    }
+  } catch (e) { console.warn("[request-access] Idempotency check failed:", e.message); }
+
   // 1. Insert the request row
   try {
     await fetch(`${SB_URL}/rest/v1/access_requests`, {

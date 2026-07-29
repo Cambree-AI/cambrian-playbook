@@ -4146,6 +4146,7 @@ function PasswordGate({ onAuth }) {
   const[last,setLast]=React.useState("");
   const[err,setErr]=React.useState("");
   const[loading,setLoading]=React.useState(false);
+  const reqInFlightRef=React.useRef(false); // guard: prevents double-fire from Enter (onKeyDown + form submit event)
   const[verifying,setVerifying]=React.useState(false);
   const[guestOk,setGuestOk]=React.useState(false);
   const[resetSent,setResetSent]=React.useState(false);
@@ -4272,16 +4273,18 @@ function PasswordGate({ onAuth }) {
     setErr("");setLoading(true);
     try {
       if(mode==="request"){
+        if(reqInFlightRef.current) return; // guard: synchronous check prevents double-fire before React re-renders
         const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if(!first||!last||!email||!company){setErr("Please fill in every field.");setLoading(false);return;}
         if(!EMAIL_RE.test(email)){setErr("Please enter a valid work email.");setLoading(false);return;}
+        reqInFlightRef.current=true;
         const r=await fetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{note:"Promo code: "+promoCode.trim()}:{})}),
         });
         if(r.ok){setRequestSent(true);setErr("");}
-        else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");}
+        else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");reqInFlightRef.current=false;}
         setLoading(false);return;
       }
       if(mode==="signup"){
@@ -4337,7 +4340,7 @@ function PasswordGate({ onAuth }) {
         if(d.access_token){sbStoreTokens(d);onAuth(d.user,d.access_token);}
         else setErr(d.error_description||'Incorrect email or password');
       }
-    } catch(e) { setErr('Network error — check your connection and try again.'); }
+    } catch(e) { setErr('Network error — check your connection and try again.'); reqInFlightRef.current=false; }
     setLoading(false);
   };
 
