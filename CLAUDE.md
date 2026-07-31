@@ -125,6 +125,7 @@ Read on demand — don't preload. **Durable** = still-accurate reference. **Hist
 - **docs/branching.md** — the branching/release workflow: issue-backed branches, naming scheme, branch → dev → staging → main flow.
 - **docs/kanban.md** — Fibonacci story-point estimation scale for sprint/Kanban items (point meanings, split thresholds, velocity guidance).
 - **docs/aws-migration-plan.md** — living plan for the Vercel → AWS migration: Vercel→AWS tech mapping, Step Functions/Fargate/SQS job architecture, Bedrock evaluation, Jest test-suite prerequisite, Terraform + Amplify phases.
+- **docs/refactoring.md** — phased plan to decompose the App.jsx monolith into tested modules/components (Jest+RTL infra, pure-logic extraction, domain hooks, stage components, pipeline isolation for the AWS port).
 - **docs/cambrian-catalyst-overview.md** — canonical product primer: workflow, RIVER framework, Milton, positioning, current pricing.
 - **docs/knowledge-layer.md** — what's *in* the knowledge layer: 13 frameworks with injection text, scoring heuristics, ICP enums, RFP sources.
 - **docs/knowledge-layer-review.md** — how the layer works internally: file inventory, injection mechanics, calibration rules, coverage gaps.
