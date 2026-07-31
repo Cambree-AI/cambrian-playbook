@@ -36,8 +36,8 @@ Full workflow: **[docs/branching.md](docs/branching.md)**. Summary:
 - `staging` is always ready to flip to **`main`** (production). Merge to main in small batches, **tagging before each merge**.
 - Vercel auto-deploys `main` to production (`cambriancatalyst.ai`). Never run `vercel --prod` manually, and especially never from inside `src/`.
 - Staging shares the **production** Supabase database — be careful with migrations and data writes from staging.
-- Rollback = reset to the last good tag (e.g. `v2.0.0-stable`) and force-push. Release history: AUDIT_GUIDE.md and docs/archive/PRODUCTION_RELEASE_2026-06-09.md.
-- Before shipping any scoring or brief-pipeline change: run the 10-target Stage-0 validation (always include Stripe for contamination and Boeing for revenue/HQ); reject the change if any correctly-scored target regresses >5 points. Protocol in STAGE_0_REMEDIATION_PLAN.md.
+- Rollback = reset to the last good tag (e.g. `v2.0.0-stable`) and force-push. Release history: docs/AUDIT_GUIDE.md and docs/archive/PRODUCTION_RELEASE_2026-06-09.md.
+- Before shipping any scoring or brief-pipeline change: run the 10-target Stage-0 validation (always include Stripe for contamination and Boeing for revenue/HQ); reject the change if any correctly-scored target regresses >5 points. Protocol in docs/STAGE_0_REMEDIATION_PLAN.md.
 - **Never attribute Claude anywhere on GitHub** — no "Generated with Claude Code", "Co-Authored-By: Claude", or similar in commit messages, PR bodies, or comments on issues/PRs.
 
 ## Architecture
@@ -90,8 +90,8 @@ docs/archive/                # historical session/audit/release logs (see index 
 
 - **The browser never calls Anthropic or holds the API key.** All Claude traffic goes `src/lib/api.js` → `/api/claude` or `/api/claude-stream` → `api/_guard.js` → Anthropic (with prompt caching enabled). CSP in `vercel.json` enforces this.
 - **Models** (`src/config/constants.js`, allowlist in `api/_guard.js:18`): Haiku `claude-haiku-4-5-20251001` is the workhorse; Sonnet `claude-sonnet-4-6` for brief sections and ICP pass 2; Opus `claude-opus-4-6` only for ICP pass 1 and P3 strategy. On 529 overload the guard falls back per `MODEL_FALLBACK` (Opus→Sonnet, Sonnet↔Haiku). Historical gotcha: P3 under concurrent load must not use Opus (rate limits) — it was deliberately moved to Sonnet.
-- **Brief generation** = staggered micro-calls (p1 overview … p9), 3 waves / max 3 concurrent, 90s hard timeout, with a synchronous cross-section consistency validator before the brief is marked complete. Rationale for every guardrail is in ROOT_CAUSE_ANALYSIS.md.
-- **Fit scoring is deterministic** ("Option C", `src/lib/fitScoring.js`): the LLM only extracts 14 signals; JS computes the score. Dim1 Product Fit 45% / Dim2 Customer Lookalike 30% / Dim3 Competitive Displacement 25%. Labels: ≥75 Strong / ≥55 Potential / else Poor; competitors score 0. Spec: OPTION_C_SCORING_SPEC.md.
+- **Brief generation** = staggered micro-calls (p1 overview … p9), 3 waves / max 3 concurrent, 90s hard timeout, with a synchronous cross-section consistency validator before the brief is marked complete. Rationale for every guardrail is in docs/ROOT_CAUSE_ANALYSIS.md.
+- **Fit scoring is deterministic** ("Option C", `src/lib/fitScoring.js`): the LLM only extracts 14 signals; JS computes the score. Dim1 Product Fit 45% / Dim2 Customer Lookalike 30% / Dim3 Competitive Displacement 25%. Labels: ≥75 Strong / ≥55 Potential / else Poor; competitors score 0. Spec: docs/OPTION_C_SCORING_SPEC.md.
 - **Knowledge layer** (`src/data/`): ~3,650+ lines of curated sales heuristics — the product's IP. Served only through JWT-gated `/api/knowledge.js`; **must never be imported into client-bundle code paths**. Keyword-matching injection functions live in App.jsx (~lines 517–800).
 - **Supabase**: browser uses the anon key + user JWT under RLS; server functions use the service_role key. Key tables: `orgs`, `org_members`/`users`, `invitations`, `sessions`, `account_outputs`, `api_usage_log`, plus ~10 data-science/telemetry tables. RLS policies use `auth.uid()::text = user_id` — the `::text` cast is required.
 - **App.jsx is canonical.** Some extracted modules under `src/lib/` and `src/data/prompts/` have drifted from the inline versions in App.jsx and are reference-only — `fitScoring.js` is the notable exception that IS live. Verify before assuming an extracted module is what runs.
@@ -114,17 +114,14 @@ Client (`import.meta.env`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE
 
 Read on demand — don't preload. **Durable** = still-accurate reference. **Historical** = point-in-time log; consult only for archaeology/provenance. Where docs conflict, newer wins (June 2026 "v2.x" era > April 2026 "v99–v108" era) and code beats both.
 
-### Durable references (root)
-
-- **ARCHITECTURE.md** — the authoritative June-2026 structural audit: App.jsx internals, p1–p9 pipeline, guard layers, Supabase schema, 16 known architectural issues. Start here for any deep structural work.
-- **OPTION_C_SCORING_SPEC.md** — canonical spec for the deterministic fit-scoring engine (signals, dims, weights, expected scores).
-- **ROOT_CAUSE_ANALYSIS.md** — why each brief-pipeline guardrail exists (6 systemic data-quality root causes and their structural fixes).
-- **AUDIT_GUIDE.md** — the standing QA procedure for auditing a generated brief (contamination checks, tolerances, source-tag rules) + release history.
-- **STAGE_0_REMEDIATION_PLAN.md** — most recent open-issues work-plan (June 11) with file/line pointers; includes the pre-ship validation protocol. Check items against current code before acting — some may be done.
-- **AGENT_CONTEXT.md** — richest single onboarding doc, but written for the April-2026 app: its App.jsx size, model strategy, 5-call pipeline, 40/30/30 scoring, and "known gaps" list are **superseded**. Its security/env/deploy guidance remains good.
-
 ### Durable references (docs/)
 
+- **docs/ARCHITECTURE.md** — the authoritative June-2026 structural audit: App.jsx internals, p1–p9 pipeline, guard layers, Supabase schema, 16 known architectural issues. Start here for any deep structural work.
+- **docs/OPTION_C_SCORING_SPEC.md** — canonical spec for the deterministic fit-scoring engine (signals, dims, weights, expected scores).
+- **docs/ROOT_CAUSE_ANALYSIS.md** — why each brief-pipeline guardrail exists (6 systemic data-quality root causes and their structural fixes).
+- **docs/AUDIT_GUIDE.md** — the standing QA procedure for auditing a generated brief (contamination checks, tolerances, source-tag rules) + release history.
+- **docs/STAGE_0_REMEDIATION_PLAN.md** — most recent open-issues work-plan (June 11) with file/line pointers; includes the pre-ship validation protocol. Check items against current code before acting — some may be done.
+- **docs/AGENT_CONTEXT.md** — richest single onboarding doc, but written for the April-2026 app: its App.jsx size, model strategy, 5-call pipeline, 40/30/30 scoring, and "known gaps" list are **superseded**. Its security/env/deploy guidance remains good.
 - **docs/branching.md** — the branching/release workflow: issue-backed branches, naming scheme, branch → dev → staging → main flow.
 - **docs/cambrian-catalyst-overview.md** — canonical product primer: workflow, RIVER framework, Milton, positioning, current pricing.
 - **docs/knowledge-layer.md** — what's *in* the knowledge layer: 13 frameworks with injection text, scoring heuristics, ICP enums, RFP sources.
