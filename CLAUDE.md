@@ -124,6 +124,7 @@ Read on demand — don't preload. **Durable** = still-accurate reference. **Hist
 - **docs/AGENT_CONTEXT.md** — richest single onboarding doc, but written for the April-2026 app: its App.jsx size, model strategy, 5-call pipeline, 40/30/30 scoring, and "known gaps" list are **superseded**. Its security/env/deploy guidance remains good.
 - **docs/branching.md** — the branching/release workflow: issue-backed branches, naming scheme, branch → dev → staging → main flow.
 - **docs/kanban.md** — Fibonacci story-point estimation scale for sprint/Kanban items (point meanings, split thresholds, velocity guidance).
+- **docs/aws-migration-plan.md** — living plan for the Vercel → AWS migration: Vercel→AWS tech mapping, Step Functions/Fargate/SQS job architecture, Bedrock evaluation, Jest test-suite prerequisite, Terraform + Amplify phases.
 - **docs/cambrian-catalyst-overview.md** — canonical product primer: workflow, RIVER framework, Milton, positioning, current pricing.
 - **docs/knowledge-layer.md** — what's *in* the knowledge layer: 13 frameworks with injection text, scoring heuristics, ICP enums, RFP sources.
 - **docs/knowledge-layer-review.md** — how the layer works internally: file inventory, injection mechanics, calibration rules, coverage gaps.
