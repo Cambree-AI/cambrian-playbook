@@ -66,7 +66,7 @@ The key structural change: today `src/App.jsx` orchestrates the entire brief pip
   - the 90s hard timeout becomes per-state `TimeoutSeconds`.
 - **Fargate** runs the worker container for LLM-calling states (long-running, no Lambda 15-min ceiling, room for pdfjs/large prompts). The knowledge layer (`src/data/`) and prompt fragments are baked into this image — this replaces `/api/knowledge.js` as the way IP stays out of the client bundle. Small glue states can be Lambda where cheaper.
 - **Progress/streaming:** each state writes progress to a job-status record; the SPA polls a `GET /jobs/:id` Lambda (v1) with an upgrade path to WebSockets/AppSync push (v2). The current SSE token-streaming UX is retired.
-- **Job/state storage:** job metadata + intermediate p1–p9 outputs in Supabase (or DynamoDB if we want AWS-native job state — open question §8).
+- **Job/state storage:** job metadata + intermediate p1–p9 outputs in Supabase (or DynamoDB if we want AWS-native job state — open question §9).
 
 ## 4. Bedrock evaluation (cost lever for Sonnet/Haiku)
 
@@ -85,7 +85,21 @@ Build this **before** replatforming — it is the safety net for extracting logi
 - **LLM mocking (required):** no Jest test may call the live LLM. Mock at the client seam — `src/lib/api.js` (`callAI`/`callAIRaw`/`streamAI`) — with fixture responses (recorded real outputs, e.g. golden-set report JSON). Backend worker tests mock the Bedrock/Anthropic SDK the same way. The existing live-API **golden set** remains a separate integration tier (CI-gated, not part of `jest`).
 - CI: Jest runs on every PR (free, fast); knowledge-lint stays; golden-set lite stays PR-optional/label-gated per the existing test policy.
 
-## 6. Terraform
+## 6. Lambda scaling & concurrency (thousands of users)
+
+Concurrency ≈ requests/sec × average duration, so Lambda limits bite on long handlers, not user count. Design rules:
+
+- **No long-running work on Lambda.** All LLM pipeline calls (30–300s each) run on Fargate behind SQS — 200 simultaneous briefs × 9 micro-calls would otherwise consume the default regional limit (1,000 concurrent executions, shared across all functions) instantly. Lambda handlers stay short (<1s).
+- **Light endpoints are safe at this scale:** ~200 req/s at 300ms ≈ 60 concurrent executions. Load follows active requests, not seats.
+- **Job-status polling is the endpoint that scales with load:** 1,000 active briefs polling every 2s ≈ 500 req/s (still ~50–100 concurrent at 100–200ms). This is the strongest argument for the WebSockets/AppSync push upgrade (§9) — push removes the traffic class entirely.
+- **Supabase connections, not Lambda concurrency, are the likelier scaling failure.** Hundreds of concurrent Lambdas opening direct Postgres connections will exhaust Supabase's pool first. Lambdas must use Supabase's pooler (Supavisor, transaction mode) or the REST/PostgREST API — never direct connections.
+- **Phase 0 task:** request a Lambda concurrency quota raise (soft limit; tens of thousands available via support ticket).
+- **Reserved concurrency** for critical functions (`stripe-webhook`, job submit) so bursty endpoints can't starve payments.
+- **Cache the cacheable:** the knowledge endpoint is static per plan tier — CloudFront/API Gateway caching removes most of its traffic.
+- **API Gateway throttling/usage plans** provide backpressure (and replace `_guard.js`'s in-memory per-IP limiter).
+- **Burst behavior:** each function scales at ~1,000 concurrent per 10s; sudden spikes throttle briefly even under quota. SQS-backed paths absorb this; synchronous clients must retry with backoff.
+
+## 7. Terraform
 
 All AWS infrastructure is Terraform-managed from a new `infra/` directory — no console-created resources.
 
@@ -94,11 +108,11 @@ All AWS infrastructure is Terraform-managed from a new `infra/` directory — no
 - Amplify itself is created via Terraform (`aws_amplify_app`, `aws_amplify_branch`, `aws_amplify_domain_association`) so hosting config is code, not console.
 - Bedrock access (model-invocation IAM policies, inference profiles) is Terraform-managed.
 
-## 7. Migration phases (in order)
+## 8. Migration phases (in order)
 
 Each phase = issue-backed branches per docs/branching.md; every phase ends with the app fully working (strangler pattern — Vercel stays live until Phase 9 cutover).
 
-1. **Phase 0 — Foundations.** AWS account/org, Terraform state backend, `infra/` skeleton, ECR repo, Secrets Manager entries mirroring Vercel env vars, CI credentials (GitHub OIDC → AWS).
+1. **Phase 0 — Foundations.** AWS account/org, Terraform state backend, `infra/` skeleton, ECR repo, Secrets Manager entries mirroring Vercel env vars, CI credentials (GitHub OIDC → AWS), Lambda concurrency quota raise (§6).
 2. **Phase 1 — Jest test suite.** Jest + RTL wiring, LLM mock layer at `src/lib/api.js`, unit tests for `fitScoring.js` and lib modules, first component tests, CI job. Extract validator/merge logic from App.jsx as needed to test it.
 3. **Phase 2 — Amplify hosting (frontend parity).** Terraform-created Amplify app connected to the GitHub repo; branch builds for `dev`/`staging`/`main`; port rewrites + security headers from `vercel.json`; SPA still calls the existing Vercel `api/` (CORS/CSP updated). Validate on a test domain.
 4. **Phase 3 — Port light API endpoints.** `knowledge`, `enrich`, `enrich-free`, `checkout`, `stripe-webhook`, `contact`, `invite`, `referral`, `hubspot`, `admin` → Lambda + API Gateway, reusing `_guard.js`/`_usage.js` logic as a shared layer. Point the SPA at the new API per environment.
@@ -109,7 +123,7 @@ Each phase = issue-backed branches per docs/branching.md; every phase ends with 
 9. **Phase 8 — Hardening & load validation.** Golden-set full run on the AWS stack, Stage-0 10-target validation, rate limiting at API Gateway (replacing `_guard.js` in-memory limiter), WAF if warranted.
 10. **Phase 9 — Cutover & decommission.** Route 53 migration of `cambriancatalyst.ai` to Amplify, monitor, then remove Vercel project, `vercel.json`, and dead `api/` code.
 
-## 8. Open questions
+## 9. Open questions
 
 - Job/intermediate state store: Supabase (fewer moving parts, RLS reuse) vs. DynamoDB (AWS-native, TTL) — decide in Phase 4 design.
 - Progress UX: is polling acceptable at launch, or is push (WebSockets/AppSync) required to replace the current token-streaming feel?
