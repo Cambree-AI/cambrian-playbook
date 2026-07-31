@@ -36,7 +36,7 @@ Full workflow: **[docs/branching.md](docs/branching.md)**. Summary:
 - `staging` is always ready to flip to **`main`** (production). Merge to main in small batches, **tagging before each merge**.
 - Vercel auto-deploys `main` to production (`cambriancatalyst.ai`). Never run `vercel --prod` manually, and especially never from inside `src/`.
 - Staging shares the **production** Supabase database — be careful with migrations and data writes from staging.
-- Rollback = reset to the last good tag (e.g. `v2.0.0-stable`) and force-push. Release history: AUDIT_GUIDE.md and PRODUCTION_RELEASE_2026-06-09.md.
+- Rollback = reset to the last good tag (e.g. `v2.0.0-stable`) and force-push. Release history: AUDIT_GUIDE.md and docs/archive/PRODUCTION_RELEASE_2026-06-09.md.
 - Before shipping any scoring or brief-pipeline change: run the 10-target Stage-0 validation (always include Stripe for contamination and Boeing for revenue/HQ); reject the change if any correctly-scored target regresses >5 points. Protocol in STAGE_0_REMEDIATION_PLAN.md.
 - **Never attribute Claude anywhere on GitHub** — no "Generated with Claude Code", "Co-Authored-By: Claude", or similar in commit messages, PR bodies, or comments on issues/PRs.
 
@@ -83,6 +83,7 @@ tests/                       # knowledge-lint.js, golden-set/, icp-backtest/ (se
 .github/workflows/           # knowledge-lint, golden-set lite (PR) / full (weekly), backup, security-scan
 public/                      # static legal pages (/privacy /terms /support via vercel.json rewrites)
 drive/, docs/                # business docs & internal design docs (see index below)
+docs/archive/                # historical session/audit/release logs (see index below)
 ```
 
 ### How it fits together
@@ -134,7 +135,7 @@ Read on demand — don't preload. **Durable** = still-accurate reference. **Hist
 - **docs/knowledge-layer-dump.txt** — 355KB raw dump of `src/data/*.js`; read `src/data/` directly instead (the dump drifts).
 - **docs/cambrian-catalyst-inventory.xlsx** — binary feature inventory (regenerate via `scripts/export-inventory.mjs`).
 
-### Historical logs (skip unless doing archaeology)
+### Historical logs — `docs/archive/` (skip unless doing archaeology)
 
 - **CHANGELOG.md** — April-era v99→v108 history (JWT auth, proxy pivot, Clerk removal). Does not cover June v2.x.
 - **PRODUCTION_RELEASE_2026-06-09.md** — v2.1.1 release record; source of the branch/tag/rollback conventions above.
@@ -143,8 +144,8 @@ Read on demand — don't preload. **Durable** = still-accurate reference. **Hist
 - **STAGE_0_AUDIT_PLAN.md** — the 10-target golden-set matrix (matrix reusable; V0.1 results obsolete). Test seller = Blackhawk Network.
 - **STAGE_0_FINAL_AUDIT_RESULTS.md** — June-11 final Stage-0 outcome (6/8 pass; score calibration failed) — the latest recorded quality state.
 - **STAGE_0_STATUS.md**, **STAGE_0_FINAL_STATUS.md**, **STAGE_0_AUDIT_STATUS.md**, **STAGE_0_AUDIT_V0.2.md**, **STAGE_0_POST_AUDIT_FIXES.md**, **OPTION_C_TEST_PLAN.md** — intermediate status/fix snapshots from June 8–11, each superseded by the two docs above.
-- **docs/status-2026-05-04.md** — May-4 beta-launch snapshot (its pricing table is the authoritative one: Starter $99/Pro $349/Team $799/Enterprise $2,500).
-- **docs/ux-plan.md** — aspirational UX plan; partly reversed (dark mode was later removed).
+- **status-2026-05-04.md** — May-4 beta-launch snapshot (its pricing table is the authoritative one: Starter $99/Pro $349/Team $799/Enterprise $2,500).
+- **ux-plan.md** — aspirational UX plan; partly reversed (dark mode was later removed).
 
 ### Known cross-doc conflicts (resolved)
 

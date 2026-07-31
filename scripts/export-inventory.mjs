@@ -268,7 +268,7 @@ const disabled = [
 
 // Backlog
 const backlog = [
-  ["UX Phase 4 — expandable table rows, sidebar, tooltips", "Designed in docs/ux-plan.md"],
+  ["UX Phase 4 — expandable table rows, sidebar, tooltips", "Designed in docs/archive/ux-plan.md"],
   ["Export update for new brief fields", "publicSentiment, joltPlan, challengerInsight missing from export"],
   ["CSS extraction for faster first paint", "Not started"],
   ["Full HMAC JWT verification", "Needs SUPABASE_JWT_SECRET env var"],
