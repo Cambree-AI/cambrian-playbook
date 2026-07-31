@@ -20,7 +20,7 @@ Related docs: [ARCHITECTURE.md](ARCHITECTURE.md) (current structure), [branching
 | Vercel Cron (3 jobs: monthly token reset, weekly data refresh, weekly seller profiles) | `vercel.json` `crons` + `api/cron-*.js` | **EventBridge Scheduler** → Lambda (or SQS → existing job system), `CRON_SECRET` replaced by IAM |
 | Preview deployments per branch (staging validation) | Vercel Git integration | Amplify **branch deployments**: `dev`, `staging`, `main` each auto-build; mirrors docs/branching.md |
 | Environment variables / secrets | Vercel project settings | **SSM Parameter Store / Secrets Manager**, injected via Terraform into Amplify, Lambda, and Fargate task definitions |
-| SSE streaming (`api/claude-stream.js` → `streamAI`) | Brief sections p1/p3/p4 stream to the UI | Replaced by the async job model (§3): status polling or **API Gateway WebSockets / AppSync subscriptions** for progress updates. (API Gateway does not proxy SSE well.) |
+| SSE streaming (`api/claude-stream.js` → `streamAI`) | Brief sections p1/p3/p4 stream to the UI | Replaced by the async job model (§3): **API Gateway WebSocket API** pushes job/section progress to the client. (API Gateway does not proxy SSE well.) |
 | Vercel 12-function limit workarounds (`hubspot.js` consolidation) | `api/hubspot.js` | No longer needed — can split into natural endpoints |
 | Domain `cambriancatalyst.ai` | Vercel DNS | **Route 53** + ACM certificate, attached to Amplify |
 
@@ -65,7 +65,7 @@ The key structural change: today `src/App.jsx` orchestrates the entire brief pip
   - retries/backoff on Anthropic 500/529 replace the hand-rolled `claudeFetch` retry;
   - the 90s hard timeout becomes per-state `TimeoutSeconds`.
 - **Fargate** runs the worker container for LLM-calling states (long-running, no Lambda 15-min ceiling, room for pdfjs/large prompts). The knowledge layer (`src/data/`) and prompt fragments are baked into this image — this replaces `/api/knowledge.js` as the way IP stays out of the client bundle. Small glue states can be Lambda where cheaper.
-- **Progress/streaming:** each state writes progress to a job-status record; the SPA polls a `GET /jobs/:id` Lambda (v1) with an upgrade path to WebSockets/AppSync push (v2). The current SSE token-streaming UX is retired.
+- **Progress/streaming (WebSocket push):** the SPA opens an **API Gateway WebSocket API** connection when a job is submitted; connection IDs are stored in a DynamoDB connections table keyed by job/org. Each state-machine transition (section started, section complete, validator passed/failed, job done) invokes a small publisher Lambda that pushes the event to subscribed connections via `@connections`. A `GET /jobs/:id` Lambda remains as the reconnect/refresh fallback (client fetches current state on reconnect, then resumes push) — it is not the primary transport. The current SSE token-streaming UX is retired; the UI shows per-section progress rather than token-by-token text. (AppSync subscriptions are the managed alternative if we adopt AppSync elsewhere.)
 - **Job/state storage:** job metadata + intermediate p1–p9 outputs in Supabase (or DynamoDB if we want AWS-native job state — open question §9).
 
 ## 4. Bedrock evaluation (cost lever for Sonnet/Haiku)
@@ -91,7 +91,7 @@ Concurrency ≈ requests/sec × average duration, so Lambda limits bite on long 
 
 - **No long-running work on Lambda.** All LLM pipeline calls (30–300s each) run on Fargate behind SQS — 200 simultaneous briefs × 9 micro-calls would otherwise consume the default regional limit (1,000 concurrent executions, shared across all functions) instantly. Lambda handlers stay short (<1s).
 - **Light endpoints are safe at this scale:** ~200 req/s at 300ms ≈ 60 concurrent executions. Load follows active requests, not seats.
-- **Job-status polling is the endpoint that scales with load:** 1,000 active briefs polling every 2s ≈ 500 req/s (still ~50–100 concurrent at 100–200ms). This is the strongest argument for the WebSockets/AppSync push upgrade (§9) — push removes the traffic class entirely.
+- **Progress delivery is WebSocket push, not polling** (§3), so there is no high-volume status-polling traffic class: 1,000 active briefs polling every 2s would have been ~500 req/s of Lambda invocations; with push, Lambda work scales with *state transitions* (~a dozen per job), not with wall-clock time. WebSocket connections themselves don't consume Lambda concurrency while idle; the `GET /jobs/:id` fallback only fires on connect/reconnect.
 - **Supabase connections, not Lambda concurrency, are the likelier scaling failure.** Hundreds of concurrent Lambdas opening direct Postgres connections will exhaust Supabase's pool first. Lambdas must use Supabase's pooler (Supavisor, transaction mode) or the REST/PostgREST API — never direct connections.
 - **Phase 0 task:** request a Lambda concurrency quota raise (soft limit; tens of thousands available via support ticket).
 - **Reserved concurrency** for critical functions (`stripe-webhook`, job submit) so bursty endpoints can't starve payments.
@@ -104,7 +104,7 @@ Concurrency ≈ requests/sec × average duration, so Lambda limits bite on long 
 All AWS infrastructure is Terraform-managed from a new `infra/` directory — no console-created resources.
 
 - **State:** S3 backend + DynamoDB lock table; one workspace/state per environment (`dev`, `staging`, `prod`) matching the branch model.
-- **Modules (proposed):** `network` (VPC, subnets, endpoints), `ecr`, `ecs-worker` (cluster, task defs, autoscaling), `queue` (SQS + DLQ), `orchestration` (Step Functions, IAM roles), `api` (API Gateway, Lambdas), `crons` (EventBridge Scheduler), `secrets` (Secrets Manager/SSM), `amplify` (the Amplify app, branch config, domain, headers/rewrites), `dns` (Route 53, ACM), `observability` (CloudWatch dashboards/alarms, log groups, cost alarms).
+- **Modules (proposed):** `network` (VPC, subnets, endpoints), `ecr`, `ecs-worker` (cluster, task defs, autoscaling), `queue` (SQS + DLQ), `orchestration` (Step Functions, IAM roles), `api` (API Gateway REST + WebSocket APIs, Lambdas, DynamoDB connections table), `crons` (EventBridge Scheduler), `secrets` (Secrets Manager/SSM), `amplify` (the Amplify app, branch config, domain, headers/rewrites), `dns` (Route 53, ACM), `observability` (CloudWatch dashboards/alarms, log groups, cost alarms).
 - Amplify itself is created via Terraform (`aws_amplify_app`, `aws_amplify_branch`, `aws_amplify_domain_association`) so hosting config is code, not console.
 - Bedrock access (model-invocation IAM policies, inference profiles) is Terraform-managed.
 
@@ -116,7 +116,7 @@ Each phase = issue-backed branches per docs/branching.md; every phase ends with 
 2. **Phase 1 — Jest test suite.** Jest + RTL wiring, LLM mock layer at `src/lib/api.js`, unit tests for `fitScoring.js` and lib modules, first component tests, CI job. Extract validator/merge logic from App.jsx as needed to test it.
 3. **Phase 2 — Amplify hosting (frontend parity).** Terraform-created Amplify app connected to the GitHub repo; branch builds for `dev`/`staging`/`main`; port rewrites + security headers from `vercel.json`; SPA still calls the existing Vercel `api/` (CORS/CSP updated). Validate on a test domain.
 4. **Phase 3 — Port light API endpoints.** `knowledge`, `enrich`, `enrich-free`, `checkout`, `stripe-webhook`, `contact`, `invite`, `referral`, `hubspot`, `admin` → Lambda + API Gateway, reusing `_guard.js`/`_usage.js` logic as a shared layer. Point the SPA at the new API per environment.
-5. **Phase 4 — Job system.** SQS + Step Functions + Fargate worker image (knowledge layer baked in). Re-implement ICP build and the p1–p9 brief pipeline as state machines; frontend switches from client orchestration to submit/poll. This retires `api/claude.js` / `api/claude-stream.js` and the client-side `generateBrief()`.
+5. **Phase 4 — Job system.** SQS + Step Functions + Fargate worker image (knowledge layer baked in) + the WebSocket progress channel (WebSocket API, connections table, publisher Lambda). Re-implement ICP build and the p1–p9 brief pipeline as state machines; frontend switches from client orchestration to submit + WebSocket subscribe (with `GET /jobs/:id` reconnect fallback). This retires `api/claude.js` / `api/claude-stream.js` and the client-side `generateBrief()`.
 6. **Phase 5 — Bedrock evaluation.** Dual-provider worker client; cost + golden-set quality comparison; migrate non-search steps to Bedrock if both pass; keep Anthropic API for web_search steps.
 7. **Phase 6 — Crons.** Re-point the three cron jobs at EventBridge Scheduler → Lambda/SQS; retire `CRON_SECRET` for IAM auth.
 8. **Phase 7 — Observability & cost.** CloudWatch dashboards for job throughput/failures/DLQ depth, per-model token cost metrics (replacing `api_usage_log` console views or feeding it), budget alarms.
@@ -126,7 +126,7 @@ Each phase = issue-backed branches per docs/branching.md; every phase ends with 
 ## 9. Open questions
 
 - Job/intermediate state store: Supabase (fewer moving parts, RLS reuse) vs. DynamoDB (AWS-native, TTL) — decide in Phase 4 design.
-- Progress UX: is polling acceptable at launch, or is push (WebSockets/AppSync) required to replace the current token-streaming feel?
+- Progress UX granularity: per-section WebSocket events are the plan; is coarser-than-token streaming acceptable to users, or do any sections need chunked partial-text pushes over the socket?
 - Bedrock pricing/commitment model (on-demand vs. provisioned throughput vs. batch) — needs a real cost model run (`scripts/pl.mjs` update) with current volumes.
 - Amplify Gen 2 backend constructs vs. plain Terraform for the API — current plan says Terraform for everything except what Amplify Hosting requires; revisit if Amplify features (e.g. auth UI) become attractive.
 - Does the in-memory per-IP rate limiter in `_guard.js` need a distributed replacement (API Gateway throttling + usage plans) earlier than Phase 8?
