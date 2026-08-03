@@ -27,10 +27,10 @@ export function computeDim1(signals, sellerICP) {
   // Step B: Size (tiebreaker only)
   const brackets = ["1-49", "50-499", "500-4999", "5000-49999", "50000+"];
   const sellerTarget = (sellerICP?.icp?.companySize || "").toLowerCase();
-  const sellerIdx = brackets.findIndex(b => {
-    const low = parseInt(b.split("-")[0]);
-    return sellerTarget.includes(String(low)) || sellerTarget.includes(b);
-  });
+  // Find the lowest bracket in the seller's target range. Use exact bracket string
+  // match only — the old String(low) form matched "50" in "50000+", making every
+  // seller with a target above 50 employees look identical to a "50-499" target.
+  const sellerIdx = brackets.findIndex(b => sellerTarget.includes(b));
   const targetIdx = brackets.indexOf(signals.employeeBracket);
   const distance = (sellerIdx >= 0 && targetIdx >= 0) ? Math.abs(sellerIdx - targetIdx) : 2;
   const stepB = distance === 0 ? 3 : distance === 1 ? 2 : 0;
@@ -79,6 +79,15 @@ export function computeDim3(signals) {
   return 12;
 }
 
+// ── LABEL HELPER (single source of truth for all callers) ───────────────
+// Used by computeFitScore and by any client-side override that re-labels
+// after mutating a score (e.g. the known-customer dim2 boost in App.jsx).
+// Accepts the full signals object OR a plain { isCompetitor } object.
+export function labelForScore(score, signals = {}) {
+  if (signals.isCompetitor) return "Competitor";
+  return score >= 75 ? "Strong Fit" : score >= 55 ? "Potential Fit" : "Poor Fit";
+}
+
 // ── TOTAL SCORE ─────────────────────────────────────────────────────────
 export function computeFitScore(signals, sellerICP, fitWeights = { dim1: 45, dim2: 30, dim3: 25 }) {
   if (signals.isCompetitor) {
@@ -95,7 +104,7 @@ export function computeFitScore(signals, sellerICP, fitWeights = { dim1: 45, dim
   const d3 = (rawDim3 / 25) * fitWeights.dim3;
 
   const score = Math.max(0, Math.min(100, Math.round(d1 + d2 + d3)));
-  const label = score >= 75 ? "Strong Fit" : score >= 55 ? "Potential Fit" : "Poor Fit";
+  const label = labelForScore(score, signals);
 
   return { score, label, rawDim1, rawDim2, rawDim3 };
 }
@@ -136,10 +145,10 @@ export function buildSignalExtractionPrompt(companies, sellerCtx, sellerICP, icp
     `For EACH company, extract these signals:\n\n` +
 
     `SIGNAL DEFINITIONS:\n` +
-    `- industryMatch: "direct" | "adjacent" | "unrelated". Use "direct" if the seller's product is USED BY this industry — even if they're in different verticals. Example: a gift card company selling to a hotel chain = "direct" because hotels BUY gift cards for loyalty programs. A payment processor selling to a retailer = "direct" because retailers BUY payment processing. The question is "would this prospect BUY what the seller sells?" not "are they in the same industry?"\n` +
+    `- industryMatch: "direct" | "adjacent" | "unrelated". Use "direct" if the seller's product is USED BY this industry — even if they're in different verticals. Example: a gift card company selling to a hotel chain = "direct" because hotels BUY gift cards for loyalty programs. A payment processor selling to a retailer = "direct" because retailers BUY payment processing. CRITICAL: For employee recognition, rewards, gift card, incentive, or HR platforms — any large employer (5,000+ employees) is a DIRECT buyer regardless of their primary industry. Boeing, TikTok, Klarna, or any large enterprise buys these products for their own employees. The question is "would this prospect BUY what the seller sells?" not "are they in the same industry?"\n` +
     `- industryInSellerTargetList: true if the prospect's industry appears in the seller's target industry list above\n` +
     `- specificProductMapping: Name the SPECIFIC seller product(s) that map to SPECIFIC prospect needs. Be concrete: "Gift card distribution for Marriott Bonvoy loyalty program" not "gift cards for hospitality." Empty string if no specific mapping exists.\n` +
-    `- isExistingCustomer: true if this company appears in the seller's customer list above (fuzzy match: "Wyndham Hotels" matches "Wyndham")\n` +
+    `- isExistingCustomer: true if (a) this company appears in the seller's customer list above (fuzzy match: "Wyndham Hotels" matches "Wyndham"), OR (b) you have high-confidence knowledge from a press release, partnership announcement, case study, or public documentation that this company is a verified customer of the seller. Only set true if you can cite specific evidence — do not guess. Include the evidence source in customerSimilarity.\n` +
     `- closestCustomerName: Name of the seller's existing customer most similar to this prospect. Empty if none.\n` +
     `- closestCustomerIndustry: Industry of that closest customer.\n` +
     `- customerIndustryMatch: "same" (exact industry) | "same_sector" (same broad sector, different sub-industry) | "different"\n` +
@@ -161,7 +170,7 @@ export function buildSignalExtractionPrompt(companies, sellerCtx, sellerICP, icp
     `- NEVER invent facts. If unsure, use empty string or "different" (the conservative choice).\n` +
     `- isCompetitor must be accurate — a false positive here zeros out the entire score.\n` +
     `- hasVerifiedCompetitorRelationship requires CITED evidence. No citation = false.\n` +
-    `- isExistingCustomer: fuzzy match on name. "Wyndham Hotels & Resorts" matches "Wyndham".\n` +
+    `- isExistingCustomer: fuzzy match on name ("Wyndham Hotels & Resorts" matches "Wyndham"), OR verified via press release, partnership announcement, case study, or public documentation — cite the evidence in customerSimilarity.\n` +
     `- Customer-facing fields (reason, customerSimilarity, incumbentRisk) must NEVER contain scoring terminology, point values, or dimension references.\n\n` +
 
     `COMPANIES (Name|Industry|URL):\n${companies}\n\n` +

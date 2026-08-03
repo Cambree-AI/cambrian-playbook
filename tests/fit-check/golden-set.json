@@ -1,0 +1,76 @@
+{
+  "//": "Locked score ranges for the BHN golden set. Floor = ceiling = validated actual score (deterministic from frozen signals — any drift in computeFitScore is caught immediately).",
+  "seller": "BHN",
+  "lockedDate": "2026-06-28",
+  "lockedBy": "Joe Galano — human sign-off after Step 1 browser run",
+  "accounts": [
+    {
+      "name": "Marriott",
+      "label": "Strong Fit",
+      "scoreFloor": 79,
+      "scoreCeiling": 79
+    },
+    {
+      "name": "Chipotle",
+      "label": "Potential Fit",
+      "scoreFloor": 70,
+      "scoreCeiling": 70
+    },
+    {
+      "name": "Boeing",
+      "label": "Potential Fit",
+      "scoreFloor": 62,
+      "scoreCeiling": 62,
+      "//": "isExistingCustomer=false in this run — press-release fix not triggered. Score is validated at 62. If Boeing is added to customerExamples in prod ICP, the known-customer override will push dim2 to 30 (score=82) — a future golden-set update needed when that data is locked."
+    },
+    {
+      "name": "Stripe",
+      "label": "Potential Fit",
+      "scoreFloor": 59,
+      "scoreCeiling": 59,
+      "//": "Was 57 before sellerIdx bug fix (String(low) matched '50' in every bracket above 50-499)"
+    },
+    {
+      "name": "Feeding America",
+      "label": "Poor Fit",
+      "scoreFloor": 40,
+      "scoreCeiling": 40,
+      "//": "Was 39 before sellerIdx bug fix"
+    },
+    {
+      "name": "Circle",
+      "label": "Potential Fit",
+      "scoreFloor": 60,
+      "scoreCeiling": 60,
+      "//": "Was 59 before sellerIdx bug fix"
+    },
+    {
+      "name": "Polymarket",
+      "label": "Poor Fit",
+      "scoreFloor": 41,
+      "scoreCeiling": 41,
+      "//": "Was 42 before sellerIdx bug fix"
+    },
+    {
+      "name": "Kalshi",
+      "label": "Poor Fit",
+      "scoreFloor": 41,
+      "scoreCeiling": 41,
+      "//": "Was 42 before sellerIdx bug fix"
+    },
+    {
+      "name": "Verizon",
+      "label": "Strong Fit",
+      "scoreFloor": 82,
+      "scoreCeiling": 82,
+      "//": "Real BHN customer — exercises dim2=30 existing-customer path. isExistingCustomer=true → computeDim2 returns 30 directly."
+    },
+    {
+      "name": "Tango Card",
+      "label": "Competitor",
+      "scoreFloor": 0,
+      "scoreCeiling": 0,
+      "//": "Fixed — must always be exactly 0. Was 5 before competitor-override fix."
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "//": "The Play eval fixtures — brief+ICP inputs for 5 BHN-seller accounts.",
+  "//STATUS": "Synthetic but representative. Replace with live-captured brief data before locking floor/ceiling.",
+  "seller": "BHN",
+  "sellerICP": {
+    "sellerName": "BHN",
+    "sellerDescription": "BHN (Blackhawk Network) is a global branded-payment solutions company offering digital reward cards, prepaid cards, and incentive programs that help enterprises drive loyalty, reward employees, and close sales deals.",
+    "marketCategory": "Branded Payments & Incentive Solutions",
+    "icp": {
+      "companySize": "500-4999|5000-49999|50000+",
+      "industries": ["Hospitality", "Financial Services", "Technology", "Healthcare", "Retail", "Insurance"],
+      "productCatalog": [
+        { "name": "Tango Card", "description": "Digital reward and incentive delivery platform — send gift cards, prepaid Visa, and charitable donations at scale." },
+        { "name": "BHN Rewards", "description": "Enterprise reward management platform for employee recognition, sales incentives, and customer loyalty programs." },
+        { "name": "Prepaid Card Solutions", "description": "Custom branded prepaid Visa/Mastercard programs for employee benefits, rebates, and promotional payouts." }
+      ],
+      "customerExamples": ["Marriott", "Verizon", "Allstate", "Microsoft", "Salesforce"],
+      "verifiedCustomers": ["Marriott", "Verizon", "Allstate", "Microsoft", "Salesforce"],
+      "buyerPersonas": ["VP Rewards & Recognition", "Chief People Officer", "VP Sales Enablement", "Director of Loyalty Programs"]
+    }
+  },
+  "accounts": {
+    "Marriott": {
+      "company": "Marriott",
+      "company_url": "marriott.com",
+      "brief": {
+        "companySnapshot": "Marriott International is the world's largest hotel company with 8,700+ properties across 139 countries. They operate 30 hotel brands including Marriott, Sheraton, Westin, and Ritz-Carlton. Revenue of $23.7B (2023). The company is executing a post-pandemic loyalty expansion strategy centered on the Bonvoy program (210M+ members) and is investing heavily in personalized member experiences and digital engagement.",
+        "revenue": "$23.7B (2023)",
+        "employeeCount": "~377,000",
+        "headquarters": "Bethesda, MD",
+        "fundingProfile": "Public (NYSE: MAR)",
+        "competitors": ["Hilton", "Hyatt", "IHG"],
+        "keyExecutives": [
+          { "name": "Anthony Capuano", "title": "President & CEO", "linkedin": "" },
+          { "name": "Stephanie Linnartz", "title": "Former President (departed)", "linkedin": "" }
+        ],
+        "keyContacts": [
+          { "name": "David Rodriguez", "title": "EVP & Chief Human Resources Officer", "initials": "DR", "angle": "Bonvoy employee engagement programs" },
+          { "name": "Peggy Fang Roe", "title": "Chief Customer Officer", "initials": "PFR", "angle": "Loyalty program monetization" }
+        ],
+        "solutionMapping": [
+          { "product": "BHN Rewards", "imperativeServed": "Employee engagement at scale", "buyerRole": "CHRO", "jobToBeDone": "Reward 377,000 employees across 139 countries consistently", "painRelieved": "Fragmented local reward programs with no global consistency", "fit": "Strong", "provenWith": "Verizon", "measurableOutcome": "20-30% improvement in recognition program participation" },
+          { "product": "Tango Card", "imperativeServed": "Bonvoy member incentives", "buyerRole": "Chief Customer Officer", "jobToBeDone": "Digital reward delivery for loyalty tier upgrades and promotions", "painRelieved": "Physical gift card logistics and expiration waste", "fit": "Strong", "provenWith": "Marriott (existing)", "measurableOutcome": "Instant digital delivery vs 5-7 day physical" }
+        ],
+        "recentSignals": [
+          "Marriott Q3 2024 earnings: Bonvoy membership up 14% YoY to 210M members — loyalty expansion is top priority",
+          "Announced $1.2B technology investment including digital personalization for loyalty members",
+          "Hiring: 3 open roles in Loyalty Technology and Rewards Operations"
+        ],
+        "recentHeadlines": "Marriott expands Bonvoy partnerships; Q3 RevPAR up 4.3%",
+        "growthSignals": "International expansion into Middle East and Asia Pacific; luxury tier (Ritz/Edition) growing fastest",
+        "publicSentiment": { "sentimentSummary": "Positive — strong recovery narrative; some employee satisfaction concerns at property level" },
+        "strategicTheme": "Bonvoy loyalty expansion and digital personalization at scale",
+        "openingAngle": "BHN's digital reward delivery removes the friction between Bonvoy milestones and member delight — no physical cards, no expiry waste, instant global delivery to 210M members",
+        "sellerOpportunity": "Employee recognition for 377K global staff + Bonvoy member incentive delivery"
+      },
+      "fitScore": { "score": 79, "label": "Strong Fit", "reason": "Marriott's scale (377K employees, 210M loyalty members) maps directly to BHN's enterprise incentive platform. Existing relationship reduces displacement risk.", "color": "#22c55e", "bg": "#f0fdf4" }
+    },
+    "Stripe": {
+      "company": "Stripe",
+      "company_url": "stripe.com",
+      "brief": {
+        "companySnapshot": "Stripe is a financial infrastructure platform that enables businesses to accept payments, manage revenue, and build financial products. Processes hundreds of billions in payments annually. ~$1T in total payment volume (2023). ~8,000 employees. Series I/pre-IPO. Known for developer-first culture and aggressive hiring.",
+        "revenue": "~$15B (2023 est.)",
+        "employeeCount": "~8,000",
+        "headquarters": "San Francisco, CA / Dublin, Ireland",
+        "fundingProfile": "VC-backed, Series I — $6.5B raised, valued at $65B (2023 secondary)",
+        "competitors": ["Adyen", "Braintree", "Square", "PayPal"],
+        "keyExecutives": [
+          { "name": "Patrick Collison", "title": "CEO & Co-founder", "linkedin": "" },
+          { "name": "John Collison", "title": "President & Co-founder", "linkedin": "" }
+        ],
+        "keyContacts": [
+          { "name": "Jeff Becksted", "title": "Chief People Officer", "initials": "JB", "angle": "Scaling engineering culture; global hiring push" },
+          { "name": "Claire Hughes Johnson", "title": "Former COO / Board member", "initials": "CHJ", "angle": "Advisor on scaling ops" }
+        ],
+        "solutionMapping": [
+          { "product": "BHN Rewards", "imperativeServed": "Engineering talent retention", "buyerRole": "Chief People Officer", "jobToBeDone": "Differentiate Stripe's compensation with instant digital perks for 8,000+ engineers", "painRelieved": "Generic benefit packages that don't feel like Stripe's culture of craft", "fit": "Potential", "provenWith": "Microsoft", "measurableOutcome": "Programmable, branded reward delivery aligned with Stripe's API-first ethos" },
+          { "product": "Tango Card", "imperativeServed": "Sales incentive payouts", "buyerRole": "VP Sales", "jobToBeDone": "Instant SPIFFs and deal-close rewards for 1,000+ sales team", "painRelieved": "Manual Venmo/check processes for ad-hoc incentives", "fit": "Potential", "provenWith": "Salesforce", "measurableOutcome": "Same-day payout vs 2-3 week check cycle" }
+        ],
+        "recentSignals": [
+          "Stripe laid off 14% of workforce (2023), now rebuilding selectively — People team under pressure to show culture ROI",
+          "Announced global hiring push for 2024 across Dublin, Singapore, and NYC engineering hubs",
+          "Stripe launched Stripe Issuing for corporate cards — adjacent to BHN's prepaid programs"
+        ],
+        "recentHeadlines": "Stripe processing volume hits $1T; IPO speculation continues for 2025",
+        "growthSignals": "International expansion; enterprise segment (large merchants) growing 40% YoY",
+        "publicSentiment": { "sentimentSummary": "Mixed — developer community very positive; layoffs dampened internal morale; rebuilding employer brand" },
+        "strategicTheme": "Rebuilding culture ROI post-layoffs while scaling engineering globally",
+        "openingAngle": "After the 2023 reduction, Stripe's People team needs to demonstrate retention value fast — BHN's instant digital reward delivery gives engineers the same frictionless experience Stripe gives merchants",
+        "sellerOpportunity": "Employee retention rewards + sales incentive automation for the global rebuild"
+      },
+      "fitScore": { "score": 59, "label": "Potential Fit", "reason": "Engineering culture fit is strong but Stripe's VC-backed status and post-layoff budget scrutiny create risk. No confirmed existing BHN relationship.", "color": "#f59e0b", "bg": "#fffbeb" }
+    },
+    "Boeing": {
+      "company": "Boeing",
+      "company_url": "boeing.com",
+      "brief": {
+        "companySnapshot": "Boeing is the world's largest aerospace and defense manufacturer, producing commercial jetliners, military aircraft, and space systems. Revenue of $77.8B (2023). ~170,000 employees. The company is in crisis mode following the 737 MAX door-plug blowout incident (January 2024) and ongoing production quality issues. New CEO Kelly Ortberg appointed August 2024.",
+        "revenue": "$77.8B (2023)",
+        "employeeCount": "~170,000",
+        "headquarters": "Arlington, VA",
+        "fundingProfile": "Public (NYSE: BA) — $45B debt load; credit at risk of junk rating",
+        "competitors": ["Airbus", "Lockheed Martin", "Northrop Grumman"],
+        "keyExecutives": [
+          { "name": "Kelly Ortberg", "title": "President & CEO (since Aug 2024)", "linkedin": "" },
+          { "name": "Brian West", "title": "CFO", "linkedin": "" }
+        ],
+        "keyContacts": [
+          { "name": "Ziad Ojakli", "title": "EVP Government Operations & Head of HR", "initials": "ZO", "angle": "Safety culture rebuild — workforce engagement is priority 1" },
+          { "name": "Michael D'Ambrose", "title": "SVP & Chief Human Resources Officer", "initials": "MD", "angle": "Culture transformation and safety-linked recognition" }
+        ],
+        "solutionMapping": [
+          { "product": "BHN Rewards", "imperativeServed": "Safety culture recognition", "buyerRole": "CHRO", "jobToBeDone": "Recognize and reinforce safety-first behaviors across 170,000 manufacturing workers", "painRelieved": "Perception that Boeing rewards production speed over quality/safety", "fit": "Potential", "provenWith": "Verizon (workforce scale)", "measurableOutcome": "Measurable safety milestone recognition tied to behavior change" }
+        ],
+        "recentSignals": [
+          "DOJ investigation into 737 MAX quality failures — Boeing under consent decree",
+          "New CEO Kelly Ortberg's first 90 days focused entirely on 'culture of safety and accountability'",
+          "Machinists union strike (Sept 2024) — 33,000 workers walked out over pay and safety concerns"
+        ],
+        "recentHeadlines": "Boeing crisis deepens; Ortberg vows culture reset; FAA increases oversight",
+        "growthSignals": "Defense segment growing; commercial recovery contingent on quality fix",
+        "publicSentiment": { "sentimentSummary": "Very negative — safety crisis has damaged Boeing brand significantly; internal morale at historic low" },
+        "strategicTheme": "Safety culture reset and workforce trust rebuild under new CEO",
+        "openingAngle": "Boeing's new CEO has one mandate: make safety the culture, not a checkbox. BHN's recognition platform can make every safety milestone visible and celebrated — turning the cultural shift into something 170,000 workers feel.",
+        "sellerOpportunity": "Safety-linked recognition program for manufacturing workforce"
+      },
+      "fitScore": { "score": 62, "label": "Potential Fit", "reason": "Scale and crisis-driven urgency create a real opening for safety-recognition programs. Budget uncertainty from debt load and strike fallout is a risk.", "color": "#f59e0b", "bg": "#fffbeb" }
+    },
+    "Chipotle": {
+      "company": "Chipotle",
+      "company_url": "chipotle.com",
+      "brief": {
+        "companySnapshot": "Chipotle Mexican Grill is the largest fast-casual restaurant chain in North America, with 3,500+ locations and 120,000+ employees. Revenue of $9.9B (2023). Known for high employee turnover challenge (industry average 130% annually) and aggressive unit-growth strategy (opening 300+ new locations per year). Loyalty program (Chipotle Rewards) has 38M members.",
+        "revenue": "$9.9B (2023)",
+        "employeeCount": "~120,000",
+        "headquarters": "Newport Beach, CA",
+        "fundingProfile": "Public (NYSE: CMG)",
+        "competitors": ["Qdoba", "Moe's Southwest Grill", "Panera"],
+        "keyExecutives": [
+          { "name": "Brian Niccol", "title": "Former CEO (departed to Starbucks)", "linkedin": "" },
+          { "name": "Scott Boatwright", "title": "CEO (interim, since Sept 2024)", "linkedin": "" }
+        ],
+        "keyContacts": [
+          { "name": "Marissa Andrada", "title": "Chief People Officer (former)", "initials": "MA", "angle": "Employee retention" },
+          { "name": "Ilene Eskenazi", "title": "Chief Human Resources Officer", "initials": "IE", "angle": "Frontline retention and milestone rewards" }
+        ],
+        "solutionMapping": [
+          { "product": "BHN Rewards", "imperativeServed": "Frontline retention", "buyerRole": "Chief HR Officer", "jobToBeDone": "Reduce 130% annual turnover by recognizing tenure milestones and performance at 3,500 locations", "painRelieved": "High cost of constantly recruiting and training new crew members", "fit": "Strong", "provenWith": "Verizon (frontline scale)", "measurableOutcome": "10-20% reduction in turnover = $40-80M annual savings" },
+          { "product": "Tango Card", "imperativeServed": "Chipotle Rewards member incentives", "buyerRole": "VP Digital & Loyalty", "jobToBeDone": "Drive repeat visits with instant digital reward delivery to 38M loyalty members", "painRelieved": "Physical coupon redemption friction", "fit": "Potential", "provenWith": "Marriott (loyalty scale)", "measurableOutcome": "Instant digital delivery vs paper coupons" }
+        ],
+        "recentSignals": [
+          "Chipotle opened 315 new restaurants in 2023 — accelerating to 285-315 in 2024 with Chipotlane drive-thrus",
+          "CEO transition (Brian Niccol → Starbucks, Scott Boatwright interim) creates People team review moment",
+          "Chipotle Rewards grew 15% to 38M members — loyalty expansion is a board priority"
+        ],
+        "recentHeadlines": "Chipotle unit growth accelerating; CEO departure creates leadership gap",
+        "growthSignals": "International expansion to Canada, UK, Europe; Chipotlane format doubling new unit economics",
+        "publicSentiment": { "sentimentSummary": "Positive brand sentiment; frontline worker advocacy for better pay and recognition is a recurring issue" },
+        "strategicTheme": "Aggressive growth + frontline retention during CEO transition",
+        "openingAngle": "Every new Chipotle opens with the same retention challenge — BHN solves it before the first day.",
+        "sellerOpportunity": "Frontline recognition at 3,500 locations + Chipotle Rewards digital incentives"
+      },
+      "fitScore": { "score": 70, "label": "Potential Fit", "reason": "Scale and turnover urgency are ideal. CEO transition creates a window for new vendor relationships. Strong industry fit — restaurants are core BHN vertical.", "color": "#f59e0b", "bg": "#fffbeb" }
+    },
+    "Verizon": {
+      "company": "Verizon",
+      "company_url": "verizon.com",
+      "brief": {
+        "companySnapshot": "Verizon Communications is the largest U.S. wireless carrier with 143M+ subscribers and ~117,000 employees. Revenue of $133.9B (2023). The company is navigating a strategic pivot from pure connectivity to value-added services (Verizon+, myPlan, perks ecosystem) while managing significant 5G debt and declining wireline revenue. Existing BHN customer.",
+        "revenue": "$133.9B (2023)",
+        "employeeCount": "~117,000",
+        "headquarters": "New York, NY",
+        "fundingProfile": "Public (NYSE: VZ) — investment grade; $149B total debt post-5G buildout",
+        "competitors": ["AT&T", "T-Mobile", "Comcast"],
+        "keyExecutives": [
+          { "name": "Hans Vestberg", "title": "Chairman & CEO", "linkedin": "" },
+          { "name": "Kyle Malady", "title": "President, Verizon Business", "linkedin": "" }
+        ],
+        "keyContacts": [
+          { "name": "Christy Pambianchi", "title": "Chief People Officer", "initials": "CP", "angle": "Existing BHN relationship — expansion into myPlan perks" },
+          { "name": "Frank Boulben", "title": "Chief Revenue Officer", "initials": "FB", "angle": "myPlan and Verizon+ perks ecosystem" }
+        ],
+        "solutionMapping": [
+          { "product": "BHN Rewards", "imperativeServed": "Employee recognition at scale", "buyerRole": "Chief People Officer", "jobToBeDone": "Reward 117,000 employees across consumer and enterprise divisions with consistent digital recognition", "painRelieved": "Fragmented point solutions across divisions", "fit": "Strong", "provenWith": "Existing customer", "measurableOutcome": "Consolidated recognition platform replacing 3 legacy tools" },
+          { "product": "Tango Card", "imperativeServed": "myPlan subscriber perks", "buyerRole": "Chief Revenue Officer", "jobToBeDone": "Add instant digital reward redemption as a myPlan differentiator to reduce churn", "painRelieved": "Subscriber churn to T-Mobile's aggressive promotional offers", "fit": "Strong", "provenWith": "Existing relationship", "measurableOutcome": "Churn reduction of 0.1-0.2% = $130-260M retained revenue" }
+        ],
+        "recentSignals": [
+          "Verizon launched myPlan in 2023 — modular pricing with perks (Netflix, Disney+, Apple One) — actively seeking new perk partners",
+          "Q3 2024: postpaid phone net adds 239K — beating estimates on perks-driven retention",
+          "Open roles: Director, Loyalty & Rewards (Basking Ridge, NJ) — actively building out perks team"
+        ],
+        "recentHeadlines": "Verizon myPlan driving subscriber growth; 5G monetization on track",
+        "growthSignals": "Verizon Business (enterprise) growing 6% YoY; myPlan perks ecosystem expanding",
+        "publicSentiment": { "sentimentSummary": "Neutral-positive — myPlan messaging resonating; 5G debt load is investor concern" },
+        "strategicTheme": "myPlan perks ecosystem expansion + enterprise loyalty",
+        "openingAngle": "Verizon is already a BHN customer — the expansion play is myPlan perks: Tango Card as a native digital reward option accelerates the exact subscriber retention Verizon is chasing.",
+        "sellerOpportunity": "myPlan perks integration (Tango Card) + enterprise employee recognition expansion"
+      },
+      "fitScore": { "score": 82, "label": "Strong Fit", "reason": "Existing BHN customer with clear upsell vector into myPlan perks. Scale (117K employees, 143M subscribers) and active loyalty investment create immediate urgency.", "color": "#22c55e", "bg": "#f0fdf4" }
+    }
+  },
+  "contamination_pair": ["Marriott", "Stripe"],
+  "contamination_notes": "Marriott and Stripe are maximally distinct: hospitality vs fintech, 377K employees vs 8K, existing loyalty platform vs post-layoff rebuild. Account B (Stripe) play must contain zero references to Marriott, Bonvoy, Ritz-Carlton, or Marriott-specific signals."
+}

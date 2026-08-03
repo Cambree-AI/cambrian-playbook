@@ -12,6 +12,14 @@
     "test:golden": "node tests/golden-set/run.js",
     "test:golden:full": "node tests/golden-set/run.js --full",
     "test:backtest": "node tests/icp-backtest/backtest.js --self-test",
+    "test:noop": "node tests/fit-check/noop.js",
+    "test:fitscores": "node tests/fit-check/golden-scores.js",
+    "test:properties": "node tests/fit-check/properties.js",
+    "test:ssrf": "node tests/fetch-ssrf/ssrf.test.js",
+    "test:fitcheck": "npm run test:noop && npm run test:fitscores && npm run test:properties",
+    "test:play": "node tests/the-play/eval.js",
+    "test:regression": "node tests/fit-check/regression-sweep.js",
+    "test:regression:full": "node tests/fit-check/regression-sweep.js --full",
     "test": "npm run test:lint && npm run test:backtest && npm run test:golden"
   },
   "dependencies": {

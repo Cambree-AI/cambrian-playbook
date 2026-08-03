@@ -1,0 +1,70 @@
+{
+  "//": "Phase 2 regression fixtures for the isChannelPartner enhancement. These companies are both resellers/channel partners of BHN AND operate products that compete in adjacent spaces. Today's engine mis-scores them. Do not promote the isChannelPartner Phase 2 activation until these cases pass.",
+  "//STATUS": "PENDING — not yet run through the scorer. Signals are constructed from known facts, not a live [capture] run. Run a live extraction and freeze signals before locking floor/ceiling.",
+
+  "seller": "BHN",
+
+  "finding": "The current engine treats isCompetitor as a binary kill switch (score=0). Channel partners who resell or integrate BHN's platform are not competitors — they are customers who also happen to sell adjacent products. Scoring them zero is a false negative that hides an entire sales motion (reseller/partner pipeline). The isChannelPartner signal (Phase 2) must unlock a separate scoring path that overrides the competitor zero for verified resellers.",
+
+  "cases": [
+    {
+      "name": "AwardCo",
+      "//": "Employee recognition platform. Uses BHN/Tango APIs to power their reward catalog — a verified channel partner and customer. Also competes with BHN in the employee recognition space, so may appear in competitiveAlternatives. Today: likely scores 0 (competitor kill). Correct: should score as a Potential or Strong Fit reseller/partner account.",
+      "constructedSignals": {
+        "industryMatch": "direct",
+        "industryInSellerTargetList": true,
+        "specificProductMapping": "White-label reward catalog via Tango API embedded in AwardCo recognition platform; channel partner for digital reward fulfillment",
+        "isExistingCustomer": true,
+        "isCompetitor": true,
+        "isChannelPartner": true,
+        "closestCustomerName": "",
+        "closestCustomerIndustry": "",
+        "customerIndustryMatch": "same",
+        "customerUseCaseMatch": "same",
+        "competitorCustomerEvidence": "AwardCo integrates Tango Card/BHN APIs as reward fulfillment layer",
+        "hasVerifiedCompetitorRelationship": true,
+        "hasDeepPlatformLockin": false,
+        "ownershipType": "vc-backed",
+        "employeeBracket": "50-499",
+        "orgSize": "~200",
+        "ownership": "Private (VC-backed)"
+      },
+      "todayScore": "0 (Competitor — incorrect; should be Potential or Strong Fit as a channel partner)",
+      "expectedAfterPhase2": "isChannelPartner=true overrides the competitor kill; scores on product fit + dim3 displacement logic only",
+      "phaseGate": "Do not activate isChannelPartner logic until AwardCo scores >= 55 (Potential Fit) with isChannelPartner=true"
+    },
+    {
+      "name": "Achievers",
+      "//": "Employee recognition and engagement platform (acquired by Blackhawk Network in 2021, then operated as separate brand). Channel partner of BHN, powered by BHN reward infrastructure. Competes in recognition space. Same mis-score risk as AwardCo.",
+      "constructedSignals": {
+        "industryMatch": "direct",
+        "industryInSellerTargetList": true,
+        "specificProductMapping": "Employee recognition platform powered by BHN reward catalog; channel partner for points-based reward fulfillment and gift card distribution",
+        "isExistingCustomer": true,
+        "isCompetitor": true,
+        "isChannelPartner": true,
+        "closestCustomerName": "",
+        "closestCustomerIndustry": "",
+        "customerIndustryMatch": "same",
+        "customerUseCaseMatch": "same",
+        "competitorCustomerEvidence": "Achievers operates as BHN-powered recognition platform; was acquired by BHN in 2021",
+        "hasVerifiedCompetitorRelationship": true,
+        "hasDeepPlatformLockin": false,
+        "ownershipType": "pe-backed",
+        "employeeBracket": "500-4999",
+        "orgSize": "~1000",
+        "ownership": "Private (PE-backed, BHN subsidiary)"
+      },
+      "todayScore": "0 (Competitor — incorrect; is a BHN-owned/operated entity and channel partner)",
+      "expectedAfterPhase2": "isChannelPartner=true overrides the competitor kill; should score Strong Fit given it IS BHN infrastructure",
+      "phaseGate": "Do not activate isChannelPartner logic until Achievers scores >= 75 (Strong Fit) with isChannelPartner=true, given the acquisition relationship"
+    }
+  ],
+
+  "phase2EngineeringNotes": [
+    "isChannelPartner must be added to buildSignalExtractionPrompt signal definitions with a clear definition: true if the prospect resells, white-labels, or embeds the seller's product as a channel partner.",
+    "computeFitScore must check isChannelPartner BEFORE the isCompetitor kill: if isCompetitor=true AND isChannelPartner=true, bypass the competitor zero and score on dim1+dim2+dim3 with isCompetitor=false semantics.",
+    "The no-op test default for isChannelPartner is false (no change to existing scores). This is already in NEW_SIGNAL_DEFAULTS in noop.js.",
+    "After activation, run properties.js — the competitor→0 invariant will need a carve-out for isChannelPartner=true cases, or a separate assertion."
+  ]
+}

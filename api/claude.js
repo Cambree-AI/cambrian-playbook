@@ -20,6 +20,7 @@ async function callAnthropic(body) {
 }
 
 export default async function handler(req, res) {
+  const _t0 = Date.now(); // request receipt — for api_usage_log.duration_ms
   const body = await guard(req, res, { stream: false });
   if (!body) return;
 
@@ -43,10 +44,13 @@ export default async function handler(req, res) {
   // Usage limit enforcement — ALWAYS check for authenticated users.
   // Server determines billability, not client headers (prevents billing bypass).
   const isBillableMax = req.headers["x-billable-max"] === "1";
+  const isBillableRun = req.headers["x-billable-run"] === "1";
   let usageOrgId = null;
   let isMaxRun = false;
 
-  if (!req._isGuest) {
+  // Meter one run per play: only the client-designated billable call checks + increments.
+  // Sub-calls of the same brief skip metering, so a limit hit never aborts a brief mid-flight.
+  if (!req._isGuest && (isBillableRun || isBillableMax)) {
     const userId = extractUserId(req);
     if (userId) {
       const usage = await checkOrgUsage(userId, { isMax: isBillableMax });
@@ -83,6 +87,10 @@ export default async function handler(req, res) {
     usedFallback = true;
     res.setHeader("x-fallback-model", fallbackModel);
   }
+
+  // Propagate upstream backoff guidance — the client retry ladder honors Retry-After
+  const _retryAfter = response.headers.get("retry-after");
+  if (_retryAfter) res.setHeader("Retry-After", _retryAfter);
 
   // Guard against non-JSON responses (Anthropic 500/503 returns HTML)
   if (!response.ok && response.status !== 529) {
@@ -123,6 +131,7 @@ export default async function handler(req, res) {
       cacheCreationTokens: data.usage.cache_creation_input_tokens || 0,
       webSearches,
       endpoint: "claude",
+      durationMs: Date.now() - _t0,
       ...tracking,
     });
   }

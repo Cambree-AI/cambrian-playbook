@@ -13,7 +13,7 @@ const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 
 /** Log API token usage for cost tracking. Fire-and-forget. */
-export function logTokenUsage({ userId, orgId, model, inputTokens, outputTokens, cacheReadTokens = 0, cacheCreationTokens = 0, webSearches = 0, endpoint = "claude", targetCompany = null, sellerUrl = null, briefType = null }) {
+export function logTokenUsage({ userId, orgId, model, inputTokens, outputTokens, cacheReadTokens = 0, cacheCreationTokens = 0, webSearches = 0, endpoint = "claude", targetCompany = null, sellerUrl = null, briefType = null, durationMs = null }) {
   if (!SB_URL || !SB_KEY) return;
   const row = {
     user_id: userId || null,
@@ -30,6 +30,8 @@ export function logTokenUsage({ userId, orgId, model, inputTokens, outputTokens,
   if (targetCompany) row.target_company = targetCompany.slice(0, 200);
   if (sellerUrl) row.seller_url = sellerUrl.slice(0, 200);
   if (briefType) row.brief_type = briefType.slice(0, 50);
+  // Request duration in ms (duration_ms column — applied via Supabase before this deployed)
+  if (Number.isInteger(durationMs) && durationMs >= 0) row.duration_ms = durationMs;
   fetch(`${SB_URL}/rest/v1/api_usage_log`, {
     method: "POST",
     headers: {

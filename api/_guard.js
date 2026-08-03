@@ -264,7 +264,8 @@ function isAllowedOrigin(origin) {
   if (h === "cambrian-playbook.vercel.app") return true;
   if (/^cambrian-playbook[a-z0-9-]*\.vercel\.app$/.test(h)) return true;
   if (h.includes("cambrian-playbook") && h.endsWith(".vercel.app")) return true;
-  if (h === "cambriancatalyst.ai" || h === "www.cambriancatalyst.ai") return true;
+  if (h === "cambriancatalyst.ai" || h.endsWith(".cambriancatalyst.ai")) return true;
+  if (h === "cambree.ai" || h.endsWith(".cambree.ai")) return true;
   if (h === "localhost" || h === "127.0.0.1") return true;
   return false;
 }
@@ -402,6 +403,7 @@ export async function guard(req, res, { stream = false } = {}) {
            || req.socket?.remoteAddress
            || "unknown";
   if (!checkRateLimit(ip)) {
+    res.setHeader("Retry-After", "30");
     res.status(429).json({ error: "rate limit exceeded — try again in a minute" });
     return null;
   }
@@ -411,6 +413,7 @@ export async function guard(req, res, { stream = false } = {}) {
     const authToken = (req.headers.authorization || "").slice(7);
     const payload = decodeJwtPayload(authToken);
     if (payload?.sub && !checkUserRateLimit(payload.sub)) {
+      res.setHeader("Retry-After", "30");
       res.status(429).json({ error: "rate limit exceeded — try again in a minute" });
       return null;
     }

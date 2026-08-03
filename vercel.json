@@ -5,7 +5,8 @@
     { "source": "/support", "destination": "/support.html" }
   ],
   "functions": {
-    "api/claude.js": { "maxDuration": 120 }
+    "api/claude.js": { "maxDuration": 120 },
+    "api/fetch.js":  { "maxDuration": 30 }
   },
   "crons": [
     {
@@ -31,7 +32,7 @@
         { "key": "X-XSS-Protection",       "value": "1; mode=block" },
         { "key": "Referrer-Policy",         "value": "strict-origin-when-cross-origin" },
         { "key": "Permissions-Policy",      "value": "camera=(), microphone=(), geolocation=()" },
-        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.apollo.io https://api.hubapi.com https://vercel.live; img-src 'self' data: https:; worker-src 'self' blob:; frame-src 'self' https://vercel.live; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" }
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.hubapi.com https://vercel.live; img-src 'self' data: https:; worker-src 'self' blob:; frame-src 'self' https://vercel.live; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'" }
       ]
     }
   ]
