@@ -4281,9 +4281,9 @@ function PasswordGate({ onAuth }) {
         const r=await fetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{note:"Promo code: "+promoCode.trim()}:{})}),
+          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{})}),
         });
-        if(r.ok){setRequestSent(true);setErr("");}
+        if(r.ok){const d=await r.json().catch(()=>({ok:true}));setRequestSent(d);setErr("");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");reqInFlightRef.current=false;}
         setLoading(false);return;
       }
@@ -4440,10 +4440,14 @@ function PasswordGate({ onAuth }) {
       {mode==="request" ? (
         requestSent ? (
           <div style={{textAlign:"center",padding:"12px 4px"}}>
-            <div style={{fontSize:32,marginBottom:8}}>✓</div>
-            <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>Request received</div>
+            <div style={{fontSize:32,marginBottom:8}}>{requestSent.approved?"🎉":"✓"}</div>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>
+              {requestSent.approved?"You're in — check your email":"Request received"}
+            </div>
             <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.6,marginBottom:16}}>
-              Thanks — we review every request and send invites personally. Watch your inbox.
+              {requestSent.approved
+                ? <>We sent an invite link to <strong style={{color:"var(--ink-0)"}}>{email}</strong>. Click it to set your password and get started.</>
+                : (requestSent.message||"Thanks — we review every request and send invites personally. Watch your inbox.")}
             </div>
             <button type="button" className="btn btn-secondary" style={{width:"100%",justifyContent:"center"}}
               onClick={()=>{setMode("signin");setErr("");setRequestSent(false);}}>Back to Sign In</button>
