@@ -27,6 +27,9 @@ const PLAN_LIMITS = {
   enterprise: { run_limit: 1000, max_run_limit: 200 },
 };
 
+// One-time run pack (plan_id "promo_pack") — same as checkout.js
+const PROMO_PACK_RUNS = 20;
+
 // Stripe sends raw body — need to verify signature
 export const config = { api: { bodyParser: false } };
 
@@ -109,6 +112,39 @@ async function updateOrg(orgId, planId) {
   console.log(`[stripe] Upgraded org ${orgId} to ${planId}: ${limits.run_limit} runs, ${limits.max_run_limit} max`);
 }
 
+// One-time run pack: record the purchase and add the runs in a single
+// transaction (apply_run_pack, migration 034). The session-id PK in
+// promo_pack_purchases makes Stripe retries a no-op even across instances —
+// unlike the subscription path, an increment is not value-idempotent, so the
+// in-memory dedup alone is not enough.
+async function applyRunPack(orgId, session) {
+  if (!orgId) return;
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/rpc/apply_run_pack`, {
+      method: "POST",
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        p_session_id: session.id,
+        p_org_id: orgId,
+        p_runs: PROMO_PACK_RUNS,
+        p_amount_cents: session.amount_total ?? null,
+      }),
+    });
+    const outcome = await r.json().catch(() => null);
+    console.log(`[stripe] Run pack for org ${orgId}: ${outcome}`);
+    if (outcome === "org_not_eligible") {
+      // Payment captured but the org is no longer trial/promo — needs a human.
+      console.warn(`[stripe] Run pack PAID but not applied for org ${orgId} (session ${session.id}) — resolve manually`);
+    }
+  } catch (e) {
+    console.error("[stripe] Run pack apply failed:", e.message);
+  }
+}
+
 async function downgradeOrg(orgId) {
   if (!orgId) return;
 
@@ -176,7 +212,8 @@ export default async function handler(req, res) {
           } catch (e) { console.error("[stripe] Org lookup failed:", e.message); }
         }
         console.log(`[stripe] Checkout completed: user=${userId}, org=${orgId}, plan=${planId}`);
-        await updateOrg(orgId, planId);
+        if (planId === "promo_pack") await applyRunPack(orgId, session);
+        else await updateOrg(orgId, planId);
         break;
       }
 
