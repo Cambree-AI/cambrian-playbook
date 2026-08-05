@@ -166,7 +166,7 @@ export default async function handler(req, res) {
   // ── Authenticated: knowledge tier based on plan ────────────────────────
   // Trial/free users get core frameworks only (ICP, B2B sales, basic scoring).
   // Paid users get everything including vertical knowledge, compliance, battle cards.
-  const isPaid = userPlan === "paid" || userPlan === "enterprise";
+  const isPaid = userPlan === "paid" || userPlan === "enterprise" || userPlan === "promo";
 
   res.status(200).json({
     _plan: userPlan,
