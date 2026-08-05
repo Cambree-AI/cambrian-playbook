@@ -13036,7 +13036,7 @@ Return ONLY raw JSON:
       // knowledge, compliance, battle cards, etc. Without this, the cached
       // trial-tier layers would persist until the 5-min cache expires.
       setTimeout(fetchKnowledgeLayer, 2500);
-      setChatMessages(prev => [...prev, { role: "assistant", content: `Welcome to the ${plan.charAt(0).toUpperCase()+plan.slice(1)} plan! Your runs have been upgraded. Let's go close some deals.` }]);
+      setChatMessages(prev => [...prev, { role: "assistant", content: plan === "promo_pack" ? "Your 20-run pack is active — the runs are already on your account. Let's go close some deals." : `Welcome to the ${plan.charAt(0).toUpperCase()+plan.slice(1)} plan! Your runs have been upgraded. Let's go close some deals.` }]);
       setChatOpen(true);
     } else if (checkout === "cancel") {
       window.history.replaceState({}, "", window.location.pathname);
@@ -19466,6 +19466,35 @@ Return ONLY raw JSON:
 
             {/* Pricing cards */}
             <div style={{padding:"20px 24px",display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(145px, 1fr))",gap:10}}>
+              {/* One-time run pack — only for orgs admitted via a promo code, still on trial (or topping up a prior pack). Eligibility is re-verified server-side in /api/checkout. */}
+              {sbUser&&orgCtx?.promo_code&&(orgCtx?.plan==="trial"||orgCtx?.plan==="promo")&&(
+                <div style={{border:"2px solid var(--green)",borderRadius:10,padding:"18px 16px",position:"relative",background:"var(--surface)"}}>
+                  <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--green)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Your Offer</div>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>Run Pack</div>
+                  <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:2}}>
+                    <span style={{fontSize:32,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>$45</span>
+                    <span style={{fontSize:12,color:"var(--ink-3)"}}>one-time</span>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>20 runs</div>
+                  <div style={{fontSize:11,color:"var(--ink-3)",marginBottom:10}}>Exclusive {orgCtx.promo_code} offer — no subscription</div>
+                  {["Full ICP + brief pipeline","RIVER hypothesis + discovery","Milton coaching","Paid-tier knowledge layers"].map(f=>(
+                    <div key={f} style={{fontSize:11,color:"var(--ink-1)",padding:"2px 0",display:"flex",gap:6}}>
+                      <span style={{color:"var(--green)",flexShrink:0}}>✓</span>{f}
+                    </div>
+                  ))}
+                  <button onClick={async()=>{
+                    try{
+                      const r=await fetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({planId:"promo_pack"})});
+                      const d=await r.json();
+                      if(d.url)window.location.href=d.url;
+                      else alert(d.error||"Checkout failed — please try again.");
+                    }catch{alert("Failed to start checkout — check your connection.");}
+                  }}
+                    style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:"var(--green)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:12,fontFamily:"var(--font-sans)"}}>
+                    Get 20 runs →
+                  </button>
+                </div>
+              )}
               {PRICING_TIERS.map(plan=>(
                 <div key={plan.id} style={{border:plan.popular?"2px solid var(--tan-0)":"1.5px solid var(--line-0)",borderRadius:10,padding:"18px 16px",position:"relative",background:plan.popular?"var(--bg-1)":"var(--surface)"}}>
                   {plan.popular&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--tan-0)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Most Popular</div>}

@@ -57,7 +57,7 @@ async function sendInviteEmail(email, invitationToken) {
  * Returns { ok: true, orgId, invitationId, emailSent, action }
  *      or { ok: false, reason } — caller should fall back to the manual queue.
  */
-export async function provisionTrialAccess({ email, name, company, invitedBy = "system" }) {
+export async function provisionTrialAccess({ email, name, company, invitedBy = "system", promoCode = null }) {
   if (!SB_URL || !SB_KEY) return { ok: false, reason: "not_configured" };
   const cleanEmail = email.trim().toLowerCase();
 
@@ -75,9 +75,13 @@ export async function provisionTrialAccess({ email, name, company, invitedBy = "
     return { ok: true, orgId: pending[0].org_id, invitationId: pending[0].id, emailSent, action: `resent_${action}` };
   }
 
-  // Fresh trial org (plan/run limits come from column defaults, as in _usage.js)
+  // Fresh trial org (plan/run limits come from column defaults, as in
+  // _usage.js). The admitting promo code is stamped on the org — checkout
+  // verifies run-pack eligibility against it (migration 034). Conditional so
+  // non-promo callers (issue #3 admin approval) never touch the column.
   const orgName = (company || name || cleanEmail).trim();
-  const created = await sbFetch("orgs", "POST", { name: orgName });
+  const created = await sbFetch("orgs", "POST",
+    promoCode ? { name: orgName, promo_code: promoCode } : { name: orgName });
   const orgId = Array.isArray(created) ? created[0]?.id : created?.id;
   if (!orgId) {
     console.warn("[provision] Org creation failed:", JSON.stringify(created));

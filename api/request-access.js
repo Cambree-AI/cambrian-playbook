@@ -142,7 +142,7 @@ export default async function handler(req, res) {
   let requestId = null;
   try {
     const insRes = await sbRest("access_requests", "POST",
-      { name, email, company, note: note || null, status: "pending", created_at },
+      { name, email, company, note: note || null, status: "pending", created_at, promo_code: code || null },
       "return=representation");
     if (insRes.ok) {
       const rows = await insRes.json().catch(() => null);
@@ -153,7 +153,7 @@ export default async function handler(req, res) {
   }
 
   if (codeRedeemed) {
-    const prov = await provisionTrialAccess({ email, name, company, invitedBy: "system:promo" });
+    const prov = await provisionTrialAccess({ email, name, company, invitedBy: "system:promo", promoCode: code });
     if (prov.ok) {
       if (requestId) {
         try {
