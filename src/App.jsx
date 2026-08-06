@@ -1310,7 +1310,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
 //   - Track content block types — only feed TEXT blocks to onChunk
 //   - Use extractJsonWithKey for final parse (handles preamble text)
 // anchorKey: the expected top-level JSON key to find (e.g. "elevatorPitch")
-async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null } = {}) {
+async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null, extraHeaders={} } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let response = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -1319,7 +1319,7 @@ async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1,
       response = await fetch('/api/claude-stream', {
         method: 'POST',
         signal: signal || undefined,
-        headers: { ...authHeaders(), ..._trackingCtx },
+        headers: { ...authHeaders(), ..._trackingCtx, ...extraHeaders },
         body: JSON.stringify({
           model: model || activeModel(),
           max_tokens: maxTok,
@@ -7904,11 +7904,9 @@ Return ONLY raw JSON:
       return;
     }
 
-    // Check usage limit before starting a billable ICP build
-    if (orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
-      setUpgradeOpen(true);
-      return;
-    }
+    // Meter one run for the Full Sales Session at the user-intent boundary.
+    // The gate this replaced checked a counter that was never incremented.
+    if (!(await meterRun("full_session"))) return;
 
     setIcpLoading(true);
     setIcpStatus("Researching your company...");
