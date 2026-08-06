@@ -7819,6 +7819,41 @@ Return ONLY raw JSON:
     } catch { /* speculation is best-effort — must never break the scan flow */ }
   };
 
+  // Meter one run at a user-intent boundary via /api/meter-run. Returns true when
+  // the run was recorded and work may proceed. Fails closed: anything other than a
+  // 2xx means no run — a metering outage must never hand out free runs.
+  const meterRun = async (kind) => {
+    const meterFailed = () => {
+      setEditToast("Could not verify your run allowance — please try again.");
+      setTimeout(() => setEditToast(""), 5000);
+      return false;
+    };
+    try {
+      const r = await fetch("/api/meter-run", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (r.status === 402) {
+        const d = await r.json().catch(() => ({}));
+        // Same event claudeFetch dispatches on 402 — opens the upgrade modal.
+        window.dispatchEvent(new CustomEvent("usage-limit-exceeded", { detail: d }));
+        return false;
+      }
+      if (!r.ok) {
+        console.warn("[meterRun] non-OK:", r.status);
+        return meterFailed();
+      }
+      const d = await r.json();
+      // Keep the header run counter honest without a refetch.
+      setOrgCtx(prev => prev ? { ...prev, run_count: d.run_count } : prev);
+      return true;
+    } catch (e) {
+      console.warn("[meterRun] network error:", e && e.message);
+      return meterFailed();
+    }
+  };
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -9501,6 +9536,7 @@ Return ONLY raw JSON:
   const verifyAndLaunch = async (input, overrideSellerUrl) => {
     const co = input.trim();
     if (!co) return;
+    if (!(await meterRun("quick_brief"))) return;
     const domain = extractCompanyUrl(co);
     const displayName = extractCompanyName(co);
 
