@@ -7854,6 +7854,26 @@ Return ONLY raw JSON:
     }
   };
 
+  // A Full Sales Session costs ONE run, charged at whichever user-intent boundary
+  // the seller reaches first — "Analyze my company" (scan) or a direct ICP build.
+  // Keyed by normalized seller URL so the scan → confirm → build sequence that
+  // follows a single click is not billed two or three times. Per component mount:
+  // a reload plus a fresh click is a new session and bills again.
+  const fullSessionMeteredRef = useRef(null);
+  const meterFullSession = async (rawUrl) => {
+    const url = _normalizeSellerUrl(rawUrl || "");
+    if (url && fullSessionMeteredRef.current === url) return true; // already paid for this session
+    if (!(await meterRun("full_session"))) return false;
+    fullSessionMeteredRef.current = url;
+    return true;
+  };
+  // Name-only input is metered on what the seller typed ("acme"), then
+  // disambiguation resolves it to a real domain ("acme.io"). Move the paid
+  // marker onto the resolved domain so the scan that follows is not billed again.
+  const _carryFullSessionMeter = (resolvedUrl) => {
+    if (fullSessionMeteredRef.current) fullSessionMeteredRef.current = _normalizeSellerUrl(resolvedUrl || "");
+  };
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -7906,7 +7926,8 @@ Return ONLY raw JSON:
 
     // Meter one run for the Full Sales Session at the user-intent boundary.
     // The gate this replaced checked a counter that was never incremented.
-    if (!(await meterRun("full_session"))) return;
+    // No-op when the scan already charged this seller URL this session.
+    if (!(await meterFullSession(url))) return;
 
     setIcpLoading(true);
     setIcpStatus("Researching your company...");
@@ -8627,6 +8648,10 @@ Return ONLY raw JSON:
   // ── SCAN SELLER URL FOR PRODUCT PAGES ────────────────────────────────────
   const scanSellerUrl = async(rawUrl) => {
     if(!rawUrl.trim()) return;
+    // Enter-to-scan and the standalone Scan button reach here without passing
+    // through handleSellerGo. Same one-run-per-session dedupe applies, so the
+    // normal button flow is not billed twice.
+    if(!(await meterFullSession(rawUrl))) return;
     const url = rawUrl.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
     setUrlScanStatus("scanning");
     setUrlScanConfirmed(false);
@@ -13252,6 +13277,10 @@ Return ONLY raw JSON:
   const handleSellerGo = async()=>{
     const norm = sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
     if(!norm) return;
+    // "Analyze my company" IS the Full Session boundary — it kicks off the seller
+    // scan and its speculative Opus research, neither of which reaches
+    // buildSellerICP. Charge here, before any of that work starts.
+    if(!(await meterFullSession(norm))) return;
     const hasUrl = /\.(com|io|ai|org|net|app|co|dev|so|gov|edu|xyz|us|uk|de|fr|eu)($|\/)/i.test(norm);
     if(hasUrl) {
       // URL with TLD — go directly to scan + build
@@ -13290,23 +13319,28 @@ Return ONLY raw JSON:
           // No matches — fall back to name.com
           const fb = norm + ".com";
           setSellerUrl(fb); setSellerInput(fb);
+          _carryFullSessionMeter(fb);
           scanSellerUrl(fb);
         } else if (matches.length === 1) {
           const domain = (matches[0].domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
           setSellerUrl(domain); setSellerInput(domain);
+          _carryFullSessionMeter(domain);
           scanSellerUrl(domain);
         } else {
           setDisambigOptions({ matches, input: norm, onSelect: (match) => {
             const domain = (match.domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
             setSellerUrl(domain); setSellerInput(domain);
             setDisambigOptions(null);
+            _carryFullSessionMeter(domain);
             scanSellerUrl(domain);
           }});
         }
       } catch (e) {
         console.warn("[Go] Disambiguation failed:", e.message);
         const fb = norm + ".com";
-        setSellerUrl(fb); setSellerInput(fb); scanSellerUrl(fb);
+        setSellerUrl(fb); setSellerInput(fb);
+        _carryFullSessionMeter(fb);
+        scanSellerUrl(fb);
       } finally {
         setDisambigLoading(false);
       }
