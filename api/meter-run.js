@@ -25,8 +25,10 @@
 // checks the org's allowance, increments, and answers. That is the whole job —
 // which is exactly why it is reliable.
 
-import { isAllowedOrigin, checkRateLimit } from "./_guard.js";
-import { extractUserId, checkOrgUsage, incrementUsage, incrementMaxUsage } from "./_usage.js";
+import { isAllowedOrigin, checkRateLimit, verifyJwt, decodeJwtPayload } from "./_guard.js";
+import { checkOrgUsage, incrementUsage, incrementMaxUsage } from "./_usage.js";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Recognised metering events. Anything else is rejected so a typo on the
 // client can never silently mean "don't bill".
@@ -64,8 +66,17 @@ export default async function handler(req, res) {
   // Unauthenticated callers cannot consume a run. Guests are handled by the
   // caller's own guest path (see api/claude.js `req._isGuest`); if guest
   // metering policy changes, change it here in one place.
-  const userId = extractUserId(req);
-  if (!userId) {
+  //
+  // verifyJwt checks the signature, expiry and issuer — extractUserId alone
+  // only base64-decodes the payload, so a forged `sub` would otherwise let an
+  // unauthenticated caller charge a run to someone else's org. Same pattern as
+  // api/checkout.js: verify, then UUID-validate the sub before it reaches a
+  // service_role query.
+  if (!await verifyJwt(req) || req._isGuest) {
+    return res.status(401).json({ error: { type: "unauthenticated" } });
+  }
+  const userId = decodeJwtPayload((req.headers.authorization || "").slice(7))?.sub;
+  if (!userId || !UUID_RE.test(userId)) {
     return res.status(401).json({ error: { type: "unauthenticated" } });
   }
 
