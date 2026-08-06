@@ -2616,7 +2616,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:execPrompt}],
-      }, { extraHeaders: { "x-billable-run": "1" } });
+      });
       // Gate A — structured per-item extraction from web_search_tool_result blocks.
       // These come directly from Anthropic's search API — the model cannot fabricate them.
       // Bug 2: keep items SEPARATE (not flat-joined) so proximity + recency checks can
@@ -9632,8 +9632,9 @@ Return ONLY raw JSON:
     // Check usage limit before starting a billable brief generation.
     // forceRebuild (Retry Brief / Full Rebuild) is exempt: the UI promises
     // "Retry Brief (free)", and a retry of a failed brief must never be
-    // swallowed by the upgrade modal. Metering itself is unchanged — only the
-    // P2 web-search fallback sends x-billable-run, increments are post-2xx.
+    // swallowed by the upgrade modal. Metering happens once at the
+    // user-intent boundary (Quick Brief Go / Analyze my company) via
+    // /api/meter-run — no model call carries a billing header.
     if (!forceRebuild && orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
       setUpgradeOpen(true);
       return;
