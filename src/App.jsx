@@ -1310,7 +1310,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
 //   - Track content block types — only feed TEXT blocks to onChunk
 //   - Use extractJsonWithKey for final parse (handles preamble text)
 // anchorKey: the expected top-level JSON key to find (e.g. "elevatorPitch")
-async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null } = {}) {
+async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null, extraHeaders={} } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let response = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -1319,7 +1319,7 @@ async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1,
       response = await fetch('/api/claude-stream', {
         method: 'POST',
         signal: signal || undefined,
-        headers: { ...authHeaders(), ..._trackingCtx },
+        headers: { ...authHeaders(), ..._trackingCtx, ...extraHeaders },
         body: JSON.stringify({
           model: model || activeModel(),
           max_tokens: maxTok,
@@ -2616,7 +2616,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:execPrompt}],
-      }, { extraHeaders: { "x-billable-run": "1" } });
+      });
       // Gate A — structured per-item extraction from web_search_tool_result blocks.
       // These come directly from Anthropic's search API — the model cannot fabricate them.
       // Bug 2: keep items SEPARATE (not flat-joined) so proximity + recency checks can
@@ -7819,6 +7819,61 @@ Return ONLY raw JSON:
     } catch { /* speculation is best-effort — must never break the scan flow */ }
   };
 
+  // Meter one run at a user-intent boundary via /api/meter-run. Returns true when
+  // the run was recorded and work may proceed. Fails closed: anything other than a
+  // 2xx means no run — a metering outage must never hand out free runs.
+  const meterRun = async (kind) => {
+    const meterFailed = () => {
+      setEditToast("Could not verify your run allowance — please try again.");
+      setTimeout(() => setEditToast(""), 5000);
+      return false;
+    };
+    try {
+      const r = await fetch("/api/meter-run", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (r.status === 402) {
+        const d = await r.json().catch(() => ({}));
+        // Same event claudeFetch dispatches on 402 — opens the upgrade modal.
+        window.dispatchEvent(new CustomEvent("usage-limit-exceeded", { detail: d }));
+        return false;
+      }
+      if (!r.ok) {
+        console.warn("[meterRun] non-OK:", r.status);
+        return meterFailed();
+      }
+      const d = await r.json();
+      // Keep the header run counter honest without a refetch.
+      setOrgCtx(prev => prev ? { ...prev, run_count: d.run_count } : prev);
+      return true;
+    } catch (e) {
+      console.warn("[meterRun] network error:", e && e.message);
+      return meterFailed();
+    }
+  };
+
+  // A Full Sales Session costs ONE run, charged at whichever user-intent boundary
+  // the seller reaches first — "Analyze my company" (scan) or a direct ICP build.
+  // Keyed by normalized seller URL so the scan → confirm → build sequence that
+  // follows a single click is not billed two or three times. Per component mount:
+  // a reload plus a fresh click is a new session and bills again.
+  const fullSessionMeteredRef = useRef(null);
+  const meterFullSession = async (rawUrl) => {
+    const url = _normalizeSellerUrl(rawUrl || "");
+    if (url && fullSessionMeteredRef.current === url) return true; // already paid for this session
+    if (!(await meterRun("full_session"))) return false;
+    fullSessionMeteredRef.current = url;
+    return true;
+  };
+  // Name-only input is metered on what the seller typed ("acme"), then
+  // disambiguation resolves it to a real domain ("acme.io"). Move the paid
+  // marker onto the resolved domain so the scan that follows is not billed again.
+  const _carryFullSessionMeter = (resolvedUrl) => {
+    if (fullSessionMeteredRef.current) fullSessionMeteredRef.current = _normalizeSellerUrl(resolvedUrl || "");
+  };
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -7869,11 +7924,10 @@ Return ONLY raw JSON:
       return;
     }
 
-    // Check usage limit before starting a billable ICP build
-    if (orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
-      setUpgradeOpen(true);
-      return;
-    }
+    // Meter one run for the Full Sales Session at the user-intent boundary.
+    // The gate this replaced checked a counter that was never incremented.
+    // No-op when the scan already charged this seller URL this session.
+    if (!(await meterFullSession(url))) return;
 
     setIcpLoading(true);
     setIcpStatus("Researching your company...");
@@ -8594,6 +8648,10 @@ Return ONLY raw JSON:
   // ── SCAN SELLER URL FOR PRODUCT PAGES ────────────────────────────────────
   const scanSellerUrl = async(rawUrl) => {
     if(!rawUrl.trim()) return;
+    // Enter-to-scan and the standalone Scan button reach here without passing
+    // through handleSellerGo. Same one-run-per-session dedupe applies, so the
+    // normal button flow is not billed twice.
+    if(!(await meterFullSession(rawUrl))) return;
     const url = rawUrl.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
     setUrlScanStatus("scanning");
     setUrlScanConfirmed(false);
@@ -9501,6 +9559,7 @@ Return ONLY raw JSON:
   const verifyAndLaunch = async (input, overrideSellerUrl) => {
     const co = input.trim();
     if (!co) return;
+    if (!(await meterRun("quick_brief"))) return;
     const domain = extractCompanyUrl(co);
     const displayName = extractCompanyName(co);
 
@@ -9598,8 +9657,9 @@ Return ONLY raw JSON:
     // Check usage limit before starting a billable brief generation.
     // forceRebuild (Retry Brief / Full Rebuild) is exempt: the UI promises
     // "Retry Brief (free)", and a retry of a failed brief must never be
-    // swallowed by the upgrade modal. Metering itself is unchanged — only the
-    // P2 web-search fallback sends x-billable-run, increments are post-2xx.
+    // swallowed by the upgrade modal. Metering happens once at the
+    // user-intent boundary (Quick Brief Go / Analyze my company) via
+    // /api/meter-run — no model call carries a billing header.
     if (!forceRebuild && orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
       setUpgradeOpen(true);
       return;
@@ -13217,6 +13277,10 @@ Return ONLY raw JSON:
   const handleSellerGo = async()=>{
     const norm = sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
     if(!norm) return;
+    // "Analyze my company" IS the Full Session boundary — it kicks off the seller
+    // scan and its speculative Opus research, neither of which reaches
+    // buildSellerICP. Charge here, before any of that work starts.
+    if(!(await meterFullSession(norm))) return;
     const hasUrl = /\.(com|io|ai|org|net|app|co|dev|so|gov|edu|xyz|us|uk|de|fr|eu)($|\/)/i.test(norm);
     if(hasUrl) {
       // URL with TLD — go directly to scan + build
@@ -13255,23 +13319,28 @@ Return ONLY raw JSON:
           // No matches — fall back to name.com
           const fb = norm + ".com";
           setSellerUrl(fb); setSellerInput(fb);
+          _carryFullSessionMeter(fb);
           scanSellerUrl(fb);
         } else if (matches.length === 1) {
           const domain = (matches[0].domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
           setSellerUrl(domain); setSellerInput(domain);
+          _carryFullSessionMeter(domain);
           scanSellerUrl(domain);
         } else {
           setDisambigOptions({ matches, input: norm, onSelect: (match) => {
             const domain = (match.domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
             setSellerUrl(domain); setSellerInput(domain);
             setDisambigOptions(null);
+            _carryFullSessionMeter(domain);
             scanSellerUrl(domain);
           }});
         }
       } catch (e) {
         console.warn("[Go] Disambiguation failed:", e.message);
         const fb = norm + ".com";
-        setSellerUrl(fb); setSellerInput(fb); scanSellerUrl(fb);
+        setSellerUrl(fb); setSellerInput(fb);
+        _carryFullSessionMeter(fb);
+        scanSellerUrl(fb);
       } finally {
         setDisambigLoading(false);
       }
