@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { OUTCOMES } from "./data/outcomes.js";
 import { RIVER_STAGES } from "./data/riverFramework.js";
 import { SAMPLE_ROWS } from "./data/sampleAccounts.js";
-import { sbAuth, sbGetUser, sbSessions, sbStoreTokens, sbRestoreSession, sbRefreshSession, sbClearTokens, sbSetTokenCallback } from "./lib/supabase.js";
+import { sbAuth, sbGetUser, sbSessions, sbStoreTokens, sbRestoreSession, sbRefreshSession, sbClearTokens, sbSetTokenCallback, sbUpdateUserMetadata } from "./lib/supabase.js";
 import { fetchOrgContext, sbPatch } from "./lib/org.js";
 import SuperAdmin from "./components/SuperAdmin.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
@@ -3828,6 +3828,18 @@ function ChatPanel({ messages, onSend, onClose, loading, contextLabel }) {
         {messages.map((msg, i) => (
           <div key={i} className={`chat-msg chat-msg-${msg.role}`}>
             {msg.content.split("\n").map((line, j) => <p key={j}>{line}</p>)}
+            {msg.actions && (
+              <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+                {msg.actions.map((a, k) => (
+                  <a key={k} href={a.href}
+                    {...(a.download ? { download: a.download } : { target: "_blank", rel: "noopener" })}
+                    style={{padding:"8px 14px",borderRadius:8,fontSize:12,fontWeight:700,textDecoration:"none",display:"inline-block",
+                      ...(a.primary ? {background:"var(--tan-0)",color:"white",border:"none"} : {background:"var(--surface)",color:"var(--ink-1)",border:"1.5px solid var(--line-0)"})}}>
+                    {a.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && <div className="chat-typing">Thinking…</div>}
@@ -5108,6 +5120,21 @@ const FAQ_ITEMS = [
 
 // ── DOWNLOADABLE GUIDES ──────────────────────────────────────────────
 // User-facing guides available in-app with PDF download.
+// The User Guide ships as a real PDF in public/ (also served at /user-guide
+// via vercel.json rewrite). View = new tab (CSP: object-src 'none' forbids
+// <object>/<embed>; same-origin navigation is fine).
+const USER_GUIDE_PDF = "/cambree-user-guide.pdf";
+// First-join welcome, seeded client-side into Milton's chat — no API call,
+// zero token cost, deterministic. Shown once per user (#20).
+const GUIDE_WELCOME_MSG = {
+  role: "assistant",
+  content: "Hey, I'm Milton — your AI sales coach. Welcome aboard.\n\nBefore you dive in: we wrote a short User Guide — what a run is, when to use Quick Brief vs a Full Sales Session, and what to do on each of the nine steps. Five pages. Worth it.\n\nView it or download it below — it's always available later under the ⋯ menu → Guides. Then come back and let's go sell something.",
+  actions: [
+    { label: "📖 View the guide", href: USER_GUIDE_PDF, primary: true },
+    { label: "⬇ Download PDF", href: USER_GUIDE_PDF, download: "Cambree-User-Guide.pdf" },
+  ],
+};
+
 const APP_GUIDES = {
   user: {
     title: "User Guide",
@@ -5248,12 +5275,25 @@ ${g.sections.map(s => {
             </div>
           ))}
         </div>
-        {/* Footer with download */}
+        {/* Footer with download — the User Guide ships as a real PDF; Admin/Reseller keep print-to-PDF */}
         <div style={{padding:"12px 20px",borderTop:"1px solid var(--line-0)",display:"flex",gap:8,flexShrink:0}}>
-          <button onClick={printGuide}
-            style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"none",background:"var(--tan-0)",color:"white",cursor:"pointer"}}>
-            Download as PDF
-          </button>
+          {activeGuide === "user" ? (
+            <>
+              <a href={USER_GUIDE_PDF} target="_blank" rel="noopener"
+                style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"1.5px solid var(--line-0)",background:"var(--surface)",color:"var(--ink-1)",cursor:"pointer",textAlign:"center",textDecoration:"none"}}>
+                View PDF
+              </a>
+              <a href={USER_GUIDE_PDF} download="Cambree-User-Guide.pdf"
+                style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"none",background:"var(--tan-0)",color:"white",cursor:"pointer",textAlign:"center",textDecoration:"none"}}>
+                Download PDF
+              </a>
+            </>
+          ) : (
+            <button onClick={printGuide}
+              style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"none",background:"var(--tan-0)",color:"white",cursor:"pointer"}}>
+              Download as PDF
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -13226,6 +13266,16 @@ Return ONLY raw JSON:
       const guestState = localStorage.getItem("cambrian_guest_state");
       if (guestState) { restoreSession({ id: null, name: "Guest Session", data: JSON.parse(guestState) }); localStorage.removeItem("cambrian_guest_state"); }
     } catch {}
+    // First join: Milton presents the User Guide once per user (#20). The seen
+    // flag lives in auth user_metadata (durable across devices); a per-user
+    // localStorage guard covers the case where the metadata write fails.
+    // Milton is authed-only (the chat toggle requires sbUser), so guests skip this.
+    if (u && !u.user_metadata?.user_guide_seen && !localStorage.getItem(`cambree_guide_seen_${u.id}`)) {
+      setChatMessages([GUIDE_WELCOME_MSG]);
+      setChatOpen(true);
+      try { localStorage.setItem(`cambree_guide_seen_${u.id}`, "1"); } catch { /* storage unavailable */ }
+      sbUpdateUserMetadata(tok, { user_guide_seen: true }).catch(() => {});
+    }
     // Auto-refresh tokens — update app state when token is silently refreshed
     sbSetTokenCallback((newToken) => { setSbToken(newToken); setAuthToken(newToken); });
   }}/>;

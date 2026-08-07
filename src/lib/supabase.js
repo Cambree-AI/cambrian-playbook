@@ -133,6 +133,16 @@ export async function sbGetUser(token) {
   return { _transient: true, _status: r.status };
 }
 
+export async function sbUpdateUserMetadata(token, data) {
+  // Merges into auth user_metadata (Supabase merges top-level keys on PUT).
+  const r = await fetch(SB_URL + '/auth/v1/user', {
+    method: 'PUT',
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  });
+  return r.ok ? r.json() : null;
+}
+
 export async function sbSessions(method, path, token, body) {
   // For upserts (on_conflict), add resolution=merge-duplicates to avoid 409
   const isUpsert = path.includes('on_conflict');
