@@ -311,6 +311,49 @@ function sanitizeSystemPrompt(system) {
   return SERVER_PREAMBLE + clean;
 }
 
+// ── PROMPT-CACHE BREAKPOINT (#27) ────────────────────────────────────────
+// Adds a cache_control breakpoint at the end of the last user message so the
+// full request prefix (tools → system → static instruction + schema body) is
+// cacheable. The brief pipeline's ~10k-token static prefix rides inside the
+// user message as a single text block, so a system-level breakpoint alone
+// never covers it — this is the breakpoint that makes identical re-runs and
+// the client retry ladder (which re-sends byte-identical bodies) hit cache.
+//
+// Cost/safety notes:
+// - Prompts below the model's minimum cacheable prefix (1024 tokens on
+//   Sonnet 4.6, 4096 on Haiku 4.5 / Opus 4.6) are silently NOT cached — no
+//   write premium, no behavior change.
+// - Cache reads/writes do not affect model output (temperature 0 + top_k 1
+//   determinism is preserved; rendered prompt bytes are unchanged — a single
+//   text block is API-equivalent to string content).
+// - Never mutates the client's message objects; returns a new array.
+function addMessagesCacheBreakpoint(messages) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (!msg || msg.role !== "user") continue; // skip trailing assistant prefill ("{")
+    if (typeof msg.content === "string") {
+      if (!msg.content) return messages; // empty — leave for upstream validation
+      const marked = {
+        ...msg,
+        content: [{ type: "text", text: msg.content, cache_control: { type: "ephemeral" } }],
+      };
+      return messages.map((m, j) => (j === i ? marked : m));
+    }
+    if (Array.isArray(msg.content) && msg.content.length) {
+      const last = msg.content[msg.content.length - 1];
+      // Only mark a trailing text block; if the client already placed its own
+      // breakpoint, respect it (max 4 breakpoints per request).
+      if (!last || last.type !== "text" || last.cache_control) return messages;
+      const content = msg.content
+        .slice(0, -1)
+        .concat([{ ...last, cache_control: { type: "ephemeral" } }]);
+      return messages.map((m, j) => (j === i ? { ...m, content } : m));
+    }
+    return messages;
+  }
+  return messages;
+}
+
 // ── BODY BUILDER ─────────────────────────────────────────────────────────
 export function buildAnthropicBody(body, { stream = false } = {}) {
   if (!body || typeof body !== "object") {
@@ -338,11 +381,19 @@ export function buildAnthropicBody(body, { stream = false } = {}) {
     max_tokens: Math.min(Number(body.max_tokens) || 1024, MAX_TOKENS_CAP),
     temperature: 0,
     top_k: 1, // Deterministic: always pick the most likely token
-    messages: body.messages,
+    messages: addMessagesCacheBreakpoint(body.messages),
   };
   if (typeof body.system === "string" && body.system.length && body.system.length <= 30_000) {
-    // Plain string system — prepend SERVER_PREAMBLE and sanitize (existing behavior)
-    clean.system = sanitizeSystemPrompt(body.system);
+    // Plain string system — prepend SERVER_PREAMBLE and sanitize (existing
+    // behavior), emitted as a single cached block (#27). A one-element text
+    // block array renders byte-identically to the string form, so model input
+    // is unchanged; the cache_control breakpoint marks the end of the static
+    // anti-hallucination prefix so tools + system participate in the cache.
+    clean.system = [{
+      type: "text",
+      text: sanitizeSystemPrompt(body.system),
+      cache_control: { type: "ephemeral" },
+    }];
   } else if (Array.isArray(body.system) && body.system.length) {
     // Array of content blocks — used for prompt caching (cache_control: { type: "ephemeral" })
     // Sanitize each block's text through injection filter; SERVER_PREAMBLE is prepended as first block.
