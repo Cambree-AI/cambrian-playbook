@@ -15173,17 +15173,8 @@ Return ONLY raw JSON:
               )}
             </div>
 
-            {icpLoading&&(!sellerICP||sellerICP?._loading)&&(
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,padding:"60px 0",textAlign:"center"}}>
-                <div className="load-spin" style={{width:32,height:32,borderWidth:3}}/>
-                <div style={{fontSize:15,color:"var(--ink-1)",fontWeight:500}}>{icpStatus || getQuip("icp")}</div>
-                <div style={{fontSize:13,color:"var(--ink-3)"}}>Building your ICP for {sellerUrl}</div>
-                {icpStatus && <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:-8}}>{icpStatus}</div>}
-                <div style={{fontSize:12.5,color:"var(--ink-3)",marginTop:10,maxWidth:360,lineHeight:1.55}}>Good intel takes a minute. ☕ Grab a coffee or knock out that email you've been dodging — we'll have this ready when you're back.</div>
-              </div>
-            )}
-
-            {/* #26 — progressive ICP skeleton card: fields fill from icpPreview as Pass-1/Pass-2 text streams in */}
+            {/* #26 — progressive ICP skeleton card (replaces the old full-screen spinner):
+                fields fill from icpPreview as Pass-1/Pass-2 text streams in */}
             {icpLoading&&(!sellerICP||sellerICP?._loading)&&(
               <div className="bb" style={{marginTop:16}}>
                 <div className="bb-hdr">
