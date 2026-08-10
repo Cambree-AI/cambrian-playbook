@@ -8,6 +8,7 @@ import SuperAdmin from "./components/SuperAdmin.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
 import S9SolutionFit from "./stages/S9_SolutionFit.jsx";
 import { computeFitScore, buildSignalExtractionPrompt, labelForScore } from "./lib/fitScoring.js";
+import { MERGED_PLAY } from "./config/constants.js";
 
 // ── Sortable column header for Fit Check table ──
 function FitSortTh({ sortKey, sortDir, onSort, colKey, children, style }) {
@@ -5677,6 +5678,13 @@ export default function App(){
   // Canonical Solution Thesis = { riverHypo, solutionFit } — both already
   //   persisted in getSessionSnap(); no new state needed.
   const solConEnabled = (() => { try { return localStorage.getItem("cc_sol_consolidation") !== "off"; } catch { return true; } })();
+  // ── MERGED PLAY FEATURE FLAG (issue #28) ────────────────────────────────────
+  // Default comes from config (MERGED_PLAY, ships OFF). When ON: the Game Plan
+  // step's solutionMapping + hypothesis content renders inside the Brief's Play
+  // section (render move — zero new model calls) and step 7 (Game Plan) is
+  // retired from the stepper. When OFF: behavior is byte-identical to today.
+  // localStorage "cc_merged_play" = "on" | "off" overrides for staging QA.
+  const mergedPlay = (() => { try { const v = localStorage.getItem("cc_merged_play"); if (v === "on") return true; if (v === "off") return false; } catch { /* config default */ } return MERGED_PLAY; })();
   const[briefStatus,setBriefStatus]=useState("");
   const[briefError,setBriefError]=useState("");
   const[riverHypo,setRiverHypo]=useState(null);
@@ -17107,6 +17115,226 @@ Return ONLY raw JSON:
                   );
                 })()}
                 {/* ── END THE PLAY card ─────────────────────────────────── */}
+
+                {/* ── MERGED GAME PLAN (issue #28, flag: mergedPlay) ──────
+                    When ON, the former Game Plan step's solutionMapping +
+                    hypothesis content renders here, directly under The Play
+                    card. Pure render move — same state (brief.solutionMapping,
+                    solutionFit, riverHypo), zero new model calls: the pre-call
+                    auto-run and buildThePlay() already populate everything.
+                    When OFF this block is skipped entirely and the Game Plan
+                    step (step===6 below) renders unchanged — that block stays
+                    the source of truth for the OFF path; this JSX mirrors it. */}
+                {mergedPlay && sellerUrl !== "research-only" && (
+                  <div style={{marginBottom:16}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,margin:"4px 0 14px"}}>
+                      <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--ink-3)",textTransform:"uppercase",letterSpacing:"0.6px"}}>Game Plan</div>
+                      <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                    </div>
+                    {solConEnabled&&(
+                      <>
+                        {/* Pre-call brief solutions summary (read-only) — shown until SA built */}
+                        {!solutionFit&&!solutionFitLoading&&(brief?.solutionMapping||[]).filter(s=>s?.product).length>0&&(
+                          <div className="bb" style={{marginBottom:14}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>🎯</div>
+                              <div>
+                                <div className="bb-title">Solutions for {selectedAccount?.company}</div>
+                                <div className="bb-sub">From your brief — confirmed or revised post-call</div>
+                              </div>
+                            </div>
+                            <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+                              {(brief.solutionMapping||[]).filter(s=>s?.product).map((s,i)=>(
+                                <div key={i} className="solution-item">
+                                  <div className="sol-badge">{s.product}</div>
+                                  <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{s.fit}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Full SA architecture — embedded (no wrapper/action bar; owns all SA content) */}
+                        <S9SolutionFit
+                          embedded
+                          solutionFit={solutionFit}
+                          solutionFitLoading={solutionFitLoading}
+                          selectedAccount={selectedAccount}
+                          onRun={buildSolutionFit}
+                          onRegenerate={()=>{setSolutionFit(null);setSolutionFitLoading(true);setTimeout(buildSolutionFit,100);}}
+                        />
+
+                        {/* Divider before RIVER section */}
+                        <div style={{display:"flex",alignItems:"center",gap:12,margin:"20px 0 14px"}}>
+                          <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                          <div style={{fontSize:11,fontWeight:700,color:"var(--ink-3)",textTransform:"uppercase",letterSpacing:"0.6px"}}>RIVER Strategy</div>
+                          <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Recommended Solutions — flag OFF only (original behavior) */}
+                    {!solConEnabled&&(brief?.solutionMapping||[]).filter(s=>s?.product).length>0&&(
+                      <div className="bb" style={{marginBottom:16}}>
+                        <div className="bb-hdr">
+                          <div className="bb-icon" style={{fontSize:14}}>🎯</div>
+                          <div>
+                            <div className="bb-title">Solutions You're Selling into {selectedAccount?.company}</div>
+                            <div className="bb-sub">How each offering maps to what this account needs</div>
+                          </div>
+                        </div>
+                        <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+                          {(brief.solutionMapping||[]).filter(s=>s?.product).map((s,i)=>(
+                            <div key={i} className="solution-item">
+                              <div className="sol-badge">{s.product}</div>
+                              <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{s.fit}</div>
+                            </div>
+                          ))}
+                          {brief?.openingAngle&&(
+                            <div style={{marginTop:4,paddingTop:12,borderTop:"1px solid var(--line-1)"}}>
+                              <div style={{fontSize:10,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:5}}>Opening Angle</div>
+                              <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6,fontStyle:"italic"}}>"{brief.openingAngle}"</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {riverHypoLoading&&(
+                      <div className="load-box" style={{marginBottom:20}}>
+                        <div className="load-status">
+                          <div className="load-spin"/>
+                          {getQuip("hypothesis")}
+                        </div>
+                        <div style={{height:3,background:"var(--tan-3)",borderRadius:2,overflow:"hidden",marginTop:12}}>
+                          <div style={{height:"100%",background:"linear-gradient(90deg,var(--tan-0),var(--navy),var(--green),var(--tan-0))",backgroundSize:"300% 100%",animation:"shimmer 2.5s linear infinite",borderRadius:2}}/>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--ink-3)",textAlign:"center",marginTop:8}}>
+                          This usually finishes before you're done reading the brief
+                        </div>
+                      </div>
+                    )}
+
+                    {riverHypo&&(
+                      <>
+                        {/* RIVER fields — Quick Summary + Expand */}
+                        {[
+                          {key:"reality",    label:"R — Reality",      icon:"📍", sub:"Current state", color:"var(--navy)"},
+                          {key:"impact",     label:"I — Impact",       icon:"💥", sub:"Cost of inaction", color:"var(--red)"},
+                          {key:"vision",     label:"V — Vision",       icon:"🔭", sub:"What success looks like", color:"var(--green)"},
+                          {key:"entryPoints",label:"E — Entry Points", icon:"🚪", sub:"Decision-makers", color:"var(--purple)"},
+                          {key:"route",      label:"R — Route",        icon:"🗺", sub:"Fastest path to close", color:"var(--tan-0)"},
+                        ].map(({key,label,icon,sub,color})=>(
+                          <RiverFieldCard
+                            key={key}
+                            fieldKey={key}
+                            label={label}
+                            icon={icon}
+                            sub={sub}
+                            color={color}
+                            value={String(riverHypo[key]||"")}
+                            onChange={v=>setRiverHypo(prev=>({...prev,[key]:v}))}
+                          />
+                        ))}
+
+                        {/* Opening Angle */}
+                        <div className="bb" style={{marginBottom:10}}>
+                          <div className="bb-hdr">
+                            <div className="bb-icon" style={{fontSize:14}}>🎯</div>
+                            <div><div className="bb-title">Opening Angle</div><div className="bb-sub">The insight that makes everything click</div></div>
+                          </div>
+                          <div className="bb-body">
+                            <EF
+                              value={riverHypo.openingAngle||""}
+                              onChange={v=>setRiverHypo(prev=>({...prev,openingAngle:v}))}
+                              placeholder="Click to edit opening angle..."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Challenger Insight */}
+                        {riverHypo.challengerInsight&&(
+                          <div className="bb" style={{marginBottom:10}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>⚡</div>
+                              <div><div className="bb-title">Teaching Insight</div><div className="bb-sub">The assumption to challenge — teach this to the organization through your champion</div></div>
+                            </div>
+                            <div className="bb-body">
+                              <div style={{background:"var(--green-bg)",border:"2px solid var(--green)",borderRadius:8,padding:"12px 16px"}}>
+                                <div style={{fontSize:9,fontWeight:700,color:"var(--green)",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:6}}>The Teaching Insight</div>
+                                <div style={{fontSize:14,color:"var(--ink-0)",lineHeight:1.7,fontStyle:"italic"}}>"{riverHypo.challengerInsight}"</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* JOLT Plan */}
+                        {riverHypo.joltPlan&&(riverHypo.joltPlan.judgeIndecision||riverHypo.joltPlan.recommendation)&&(
+                          <div className="bb" style={{marginBottom:10}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>🛡</div>
+                              <div><div className="bb-title">Overcoming Indecision</div><div className="bb-sub">Indecision kills 40-60% of deals. Fear of messing up beats fear of missing out.</div></div>
+                            </div>
+                            <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+                              {[
+                                {key:"judgeIndecision",label:"J — Judge the Indecision",color:"var(--amber)",bg:"var(--amber-bg)",icon:"🔍"},
+                                {key:"recommendation",label:"O — Offer Your Recommendation",color:"var(--green)",bg:"var(--green-bg)",icon:"🎯"},
+                                {key:"limitExploration",label:"L — Limit the Exploration",color:"var(--navy)",bg:"var(--navy-bg)",icon:"🔬"},
+                                {key:"takeRiskOff",label:"T — Take Risk Off the Table",color:"var(--purple)",bg:"var(--purple-bg)",icon:"🛡"},
+                              ].map(({key,label,color,bg,icon})=>riverHypo.joltPlan[key]&&(
+                                <div key={key} style={{background:bg,border:"1px solid "+color+"33",borderRadius:8,padding:"10px 12px"}}>
+                                  <div style={{fontSize:10,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:4}}>{icon} {label}</div>
+                                  <EF value={riverHypo.joltPlan[key]||""} onChange={v=>setRiverHypo(prev=>({...prev,joltPlan:{...prev.joltPlan,[key]:v}}))} single/>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Talk Tracks */}
+                        {(riverHypo.talkTracks||[]).length>0&&(
+                          <div className="bb" style={{marginBottom:10}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>💬</div>
+                              <div><div className="bb-title">Talk Tracks</div><div className="bb-sub">Stage-by-stage language — grounded in buyer experience research</div></div>
+                            </div>
+                            <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+                              {(riverHypo.talkTracks||[]).map((t,i)=>(
+                                <div key={i} style={{borderLeft:"3px solid var(--tan-0)",paddingLeft:12}}>
+                                  <div style={{fontSize:10,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:4}}>{t.stage}</div>
+                                  <EF
+                                    value={t.line||""}
+                                    onChange={v=>setRiverHypo(prev=>{
+                                      const tt=[...(prev.talkTracks||[])];
+                                      tt[i]={...tt[i],line:v};
+                                      return {...prev,talkTracks:tt};
+                                    })}
+                                    single
+                                    placeholder="Click to edit..."
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {!riverHypo&&!riverHypoLoading&&(
+                      <EmptyState icon="🧪" title="No hypothesis yet" sub="This is where you stop winging it. A structured conversation plan, talk tracks that sound like you, and an insight that makes them lean in. Build it — then go be the most prepared person on the call." action={()=>buildRiverHypo(brief,selectedAccount)} actionLabel="Build Hypothesis →"/>
+                    )}
+
+                    {!riverHypoLoading&&riverHypo?.reality?.includes("Could not generate")&&(
+                      <div style={{marginTop:4}}>
+                        <button className="btn btn-secondary" onClick={()=>{if(!checkNoChange("hypo",getHypoSig,()=>buildRiverHypo(brief,selectedAccount)))buildRiverHypo(brief,selectedAccount);}} disabled={riverHypoLoading}>
+                          ↻ Regenerate Hypothesis
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* ── END MERGED GAME PLAN ────────────────────────────────── */}
 
                 {(briefError || brief._error || brief._failedSections?.length > 0) && (
                   <div style={{background:"var(--amber-bg)",border:"1.5px solid var(--amber)",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
