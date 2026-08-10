@@ -14377,8 +14377,7 @@ Return ONLY raw JSON:
                       <div style={{fontSize:13,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>Let's add a little context</div>
                       <div style={{fontSize:12,color:"var(--ink-1)",lineHeight:1.6,marginBottom:12}}>
                         Looks like your company's website is a little light on product, services, solutions, and case-study content.
-                        Not a problem — use the upload button to add relevant materials (case studies, product one-pagers, etc.),
-                        or use the text field below to describe the products, solutions, or services you're focused on selling.
+                        Not a problem — use the upload button to add relevant materials (case studies, product one-pagers, etc.).
                       </div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
                         {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs) */}
@@ -14387,19 +14386,12 @@ Return ONLY raw JSON:
                             onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                           📂 Upload materials
                         </label>
-                        <button className="btn btn-secondary btn-sm"
-                          onClick={()=>{
-                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("setupDetails");return next;});
-                            setTimeout(()=>{document.getElementById("kickoffv2-icp-input")?.focus();},80);
-                          }}>
-                          ✏️ Describe what you sell
-                        </button>
                         {sellerDocs.length>0&&(
                           <span style={{fontSize:11,fontWeight:600,color:"var(--green)"}}>✓ {sellerDocs.length} doc{sellerDocs.length>1?"s":""} added</span>
                         )}
                       </div>
                       <div style={{fontSize:11,color:"var(--ink-3)",marginTop:10}}>
-                        Either one works. Then continue below — you'll build your ICP on the next step with whatever you add here.
+                        Then continue below — you'll build your ICP on the next step with whatever you add here.
                       </div>
                     </div>
                   )}
@@ -14416,13 +14408,13 @@ Return ONLY raw JSON:
                 </div>
 
                 {/* Add more details — collapsed disclosure; binds the SAME state the classic form feeds
-                    into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824, sellerICPInput @8270) */}
+                    into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824) */}
                 <div style={{marginTop:14}}>
                   <div onClick={()=>toggleBB("setupDetails")} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"var(--bg-1)",borderRadius:8,border:"1px solid var(--line-0)"}}>
                     <span style={{fontSize:13}}>{bbIsOpen("setupDetails")?"▾":"▸"}</span>
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:700,color:"var(--ink-1)"}}>Add more details <span style={{fontWeight:400,color:"var(--ink-3)"}}>(optional — improves targeting)</span></div>
-                      <div style={{fontSize:10,color:"var(--ink-3)"}}>Funding stage, market segment, your own ICP notes</div>
+                      <div style={{fontSize:10,color:"var(--ink-3)"}}>Funding stage, market segment</div>
                     </div>
                     {sellerStage && <span style={{fontSize:10,fontWeight:700,background:"var(--green-bg)",color:"var(--green)",borderRadius:10,padding:"2px 8px"}}>{sellerStage}</span>}
                   </div>
@@ -14450,16 +14442,6 @@ Return ONLY raw JSON:
                               border:"1.5px solid "+(sel?"var(--navy)":"var(--line-0)"),background:sel?"var(--navy)":"var(--surface)",color:sel?"#fff":"var(--ink-1)"}}>{v}</button>;
                         })}
                       </div>
-                    </div>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Anything else we should know? <span style={{fontWeight:400,color:"var(--ink-3)"}}>your ICP, in your own words</span></div>
-                      <textarea
-                        id="kickoffv2-icp-input"
-                        value={sellerICPInput}
-                        onChange={e=>setSellerICPInput(e.target.value)}
-                        placeholder={"e.g. \"We sell to SMB restaurants with 1-5 locations, owner-operators, $500K-$5M revenue\""}
-                        style={{width:"100%",minHeight:60,padding:"10px 12px",fontSize:13,border:"1.5px solid var(--line-0)",borderRadius:8,resize:"vertical",fontFamily:"inherit",lineHeight:1.6,background:"var(--bg-0)"}}
-                      />
                     </div>
                   </div>
                 </div>
