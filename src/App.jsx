@@ -2335,9 +2335,25 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     : (async()=>{
     // Wait for P1 overview — use its company snapshot as ground truth for exec identity.
     // P1 finds executives from the company's OWN website. P2 should start from that reality.
-    let p1Snapshot = "";
-    try { const r1 = await p1; p1Snapshot = r1?.companySnapshot || ""; } catch {}
+    let p1Snapshot = "", _p1Ownership = "";
+    try { const r1 = await p1; p1Snapshot = r1?.companySnapshot || ""; _p1Ownership = [r1?.publicPrivate, r1?.fundingProfile].filter(Boolean).join(" | "); } catch {}
     const p1ExecHint = p1Snapshot ? `\nGROUND TRUTH FROM COMPANY WEBSITE: "${p1Snapshot.slice(0, 500)}"\nIf this snapshot names a CEO, founder, or other executive, THAT is the correct person. Do NOT contradict it with a different name from a blog or article.\n\n` : "";
+
+    // ── Acquired-company branch (#25) ─────────────────────────────────────────
+    // P1's publicPrivate/fundingProfile are the signal source. For acquired or
+    // subsidiary targets (e.g. Cerner → Oracle Health), current leadership is
+    // published under the PARENT organization's brand — searches anchored only to
+    // the legacy company name return zero executives. Detection is a boolean gate
+    // computed in JS; the parent/division NAME itself must come from the P1
+    // ownership context or the search results, NEVER from training knowledge
+    // (anti-fabrication P0). Independent companies take the unchanged 2-search path.
+    const _isAcquired = /\bacquired\b|\bacquisition\b|subsidiary|\bdivision of\b|merged (?:with|into)|now part of|\bowned by\b|wholly[- ]owned|taken private|parent company/i.test(_p1Ownership);
+    const _acquiredExecCtx = _isAcquired
+      ? `Search 3 (ACQUIRED COMPANY): OWNERSHIP CONTEXT from verified company research: "${sanitizeForPrompt(_p1Ownership).slice(0, 400)}"\n`+
+        `The ownership context indicates ${co} has been acquired or operates as a subsidiary/division. Post-acquisition, current leadership is usually published under the PARENT organization's brand (e.g. Cerner's current leadership appears as "Oracle Health" leadership). Identify the parent company and division name from the OWNERSHIP CONTEXT above or from your search results — NEVER from training knowledge alone — then search: "[Parent] [Division] executives" (e.g. "Oracle Health executives").\n`+
+        `Executives found under the parent organization ARE valid results for this brief: keep the exact title from the source and state the parent-division relationship in background (e.g. "Leads Oracle Health, the Oracle division formed from Cerner"). The EXTRACTION RULES below apply unchanged — every name still requires a sourceUrl and verbatim snippet from your search results.\n`+
+        `EXCEPTION: if the parent is a private-equity or investment firm, ${co}'s own operating leadership remains the correct target — do NOT list the investment firm's partners.\n`
+      : "";
 
     // No pre-cache — fire inline. Mark as billable run (1 per brief).
     // Amendment G: extraction-first model. The model extracts names from search results;
@@ -2347,14 +2363,16 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     p1ExecHint+
       (sellerICP?.sellerDescription ? `Seller context: ${sellerICP.sellerDescription} (${sellerICP?.marketCategory||""}). Products: ${products.filter(p=>p.name?.trim()).map(p=>p.name).join(", ")||"various"}.\n\n` : "")+
       `You are a RETRIEVAL AND EXTRACTION ENGINE for ${co}'s current named leadership. You do NOT generate names from training knowledge — you extract names that appear verbatim in your web search results.\n\n`+
-      `SEARCH STRATEGY — run BOTH searches:\n`+
+      `SEARCH STRATEGY — run ${_isAcquired ? "ALL THREE" : "BOTH"} searches:\n`+
       // Bug 2: Search 1 changed from site-restricted to unrestricted.
       // Site-restricted queries return near-zero page_content from JS-rendered corporate pages.
       // Unrestricted query surfaces news/press releases/bios that name current execs directly.
       // Search 2 anchors to the company site for confirmation. EXTRACTION RULES still apply —
       // model must extract verbatim from returned text, never from training knowledge.
       `Search 1: "${co}" CEO OR president OR "chief executive" OR COO OR "chief operating" OR founder OR leadership\n`+
-      `Search 2: site:${url || co.toLowerCase().replace(/\s+/g,"")+ ".com"} leadership OR team OR "about us" OR "our-people"\n\n`+
+      `Search 2: site:${url || co.toLowerCase().replace(/\s+/g,"")+ ".com"} leadership OR team OR "about us" OR "our-people"\n`+
+      _acquiredExecCtx+
+      `\n`+
       `EXTRACTION RULES (non-negotiable):\n`+
       `1. ONLY include a person whose name appears verbatim in a returned search result snippet or page text. Training knowledge is NOT a source. If you cannot point to exactly where in the search results you read their name, omit them entirely.\n`+
       `2. ROLE-EVIDENCED SEATS ONLY: Only include a seat for a role that your search results actually show someone holding. Do NOT include an empty seat (name="") "because every company has a CFO" — only show a seat if a source evidences that specific role exists and someone fills it.\n`+
@@ -2613,12 +2631,14 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
 
     try {
       // Phase 1: web search + extraction (Sonnet, temp 0 — deterministic extraction per Batch 2d)
+      // max_uses 3 ONLY on the acquired branch (Search 3 needs its own budget);
+      // independent companies stay at 2 (#25).
       const d = await claudeFetch({
         model: SONNET,
         max_tokens:3000,
         temperature: 0,
         system: JSON_ONLY_SYSTEM,
-        tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
+        tools:[{type:"web_search_20250305",name:"web_search",max_uses:_isAcquired ? 3 : 2}],
         messages:[{role:"user",content:execPrompt}],
       });
       // Gate A — structured per-item extraction from web_search_tool_result blocks.
