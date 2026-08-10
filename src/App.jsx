@@ -5515,6 +5515,7 @@ export default function App(){
   const celebrate=(id)=>{if(!celebratedRef.current.has(id)&&MILESTONES[id]){celebratedRef.current.add(id);setActiveCelebration(id);}};
   const[icpLoading,setIcpLoading]=useState(false);
   const[icpStatus,setIcpStatus]=useState(""); // progressive status during ICP build
+  const[icpPreview,setIcpPreview]=useState(null); // #26 display-only fields streamed during ICP build — feeds the Step-2 skeleton card, NEVER merged into the final parsed ICP
   const[icpTab,setIcpTab]=useState("icp"); // "icp" | "rfp"
   const[sellerICPInput,setSellerICPInput]=useState(""); // seller's own ICP description
   const[icpDelta,setIcpDelta]=useState(null); // {alignments:[], gaps:[], recommendations:[]}
@@ -7793,12 +7794,79 @@ Return ONLY raw JSON:
         `Search 2: "${url.split('.')[0]}" customers OR "selected by" OR "case study" OR "works with" press release\n\n`
     );
 
+  // ── #26 PROGRESSIVE ICP PREVIEW (display-only) ──────────────────────────
+  // Extracts landed fields from accumulating partial text with regex anchors —
+  // the same technique generateBrief's onStream callbacks use (~p1/p3 micro-calls).
+  // Pass 1 streams a numbered plain-text research summary (COMPANY / COMPETITORS /
+  // DIFFERENTIATORS section headers); Pass 2 streams the ICP JSON (sellerDescription /
+  // marketCategory / uniqueDifferentiators keys). Both feed icpPreview, which ONLY
+  // drives the Step-2 skeleton card. The final ICP is still parsed from the complete
+  // response exactly as before — preview fields never leak into the parsed object,
+  // so run-to-run determinism of the final JSON is untouched.
+  const _ICP_PREVIEW_HEADER = /^[\s#*]*(?:\d+[.)]\s*)?\**(COMPANY|PRODUCTS?(?:\/|\s+AND\s+|\s*&\s*)?SERVICES|NAMED CUSTOMERS|COMPETITORS|DIFFERENTIATORS|FINANCIAL CONTEXT)\b\**:?\**\s*(.*)$/;
+  const _icpPreviewFromPartial = (partial) => {
+    const found = {};
+    const _unesc = (s) => s.replace(/\\"/g, '"').replace(/\\n/g, "\n");
+    // JSON-key anchors — land during Pass 2 (same pattern as generateBrief's onStream)
+    const descJson = partial.match(/"sellerDescription"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (descJson && descJson[1].length > 10) found.sellerDescription = _unesc(descJson[1]);
+    const catJson = partial.match(/"marketCategory"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (catJson && catJson[1].length > 2) found.marketCategory = _unesc(catJson[1]);
+    const diffJson = partial.match(/"uniqueDifferentiators"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+    if (diffJson) {
+      const items = [...diffJson[1].matchAll(/"((?:[^"\\]|\\.){3,}?)"/g)].map(m => _unesc(m[1]));
+      if (items.length) found.differentiators = items.slice(0, 5);
+    }
+    // Text-section anchors — land during the Pass-1 research summary
+    const bodies = {};
+    let section = "";
+    for (const line of partial.split("\n")) {
+      const h = line.match(_ICP_PREVIEW_HEADER);
+      if (h) { section = h[1]; bodies[section] = h[2] ? [h[2]] : []; continue; }
+      if (section) bodies[section].push(line);
+    }
+    if (!found.sellerDescription) {
+      const companyText = (bodies.COMPANY || []).join(" ").replace(/\s+/g, " ").trim();
+      if (companyText.length > 30) found.sellerDescription = companyText.slice(0, 500);
+    }
+    const _items = (name) => (bodies[name] || [])
+      .map(l => l.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim())
+      .filter(l => l.length > 2 && /[a-z]/.test(l)); // all-caps line = a mid-stream truncated section header, not an item
+    if (!found.differentiators) {
+      const diffs = _items("DIFFERENTIATORS").map(d => d.length > 90 ? d.slice(0, 87) + "…" : d);
+      if (diffs.length) found.differentiators = diffs.slice(0, 5);
+    }
+    const comps = _items("COMPETITORS")
+      .map(c => c.replace(/\s*[:(—–].*$/, "").trim())
+      .filter(c => c.length > 1 && c.length < 60);
+    if (comps.length) found.competitors = comps.slice(0, 4);
+    return found;
+  };
+  // Merge landed fields into icpPreview; returns the previous reference when
+  // nothing changed so per-chunk callbacks don't trigger no-op re-renders.
+  const _pushIcpPreview = (found) => {
+    const keys = Object.keys(found);
+    if (!keys.length) return;
+    setIcpPreview(prev => {
+      let changed = false;
+      const next = { ...(prev || {}) };
+      for (const k of keys) {
+        const a = Array.isArray(found[k]) ? found[k].join("¦") : found[k];
+        const b = Array.isArray(next[k]) ? next[k].join("¦") : next[k];
+        if (a && a !== b) { next[k] = found[k]; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  };
+
   // Status callback — moved verbatim from the inline callback in buildSellerICP.
+  // #26: also pushes landed fields into the display-only skeleton card state.
   const _researchOnPartial = (partial) => {
     if (partial.length > 50 && partial.length < 200) setIcpStatus("Found the company...");
     if (partial.includes("PRODUCTS") || partial.includes("products")) setIcpStatus("Analyzing products and services...");
     if (partial.includes("CUSTOMERS") || partial.includes("customers")) setIcpStatus("Identifying customers and case studies...");
     if (partial.includes("COMPETITORS") || partial.includes("competitors")) setIcpStatus("Mapping competitive landscape...");
+    if (partial.length > 40) _pushIcpPreview(_icpPreviewFromPartial(partial)); // #26 display-only
   };
 
   // Identity of a research context. Any change to seller URL, product pages, or docs
@@ -7971,6 +8039,7 @@ Return ONLY raw JSON:
 
     setIcpLoading(true);
     setIcpStatus("Researching your company...");
+    setIcpPreview(null); // #26 fresh skeleton card for this build
     // Capture current edits BEFORE clearing — inject into rebuild prompt so AI respects user changes
     const priorEdits = [...icpEdits];
     setIcpEdits([]); // Clear edit history for fresh tracking
@@ -8149,6 +8218,9 @@ Return ONLY raw JSON:
           else if (partial.length < 50) newStatus = "Researching your company...";
           if (newStatus) { setIcpStatus(newStatus); lastStatusChange = now; }
         }
+
+        // #26: feed the Step-2 skeleton card — display-only, never merged into the final parse
+        if (partial.length > 40) _pushIcpPreview(_icpPreviewFromPartial(partial));
 
         // Progressive data rendering — parse partial JSON and show what we have
         try {
@@ -15108,6 +15180,56 @@ Return ONLY raw JSON:
                 <div style={{fontSize:13,color:"var(--ink-3)"}}>Building your ICP for {sellerUrl}</div>
                 {icpStatus && <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:-8}}>{icpStatus}</div>}
                 <div style={{fontSize:12.5,color:"var(--ink-3)",marginTop:10,maxWidth:360,lineHeight:1.55}}>Good intel takes a minute. ☕ Grab a coffee or knock out that email you've been dodging — we'll have this ready when you're back.</div>
+              </div>
+            )}
+
+            {/* #26 — progressive ICP skeleton card: fields fill from icpPreview as Pass-1/Pass-2 text streams in */}
+            {icpLoading&&(!sellerICP||sellerICP?._loading)&&(
+              <div className="bb" style={{marginTop:16}}>
+                <div className="bb-hdr">
+                  <div className="bb-icon">🎯</div>
+                  <div>
+                    <div className="bb-title">How the Market Sees You</div>
+                    <div className="bb-sub" style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div className="load-spin" style={{width:12,height:12,borderWidth:2}}/> {icpStatus || getQuip("icp")}
+                    </div>
+                  </div>
+                </div>
+                <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Seller Description</div>
+                    {icpPreview?.sellerDescription
+                      ? <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{icpPreview.sellerDescription}</div>
+                      : <><div className="skeleton" style={{width:"92%",height:12,marginBottom:6}}/><div className="skeleton" style={{width:"68%",height:12}}/></>}
+                  </div>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Market Category</div>
+                    {icpPreview?.marketCategory
+                      ? <div style={{fontSize:13,color:"var(--ink-1)"}}>{icpPreview.marketCategory}</div>
+                      : <div className="skeleton" style={{width:180,height:12}}/>}
+                  </div>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Why We Win — Unique Differentiators</div>
+                    {(icpPreview?.differentiators||[]).length>0
+                      ? <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {icpPreview.differentiators.map((d,i)=>(
+                            <span key={i} style={{background:"var(--green-bg)",border:"1px solid #2E6B2E44",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--green)"}}>{d}</span>
+                          ))}
+                        </div>
+                      : <div style={{display:"flex",gap:6}}>{[96,132,74].map((w,i)=><div key={i} className="skeleton skeleton-pill" style={{width:w,height:22}}/>)}</div>}
+                  </div>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Competitive Alternatives</div>
+                    {(icpPreview?.competitors||[]).length>0
+                      ? <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {icpPreview.competitors.map((c,i)=>(
+                            <span key={i} style={{background:"var(--bg-1)",border:"1px solid var(--line-0)",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--ink-1)"}}>{c}</span>
+                          ))}
+                        </div>
+                      : <div style={{display:"flex",gap:6}}>{[84,108,68].map((w,i)=><div key={i} className="skeleton skeleton-pill" style={{width:w,height:22}}/>)}</div>}
+                  </div>
+                  <div style={{fontSize:11,color:"var(--ink-3)"}}>Building your ICP for {sellerUrl} — fields fill in as research lands. You can review and edit everything when it completes.</div>
+                </div>
               </div>
             )}
 
