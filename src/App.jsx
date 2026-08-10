@@ -8970,7 +8970,8 @@ Return ONLY raw JSON:
     if(d.contactRole) setContactRole(d.contactRole);
     if(d.dealClassification) setDealClassification(d.dealClassification);
     if(d.importMode) setImportMode(d.importMode);
-    setShowSessions(false);setStep(d.step!=null?d.step:(d.sellerUrl?1:0));
+    // mergedPlay (issue #28): step 6 (Game Plan) is retired — sessions saved there land on the merged Brief
+    setShowSessions(false);setStep(d.step!=null?(mergedPlay&&d.step===6?5:d.step):(d.sellerUrl?1:0));
     // Reset auto-save snapshot so restored state isn't immediately re-saved
     lastAutoSaveSnap.current = JSON.stringify(d);
     // Stale session warning — 14+ days old
@@ -9070,6 +9071,15 @@ Return ONLY raw JSON:
       }
       // Arrow keys & number keys — stage navigation (disabled during in-call to prevent accidental navigation)
       if (step === 7) return; // In-call: no keyboard nav
+      // mergedPlay (issue #28): step 6 (Game Plan) is retired — arrows/jumps skip over it
+      if (mergedPlay) {
+        if (e.key === "ArrowRight" && step < 9) { setStep(s => { const n = Math.min(s + 1, 9); return n === 6 ? 7 : n; }); return; }
+        if (e.key === "ArrowLeft"  && step > 0) { setStep(s => { const n = Math.max(s - 1, 0); return n === 6 ? 5 : n; }); return; }
+        if (e.key === "0") { setStep(9); return; }
+        const numM = parseInt(e.key, 10);
+        if (numM >= 1 && numM <= 9) { setStep(numM - 1 === 6 ? 7 : numM - 1); return; }
+        return;
+      }
       if (e.key === "ArrowRight" && step < 9) { setStep(s => Math.min(s + 1, 9)); return; }
       if (e.key === "ArrowLeft"  && step > 0) { setStep(s => Math.max(s - 1, 0)); return; }
       // Number keys 1-9, 0 — jump to stage (user-facing 1-10, internal 0-9)
@@ -9373,6 +9383,11 @@ Return ONLY raw JSON:
     console.log("[sol-con] Brief quorum met — firing pre-call SA + hypothesis in parallel");
     buildSolutionFit({ preCall: true });
     if (!riverHypo && !riverHypoLoading) buildRiverHypo(brief, selectedAccount);
+    // mergedPlay (issue #28): with the Game Plan step retired, the gate map's old build
+    // trigger ("Prep for the Call →" click) no longer runs before the map is needed —
+    // build it here at quorum so the Approval Gate Map card in the merged Brief layout
+    // populates without user action. Idempotent (buildGateMap no-ops if already present).
+    if (mergedPlay) buildGateMap(brief, selectedAccount);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brief?._completedSections, !!brief, !!selectedAccount, !!sellerICP]);
 
@@ -13299,7 +13314,7 @@ Return ONLY raw JSON:
     { id:"nav-accounts",icon:"📊", label:"Go to Fit Check",    section:"Navigate", action:()=>setStep(3) },
     { id:"nav-review",  icon:"👁", label:"Go to Account Review",section:"Navigate", action:()=>setStep(4) },
     { id:"nav-brief",   icon:"📋", label:"Go to Brief",        section:"Navigate", action:()=>setStep(5) },
-    { id:"nav-hypo",    icon:"🧪", label:"Go to Hypothesis",   section:"Navigate", action:()=>setStep(6) },
+    { id:"nav-hypo",    icon:"🧪", label:"Go to Hypothesis",   section:"Navigate", action:()=>setStep(mergedPlay?5:6) },
     { id:"nav-incall",  icon:"🎙", label:"Go to In-Call",      section:"Navigate", action:()=>setStep(7) },
     { id:"nav-sa",      icon:"🏗", label:"Go to Solution Fit", section:"Navigate", action:()=>setStep(8) },
     { id:"nav-post",    icon:"📬", label:"Go to Post-Call",    section:"Navigate", action:()=>setStep(9) },
@@ -13736,6 +13751,8 @@ Return ONLY raw JSON:
               if (sellerUrl === "research-only" && i !== 0 && i !== 5) return null;
               // When solution consolidation is on, Step 8 is absorbed into Step 6 — hide it
               if (solConEnabled && i === 8) return null;
+              // When mergedPlay is on (issue #28), Step 6 (Game Plan) is absorbed into Step 5 (Brief) — hide it
+              if (mergedPlay && i === 6) return null;
               const canNav = (()=>{
                 if(i===step) return false;
                 if(i===0) return true;
@@ -13763,7 +13780,7 @@ Return ONLY raw JSON:
                     aria-current={step===i?"step":undefined}
                     title={STEP_TIPS[i] || s}
                     style={{position:"relative"}}>
-                    <div className={`step-num ${celebrateStep===i?"just-completed":""}`}>{step>i?"✓":(solConEnabled&&i>8?i:i+1)}</div>
+                    <div className={`step-num ${celebrateStep===i?"just-completed":""}`}>{step>i?"✓":(mergedPlay&&i>6?(solConEnabled&&i>8?i-1:i):(solConEnabled&&i>8?i:i+1))}</div>
                     <div className="step-label">{s}</div>
                     {i === 1 && ((rfpData.open?.length || 0) + (rfpData.signals?.length || 0) + (accountRfpData.open?.length || 0) + (accountRfpData.signals?.length || 0) > 0) && (
                       <span style={{position:"absolute",top:-4,right:-4,background:"var(--red)",color:"white",fontSize:8,fontWeight:800,width:16,height:16,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -17435,7 +17452,9 @@ Return ONLY raw JSON:
                     {(briefLoading || brief?._error || brief?._failedSections?.length > 0 || Object.values(brief?._loadingSections || {}).some(Boolean)) && (
                     <button className="btn btn-secondary" disabled={briefLoading} onClick={()=>{if(!checkNoChange("brief",getBriefSig,()=>pickAccount(selectedAccount)))pickAccount(selectedAccount);}}>{briefLoading ? "⏳ Regenerating..." : "↻ Regenerate"}</button>
                     )}
-                    {sellerUrl!=="research-only"&&<button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>}
+                    {sellerUrl!=="research-only"&&(mergedPlay
+                      ? <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setActiveRiver(0);setStep(7);}}>Start the Call →</button>
+                      : <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>)}
                     <button className="btn btn-secondary" onClick={clearAccount} title="Clear this account and go back to Fit Scores">Switch Account</button>
                   </div>
                 </div>
@@ -18708,7 +18727,9 @@ Return ONLY raw JSON:
                   <button className="btn btn-secondary" disabled={briefLoading} onClick={()=>{if(!checkNoChange("brief",getBriefSig,()=>pickAccount(selectedAccount)))pickAccount(selectedAccount);}}>{briefLoading ? "⏳ Regenerating..." : "↻ Regenerate"}</button>
                   )}
                   <ExportMenu locked={exportLocked} onPDF={doExport} onCSV={()=>csvExport("Brief", brief)} />
-                  <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>
+                  {mergedPlay
+                    ? <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setActiveRiver(0);setStep(7);}}>Start the Call →</button>
+                    : <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>}
                 </div>
               </>
             )}
@@ -19020,9 +19041,11 @@ Return ONLY raw JSON:
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                 <div style={{fontFamily:"'Crimson Pro',serif",fontSize:24,fontWeight:600,color:confColor(confidence)}}>{confidence}%</div>
                 <div style={{fontSize:12,color:"var(--ink-3)"}}>confidence</div>
-                <button className="btn btn-secondary btn-sm" onClick={()=>setStep(6)}>← Hypothesis</button>
+                {mergedPlay
+                  ? <button className="btn btn-secondary btn-sm" onClick={()=>setStep(5)}>← Brief</button>
+                  : <button className="btn btn-secondary btn-sm" onClick={()=>setStep(6)}>← Hypothesis</button>}
                 <ExportMenu locked={exportLocked} onPDF={doExport} onCSV={()=>csvExport("In-Call", {gateAnswers,riverData,gateNotes,notes,confidence})} />
-                <button className="btn btn-green btn-sm" onClick={()=>{buildSolutionFit();setStep(solConEnabled?6:8);}} disabled={solutionFitLoading}>
+                <button className="btn btn-green btn-sm" onClick={()=>{buildSolutionFit();setStep(mergedPlay?5:(solConEnabled?6:8));}} disabled={solutionFitLoading}>
                   {solutionFitLoading?"Analyzing...":"End Call →"}
                 </button>
               </div>
