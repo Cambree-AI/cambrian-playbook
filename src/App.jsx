@@ -8822,6 +8822,53 @@ Return ONLY raw JSON:
         }
       }
 
+      // Firecrawl discovery fallback (#29) — search-index discovery is unreliable on
+      // thin or poorly-indexed sites (cambriancatalyst.ai itself reproduced 8/8).
+      // When discovery returns <3 pages, probe the standard marketing paths directly
+      // via /api/fetch (plain fetch → Firecrawl render escalation, render:"auto").
+      // Probed pages carry the SAME trust level as discovered ones — URL hints for
+      // the ICP research pass, never ground truth. Probes fire concurrently with no
+      // retries; any failure (404, timeout, SSRF block) is a silent per-path skip.
+      if(pages.length<3){
+        console.log(`[scan] Discovery returned ${pages.length} page(s) — probing standard paths via /api/fetch fallback`);
+        const candidates=[
+          {path:"",label:"Homepage",type:""},
+          {path:"/products",label:"Products",type:"product"},
+          {path:"/solutions",label:"Solutions",type:"product"},
+          {path:"/customers",label:"Customers",type:"case_study"},
+          {path:"/case-studies",label:"Case Studies",type:"case_study"},
+          {path:"/about",label:"About",type:""},
+        ];
+        const probed=await Promise.all(candidates.map(async(c)=>{
+          try{
+            const r=await fetch("/api/fetch",{method:"POST",headers:authHeaders(),body:JSON.stringify({url:baseUrl+c.path,render:"auto"})});
+            if(!r.ok) return null;
+            const fd=await r.json();
+            // ok:false (404/timeout/blocked) or near-empty text → skip silently
+            if(!fd?.ok||!fd.text||fd.text.length<200) return null;
+            // Same-domain guard on the post-redirect URL (same idiom as the p2-fetch pipeline)
+            if(fd.finalUrl){
+              try{
+                const h=new URL(fd.finalUrl).hostname.replace(/^www\./,"").toLowerCase();
+                const base=url.split("/")[0].replace(/^www\./,"").toLowerCase();
+                if(!h.includes(base)&&!base.includes(h)) return null;
+              }catch{ return null; }
+            }
+            return {url:fd.finalUrl||baseUrl+c.path,label:c.label,type:c.type};
+          }catch{ return null; } // one failed probe must never break the scan
+        }));
+        // Merge into the discovery result, dedupe by normalized URL
+        const normUrl=(u)=>u.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/$/,"").toLowerCase();
+        const seen=new Set(pages.map(p=>normUrl(p.url)));
+        for(const p of probed){
+          if(!p||seen.has(normUrl(p.url))) continue;
+          seen.add(normUrl(p.url));
+          pages.push(p);
+        }
+        pages=pages.slice(0,8);
+        console.log(`[scan] Direct-probe fallback merged: ${probed.filter(Boolean).length} probe hit(s) → ${pages.length} page(s) total`);
+      }
+
       console.log("URL scan found pages:", pages.length, pages);
       if(pages.length>0){
         setProductUrls(pages.map(p=>({url:p.url,label:p.label||"",type:p.type||""})));
