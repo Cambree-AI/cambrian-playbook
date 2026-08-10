@@ -14419,34 +14419,55 @@ Return ONLY raw JSON:
                       <span style={{fontSize:14}}>✓</span> {productUrls.filter(u=>u.url).length} product page{productUrls.filter(u=>u.url).length!==1?"s":""} confirmed
                     </div>
                   )}
+                  {/* Single context affordance (#29) — the ONLY card the light path shows:
+                      upload + funding-stage chip + segment chip. The "Add more details"
+                      expander below is suppressed while this card is visible so the two
+                      affordances never stack. Free-text description removed — structured
+                      inputs + uploaded docs only. */}
                   {urlScanStatus==="none"&&(
                     <div style={{background:"var(--bg-1)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"14px 16px",marginTop:10}}>
                       <div style={{fontSize:13,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>Let's add a little context</div>
                       <div style={{fontSize:12,color:"var(--ink-1)",lineHeight:1.6,marginBottom:12}}>
                         Looks like your company's website is a little light on product, services, solutions, and case-study content.
-                        Not a problem — use the upload button to add relevant materials (case studies, product one-pagers, etc.),
-                        or use the text field below to describe the products, solutions, or services you're focused on selling.
+                        Not a problem — upload relevant materials (case studies, product one-pagers, etc.) and pick the options below.
                       </div>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs) */}
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs → proof pack) */}
                         <label className="btn btn-secondary btn-sm" style={{cursor:"pointer"}}>
                           <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                             onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                           📂 Upload materials
                         </label>
-                        <button className="btn btn-secondary btn-sm"
-                          onClick={()=>{
-                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("setupDetails");return next;});
-                            setTimeout(()=>{document.getElementById("kickoffv2-icp-input")?.focus();},80);
-                          }}>
-                          ✏️ Describe what you sell
-                        </button>
                         {sellerDocs.length>0&&(
                           <span style={{fontSize:11,fontWeight:600,color:"var(--green)"}}>✓ {sellerDocs.length} doc{sellerDocs.length>1?"s":""} added</span>
                         )}
                       </div>
+                      <div style={{marginBottom:10}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Your Funding Stage</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {["Bootstrapped","Angel","Seed","Series A","Series B","Series C","Series D+","PE-Backed","Private","Public"].map(stage=>(
+                            <button key={stage} onClick={()=>setSellerStage(stage)}
+                              style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(sellerStage===stage?"var(--ink-0)":"var(--line-0)"),
+                                background:sellerStage===stage?"var(--ink-0)":"var(--surface)",color:sellerStage===stage?"#fff":"var(--ink-1)",
+                                fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.13s"}}>
+                              {stage}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Market Segment <span style={{fontWeight:400,color:"var(--ink-3)"}}>pick 1</span></div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                          {["SMB","Mid-Market","Enterprise"].map(v=>{
+                            const sel=icpTargeting.segment===v;
+                            return <button key={v} onClick={()=>setIcpTargeting(p=>({...p,segment:sel?"":v}))}
+                              style={{padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all 0.13s",
+                                border:"1.5px solid "+(sel?"var(--navy)":"var(--line-0)"),background:sel?"var(--navy)":"var(--surface)",color:sel?"#fff":"var(--ink-1)"}}>{v}</button>;
+                          })}
+                        </div>
+                      </div>
                       <div style={{fontSize:11,color:"var(--ink-3)",marginTop:10}}>
-                        Either one works. Then continue below — you'll build your ICP on the next step with whatever you add here.
+                        Then continue below — you'll build your ICP on the next step with whatever you add here.
                       </div>
                     </div>
                   )}
@@ -14463,13 +14484,16 @@ Return ONLY raw JSON:
                 </div>
 
                 {/* Add more details — collapsed disclosure; binds the SAME state the classic form feeds
-                    into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824, sellerICPInput @8270) */}
+                    into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824). Suppressed on the
+                    light path (#29) — the "Let's add a little context" card above carries the same
+                    chips there, so only one affordance ever shows. */}
+                {urlScanStatus!=="none"&&(
                 <div style={{marginTop:14}}>
                   <div onClick={()=>toggleBB("setupDetails")} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"var(--bg-1)",borderRadius:8,border:"1px solid var(--line-0)"}}>
                     <span style={{fontSize:13}}>{bbIsOpen("setupDetails")?"▾":"▸"}</span>
                     <div style={{flex:1}}>
                       <div style={{fontSize:12,fontWeight:700,color:"var(--ink-1)"}}>Add more details <span style={{fontWeight:400,color:"var(--ink-3)"}}>(optional — improves targeting)</span></div>
-                      <div style={{fontSize:10,color:"var(--ink-3)"}}>Funding stage, market segment, your own ICP notes</div>
+                      <div style={{fontSize:10,color:"var(--ink-3)"}}>Funding stage, market segment</div>
                     </div>
                     {sellerStage && <span style={{fontSize:10,fontWeight:700,background:"var(--green-bg)",color:"var(--green)",borderRadius:10,padding:"2px 8px"}}>{sellerStage}</span>}
                   </div>
@@ -14487,7 +14511,7 @@ Return ONLY raw JSON:
                         ))}
                       </div>
                     </div>
-                    <div style={{marginBottom:10}}>
+                    <div>
                       <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Market Segment <span style={{fontWeight:400,color:"var(--ink-3)"}}>pick 1</span></div>
                       <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                         {["SMB","Mid-Market","Enterprise"].map(v=>{
@@ -14498,18 +14522,9 @@ Return ONLY raw JSON:
                         })}
                       </div>
                     </div>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Anything else we should know? <span style={{fontWeight:400,color:"var(--ink-3)"}}>your ICP, in your own words</span></div>
-                      <textarea
-                        id="kickoffv2-icp-input"
-                        value={sellerICPInput}
-                        onChange={e=>setSellerICPInput(e.target.value)}
-                        placeholder={"e.g. \"We sell to SMB restaurants with 1-5 locations, owner-operators, $500K-$5M revenue\""}
-                        style={{width:"100%",minHeight:60,padding:"10px 12px",fontSize:13,border:"1.5px solid var(--line-0)",borderRadius:8,resize:"vertical",fontFamily:"inherit",lineHeight:1.6,background:"var(--bg-0)"}}
-                      />
-                    </div>
                   </div>
                 </div>
+                )}
 
                 {/* Single context-aware primary CTA — no two stacked full-width buttons:
                     pre-scan  → run the EXISTING Go pipeline (scan / disambiguation), label "Analyze my company →";
