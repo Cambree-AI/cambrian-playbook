@@ -2607,6 +2607,10 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       console.log(`[p2-fetch] Phase 0 complete: no candidate produced page-verified execs for ${_companyBaseDomain} — falling through to web search`);
     }
 
+    // Phase 0 produced nothing (or was skipped) — the deep-search fallback starts now.
+    // Signal the phase transition so the UI shows the searching skeleton, not the failure card.
+    onStream?.("executivesPhase", { phase: "searching" });
+
     try {
       // Phase 1: web search + extraction (Sonnet, temp 0 — deterministic extraction per Batch 2d)
       const d = await claudeFetch({
@@ -2885,6 +2889,10 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     ...BLANK_BRIEF,
     companySnapshot: `Researching ${co}...`,
     _loadingSections: {overview:true, executives:true, strategy:true, solutions:true, live:true, roles:true, deepIntel:true},
+    // Exec pipeline phase state machine: "extracting" (Phase 0 leadership-page fetch) →
+    // "searching" (web-search fallback) → "done" (all phases settled). The failure card
+    // renders ONLY at done+empty — one boolean can't represent a two-phase pipeline.
+    _executivesPhase: "extracting",
     _completedSections: [], // populated only by actual merge callbacks, NOT by the 90s hard timeout
     _klVersions: _klActiveVersions, // which knowledge layers were injected for this brief
     _generatedAt: Date.now(),
@@ -2982,6 +2990,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     if (!prev) return prev;
     const next = {...prev,
       _loadingSections: {...(prev._loadingSections||{}), executives:false},
+      _executivesPhase: "done",
       _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])]};
     if (r2?.keyExecutives?.length) {
       // Amendment G Gate A + Gate B enforcement:
@@ -9789,7 +9798,7 @@ Return ONLY raw JSON:
                   ...(cd.solutionMapping?.some(s => s?.product) ? ["solutions"] : []),
                   // "live" deliberately omitted — p5 backfill appends it below when done
                 ];
-                const cachedBriefData = { ...cd, _generatedAt: new Date(cached[0].created_at).getTime(), _cached: true, _loadingSections: loadingFlags, _failedSections: [], _error: null, _completedSections: initialCompletedSections };
+                const cachedBriefData = { ...cd, _generatedAt: new Date(cached[0].created_at).getTime(), _cached: true, _loadingSections: loadingFlags, _executivesPhase: missingExecutives ? "extracting" : "done", _failedSections: [], _error: null, _completedSections: initialCompletedSections };
                 // Schema-variant self-heal: coerce string-variant fields to arrays (matches restore boundary)
                 for (const _k of ["recentHeadlines","recentSignals","watchOuts","growthSignals"]) {
                   const _v = cachedBriefData[_k];
@@ -9816,7 +9825,7 @@ Return ONLY raw JSON:
                   // Don't compete with ICP build — Anthropic can't handle both well
                   if (icpLoading) {
                     console.log(`[cache] Skipping backfill — ICP is building`);
-                    setBrief(prev => prev ? { ...prev, _loadingSections: { overview: false, strategy: false, solutions: false, live: false, roles: false, deepIntel: false } } : prev);
+                    setBrief(prev => prev ? { ...prev, _loadingSections: { overview: false, strategy: false, solutions: false, live: false, roles: false, deepIntel: false }, _executivesPhase: "done" } : prev);
                     return;
                   }
                   // P5: refresh headlines + conditionally sentiment when missing
@@ -9938,21 +9947,23 @@ Return ONLY raw JSON:
                   // Backfill missing executives
                   if (missingExecutives) {
                     try {
+                      // The backfill is a web search — surface the honest "deep search" phase, not the failure card
+                      setBrief(prev => prev ? { ...prev, _executivesPhase: "searching" } : prev);
                       const d = await claudeFetch({ model: SONNET, max_tokens: 1500, system: JSON_ONLY_SYSTEM, tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }],
                         messages: [{ role: "user", content: deepIntelIdentityCache + `Find the current C-suite executives and key leaders of ${co}${url ? ` (${url})` : ""}.\nSearch for "${co} CEO executive team" and "${co} leadership".\nReturn raw JSON: {"keyExecutives":[{"name":"Full Name","title":"Exact Title","initials":"XX","angle":"1-2 sentences on how to approach this person as a seller — their mandate, first-90-day priorities, what resonates","background":"Prior roles, education, notable career facts"}]}` }] });
                       const tb = (d?.content||[]).filter(b=>b.type==="text").map(b=>b.text||"");
                       const raw = tb.join("").replace(/```(?:json)?\s*/gi,"").replace(/```/g,"").trim();
                       const parsed = extractJsonWithKey(raw, "keyExecutives") || safeParseJSON(raw.startsWith("{")?raw:"{"+raw);
                       if (parsed?.keyExecutives?.some(e => e?.name)) {
-                        setBrief(prev => prev ? { ...prev, keyExecutives: parsed.keyExecutives, _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
+                        setBrief(prev => prev ? { ...prev, keyExecutives: parsed.keyExecutives, _loadingSections: { ...(prev._loadingSections || {}), executives: false }, _executivesPhase: "done", _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
                         console.log("[cache] Executives backfilled");
                       } else {
                         // No usable names — section settled with no data; append so SA quorum can complete
-                        setBrief(prev => prev ? { ...prev, _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
+                        setBrief(prev => prev ? { ...prev, _loadingSections: { ...(prev._loadingSections || {}), executives: false }, _executivesPhase: "done", _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
                       }
                     } catch (e) {
                       console.warn("[cache] Executives backfill failed:", e?.message);
-                      setBrief(prev => prev ? { ...prev, _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
+                      setBrief(prev => prev ? { ...prev, _loadingSections: { ...(prev._loadingSections || {}), executives: false }, _executivesPhase: "done", _completedSections: [...new Set([...(prev._completedSections||[]), "executives"])] } : prev);
                     }
                   }
                   // Backfill missing open roles
@@ -10060,7 +10071,7 @@ Return ONLY raw JSON:
                     } else {
                       // Clear any remaining loading flags
                       if (Object.values(current._loadingSections || {}).some(Boolean)) {
-                        return { ...current, _loadingSections: { overview: false, executives: false, strategy: false, solutions: false, live: false, roles: false, deepIntel: false } };
+                        return { ...current, _loadingSections: { overview: false, executives: false, strategy: false, solutions: false, live: false, roles: false, deepIntel: false }, _executivesPhase: "done" };
                       }
                     }
                     return current;
@@ -10194,6 +10205,9 @@ Return ONLY raw JSON:
             if (partialData.sellerOpportunity) next.sellerOpportunity = partialData.sellerOpportunity;
           } else if (section === "solutions" && partialData.solutionMapping?.[0]?.product) {
             next.solutionMapping = partialData.solutionMapping;
+          } else if (section === "executivesPhase" && partialData.phase) {
+            // Exec pipeline phase transition (extracting → searching → done)
+            next._executivesPhase = partialData.phase;
           }
           return next;
         });
@@ -10338,6 +10352,7 @@ Return ONLY raw JSON:
         return {
           ...prev,
           _loadingSections: { overview: false, executives: false, strategy: false, solutions: false, live: false, roles: false, deepIntel: false },
+          _executivesPhase: "done",
           _error: pending >= 4
             ? "Brief timed out — some sections may be incomplete. Check your connection and try Regenerate."
             : (prev._error || ""),
@@ -17766,29 +17781,34 @@ Return ONLY raw JSON:
                 )}
 
                 {/* Key Executives — always show section */}
-                {brief._loadingSections?.executives && !(brief.keyExecutives||[]).some(e=>e?.name) ? (
+                {(()=>{
+                  // Phase state machine (#25): "extracting" (Phase 0) → "searching" (web-search
+                  // fallback) → "done". The failure card renders ONLY at done+empty — it must
+                  // never appear while any search phase is still in flight. Briefs from before
+                  // the phase field existed (restored sessions, old caches) derive it from the
+                  // legacy loading flag so they render exactly as before.
+                  const _execPhase = brief._executivesPhase || (brief._loadingSections?.executives ? "extracting" : "done");
+                  const isStub = (n) => /^(CEO|CFO|CTO|COO|CRO|CHRO|Founder|President)$/i.test(n?.trim());
+                  // Step 1 (Amendment G §4): only show names that have a real sourceUrl
+                  // (code-verified present in a fetched source). P4-filled names (sourceUrl:
+                  // "p4-contact-search") are unverified — they show as title-only seats.
+                  const realExecs = (brief.keyExecutives||[]).filter(e=>e?.name && e?.sourceUrl?.startsWith("http") && !isStub(e.name));
+                  return _execPhase !== "done" && realExecs.length === 0 ? (
                   <div className="bb bb-skeleton">
-                    <div className="bb-hdr"><div className="bb-icon" style={{fontSize:10}}>👤</div><div><div className="bb-title">Key Executives</div><div className="bb-sub">Searching...</div></div><div className="load-spin" style={{width:14,height:14,borderWidth:2}}/></div>
+                    <div className="bb-hdr"><div className="bb-icon" style={{fontSize:10}}>👤</div><div><div className="bb-title">Key Executives</div><div className="bb-sub">{_execPhase === "searching" ? "Running deep search across public sources…" : "Searching..."}</div></div><div className="load-spin" style={{width:14,height:14,borderWidth:2}}/></div>
                     <div className="bb-body" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
                       {[1,2,3].map(i=><div key={i} style={{display:"flex",gap:10,padding:8}}><div className="skeleton" style={{width:36,height:36,borderRadius:"50%",flexShrink:0}}/><div style={{flex:1,display:"flex",flexDirection:"column",gap:6}}><div className="skeleton" style={{width:"60%",height:14}}/><div className="skeleton" style={{width:"40%",height:12}}/><div className="skeleton" style={{width:"80%",height:12}}/></div></div>)}
                     </div>
                   </div>
-                ) : (
-                <div className={`bb${!brief._loadingSections?.executives ? " bb-arrive" : ""}`}>
+                  ) : (
+                <div className={`bb${_execPhase === "done" ? " bb-arrive" : ""}`}>
                   <div className="bb-hdr">
                     <div className="bb-icon" style={{fontSize:10}}>👤</div>
-                    <div><div className="bb-title">Key Executives</div><div className="bb-sub">{brief._loadingSections?.executives ? "Searching..." : "Know someone here? Edit names and angles — your corrections carry forward"}</div></div>
+                    <div><div className="bb-title">Key Executives</div><div className="bb-sub">{_execPhase !== "done" ? "Searching..." : "Know someone here? Edit names and angles — your corrections carry forward"}</div></div>
                   </div>
                   <div className="bb-body" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:10}}>
-                    {(()=>{
-                      const isStub = (n) => /^(CEO|CFO|CTO|COO|CRO|CHRO|Founder|President)$/i.test(n?.trim());
-                      // Step 1 (Amendment G §4): only show names that have a real sourceUrl
-                      // (code-verified present in a fetched source). P4-filled names (sourceUrl:
-                      // "p4-contact-search") are unverified — they show as title-only seats.
-                      const realExecs = (brief.keyExecutives||[]).filter(e=>e?.name && e?.sourceUrl?.startsWith("http") && !isStub(e.name));
-                      return realExecs.length > 0;
-                    })()
-                      ? (brief.keyExecutives||[]).filter(e=>e?.name && e?.sourceUrl?.startsWith("http") && !/^(CEO|CFO|CTO|COO|CRO|CHRO|Founder|President)$/i.test(e?.name?.trim())).map((ex,i)=>(
+                    {realExecs.length > 0
+                      ? realExecs.map((ex,i)=>(
                         <div key={i} className="contact-row" style={{margin:0}}>
                           <div className="contact-av" style={{background:"#2C4A7A",color:"var(--surface)",fontFamily:"'Crimson Pro',serif",fontWeight:700,fontSize:11}}>{ex.initials||ex.name?.split(" ").map(w=>w[0]).join("").slice(0,2)||"··"}</div>
                           <div style={{flex:1,minWidth:0}}>
@@ -17824,7 +17844,8 @@ Return ONLY raw JSON:
                     }
                   </div>
                 </div>
-                )}
+                  );
+                })()}
 
                 {/* Recent Headlines */}
                 {brief._loadingSections?.live && !(brief.recentHeadlines||[]).some(h=>h?.headline||typeof h==="string") ? (
