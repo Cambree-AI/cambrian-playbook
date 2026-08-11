@@ -4,6 +4,7 @@
 // POST with admin JWT + action payload.
 
 import { isAllowedOrigin, verifyJwt, decodeJwtPayload, checkRateLimit } from "./_guard.js";
+import { provisionTrialAccess } from "./_provision.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -193,6 +194,62 @@ export default async function handler(req, res) {
       console.log("[admin] create_org response:", r.status, JSON.stringify(d));
       if (d?.[0]?.id) return res.json({ ok: true, message: `Created "${orgData.name}"`, orgId: d[0].id });
       return res.status(400).json({ error: d?.message || d?.error || d?.details || `Failed to create org (${r.status})` });
+    }
+
+    if (action === "approve_access_request" || action === "dismiss_access_request") {
+      const { requestId, reason } = req.body || {};
+      if (!requestId) return res.status(400).json({ error: "requestId required" });
+      if (!UUID_RE.test(requestId)) return res.status(400).json({ error: "Invalid requestId format" });
+
+      const isApprove = action === "approve_access_request";
+      const patch = isApprove
+        ? { status: "approved", approved_via: "manual", approved_by: callerEmail, approved_at: new Date().toISOString() }
+        : {
+            status: "dismissed",
+            dismissed_reason: typeof reason === "string" && reason.trim() ? reason.trim().slice(0, 500) : null,
+            // approved_by/approved_at double as the generic "actioned by/at"
+            // audit pair on dismissals (see migration 035).
+            approved_by: callerEmail,
+            approved_at: new Date().toISOString(),
+          };
+
+      // Conditional claim: only a 'pending' row transitions. A double-click or
+      // concurrent tab matches zero rows and no-ops, so exactly one org and
+      // one email can ever result from a single request row.
+      const claimRes = await fetch(`${SB_URL}/rest/v1/access_requests?id=eq.${requestId}&status=eq.pending`, {
+        method: "PATCH",
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
+        body: JSON.stringify(patch),
+      });
+      const claimed = await claimRes.json().catch(() => null);
+      if (!claimRes.ok) return res.status(400).json({ error: claimed?.message || "Failed to update request" });
+      if (!Array.isArray(claimed) || claimed.length === 0) {
+        return res.json({ ok: true, noop: true, message: "Request was already actioned" });
+      }
+      const row = claimed[0];
+
+      if (!isApprove) {
+        console.log(`[admin] Dismissed access request ${requestId} (${row.email})`);
+        return res.json({ ok: true, message: `Dismissed request from ${row.email}` });
+      }
+
+      // Approve: trial org + invitation + welcome email — same shared path as
+      // promo auto-approve. The claim above is the idempotency gate.
+      const prov = await provisionTrialAccess({ email: row.email, name: row.name, company: row.company, invitedBy: callerEmail });
+      if (prov.ok) {
+        console.log(`[admin] Approved access request ${requestId} (${row.email}) — org ${prov.orgId}, ${prov.action}`);
+        return res.json({ ok: true, message: `Approved ${row.email} — invite ${prov.emailSent ? "sent" : "NOT sent (check logs)"}` });
+      }
+
+      // Provisioning refused (existing user, etc.) — release the claim so the
+      // row returns to the queue instead of being stuck 'approved' with no org.
+      await fetch(`${SB_URL}/rest/v1/access_requests?id=eq.${requestId}&status=eq.approved`, {
+        method: "PATCH",
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "pending", approved_via: null, approved_by: null, approved_at: null }),
+      }).catch(() => {});
+      console.warn(`[admin] Approve of ${requestId} (${row.email}) failed provisioning: ${prov.reason}`);
+      return res.status(400).json({ error: `Provisioning failed: ${prov.reason}` });
     }
 
     return res.status(400).json({ error: `Unknown action: ${action}` });
