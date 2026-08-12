@@ -80,12 +80,42 @@ async function notifyFounder({ name, email, company, note, created_at, extra }) 
           (note ? `Note:    ${note}\n` : "") +
           (extra ? `Flag:    ${extra}\n` : "") +
           `When:    ${created_at}\n\n` +
-          `Send them an invite from Supabase Auth if approved.`,
+          // A Supabase-dashboard auth invite carries no invitation_token and
+          // creates no org — the user would land with broken onboarding. The
+          // admin queue (or the in-app invite flow) provisions correctly.
+          `Approve or dismiss it from Reporting → Access Requests in the app.`,
       }),
     });
     if (!r.ok) console.warn("[request-access] Resend responded", r.status, await r.text().catch(() => ""));
   } catch (e) {
     console.warn("[request-access] Resend call failed:", e.message);
+  }
+}
+
+// Acknowledgment to the requester on the queued path — without it the manual
+// path is completely silent until a human approves (issue #3 gap analysis).
+async function notifyRequester({ name, email }) {
+  if (!RESEND_API_KEY) return;
+  const firstName = (name || "").trim().split(/\s+/)[0] || "there";
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: FROM_ADDR,
+        to: email,
+        subject: "We got your Cambree access request",
+        text:
+          `Hi ${firstName},\n\n` +
+          `Thanks for requesting access to the Cambree private beta. A human reviews every request personally — ` +
+          `when yours is approved you'll get an invite email from this address with a link to set up your account.\n\n` +
+          `No action needed in the meantime. If you have questions, just reply to this email.\n\n` +
+          `— The Cambree team`,
+      }),
+    });
+    if (!r.ok) console.warn("[request-access] Requester ack Resend responded", r.status, await r.text().catch(() => ""));
+  } catch (e) {
+    console.warn("[request-access] Requester ack failed:", e.message);
   }
 }
 
@@ -172,11 +202,13 @@ export default async function handler(req, res) {
     // Provisioning refused (existing user, etc.) — queue for a human instead.
     console.warn("[request-access] Promo provisioning fell back to queue:", prov.reason);
     await notifyFounder({ name, email: cleanEmail, company, note, created_at, extra: `Valid promo code, but auto-provision failed (${prov.reason}) — approve manually.` });
+    await notifyRequester({ name, email: cleanEmail });
     return res.json({ ok: true, approved: false, message: QUEUED_MSG });
   }
 
   // Manual queue path (no code, or code not recognized)
   await notifyFounder({ name, email: cleanEmail, company, note, created_at, extra: code ? "Submitted an unrecognized promo code." : null });
+  await notifyRequester({ name, email: cleanEmail });
 
   // Always succeed for the user once validated — email/DB failures are logged, not surfaced.
   return res.json({ ok: true, approved: false, message: code ? BAD_CODE_MSG : QUEUED_MSG });
