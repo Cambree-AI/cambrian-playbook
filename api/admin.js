@@ -84,7 +84,7 @@ export default async function handler(req, res) {
     // Fetch all data in parallel
     // sessionIndex: lightweight query of ALL sessions (no data blob) for accurate per-user counts
     // sessions: paginated with full data blob for session detail view
-    const [users, orgs, sessionIndex, sessions, usageLogs, guestLogs, dbCosts] = await Promise.all([
+    const [users, orgs, sessionIndex, sessions, usageLogs, guestLogs, dbCosts, accessRequestRows, invitationRows] = await Promise.all([
       sbFetch("users?select=id,email,name,role,org_id,created_at,last_login&order=created_at.desc"),
       sbFetch("orgs?select=id,name,seller_url,plan,run_count,run_limit,max_run_count,max_run_limit,created_at&order=created_at.desc"),
       // ALL sessions — lightweight (no data blob) for accurate user activity stats
@@ -95,7 +95,24 @@ export default async function handler(req, res) {
       sbFetch("api_usage_log?user_id=is.null&select=model,input_tokens,output_tokens,web_searches,endpoint,created_at&order=created_at.desc&limit=2000"),
       // Server-side cost aggregation (bypasses row limits)
       fetch(`${SB_URL}/rest/v1/rpc/get_cost_summary`, { method: "POST", headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" }, body: "{}" }).then(r => r.json()).catch(() => null),
+      // Pending beta access requests for the Approve/Dismiss queue (issue #3)
+      sbFetch("access_requests?status=eq.pending&select=id,name,email,company,note,promo_code,created_at&order=created_at.desc").catch(() => []),
+      // Invitation emails for "already handled" detection on the queue
+      sbFetch("invitations?select=email,accepted_at").catch(() => []),
     ]);
+
+    // PostgREST errors come back as an object, not an array — treat as empty.
+    // Requests whose email already belongs to a user (or has an outstanding
+    // invitation) were handled out-of-band — the queue flags them so Approve
+    // isn't offered on a row that would just bounce with existing_user.
+    const userEmailSet = new Set((Array.isArray(users) ? users : []).map(u => (u.email || "").toLowerCase()));
+    const inviteEmailSet = new Set((Array.isArray(invitationRows) ? invitationRows : [])
+      .filter(i => !i.accepted_at).map(i => (i.email || "").toLowerCase()));
+    const accessRequests = (Array.isArray(accessRequestRows) ? accessRequestRows : []).map(r => ({
+      ...r,
+      already_user: userEmailSet.has((r.email || "").trim().toLowerCase()),
+      invite_pending: inviteEmailSet.has((r.email || "").trim().toLowerCase()),
+    }));
 
     // Build user activity map
     const now = Date.now();
@@ -592,6 +609,7 @@ export default async function handler(req, res) {
         unique_seller_urls: allSellerUrls.length,
         total_milton_messages: totalMiltonMessages,
         guest_api_calls: guestActivity.total_calls,
+        pending_access_requests: accessRequests.length,
       },
       pagination: { page, limit, total: totalSessions },
       environment: envStatus,
@@ -602,6 +620,7 @@ export default async function handler(req, res) {
         org_plan: u.org_id && orgMap[u.org_id] ? orgMap[u.org_id].plan : null,
       })),
       orgs: Object.entries(orgMap).map(([id, o]) => ({ id, ...o })),
+      access_requests: accessRequests,
       recent_activity: recentActivity,
       seller_urls: allSellerUrls,
       costs,

@@ -4306,15 +4306,21 @@ function PasswordGate({ onAuth }) {
         else if(d.id){setVerifying(true);}
         else setErr(d.msg||d.error_description||'Sign up failed');
       } else if(mode==="reset"){
+        if(reqInFlightRef.current) return; // guard: synchronous check prevents double-fire before React re-renders
+        if(!email.trim()){setErr("Enter your email address first.");setLoading(false);return;}
+        reqInFlightRef.current=true;
+        setResetSent(false);
         const SB_URL=import.meta.env.VITE_SUPABASE_URL;
         const SB_KEY=import.meta.env.VITE_SUPABASE_ANON_KEY;
         const r=await fetch(`${SB_URL}/auth/v1/recover`,{
           method:"POST",
           headers:{"apikey":SB_KEY,"Content-Type":"application/json"},
-          body:JSON.stringify({email}),
+          body:JSON.stringify({email:email.trim()}),
         });
         if(r.ok){setErr("");setResetSent(true);}
+        else if(r.status===429){setErr("Please wait a minute before requesting another reset link.");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error_description||d.msg||`Reset failed (${r.status}). Check that the email exists.`);}
+        reqInFlightRef.current=false;
       } else if(mode==="newpassword"||mode==="invite_setpassword"){
         if(newPw.length<8){setErr("Password must be at least 8 characters.");setLoading(false);return;}
         if(newPw!==newPwConfirm){setErr("Passwords don't match.");setLoading(false);return;}
@@ -4442,7 +4448,7 @@ function PasswordGate({ onAuth }) {
     <form className="card" style={{padding:22,minHeight:(mode==="request"||mode==="signup")?300:220,transition:"min-height 0.2s ease"}} onSubmit={e=>{e.preventDefault();submit();}}>
       <div className="pw-tabs" role="tablist" style={{marginBottom:18}}>
         {[["request","Request Access"],["signin","Sign In"]].map(([m,label])=>(
-          <button key={m} role="tab" aria-selected={mode===m}
+          <button key={m} type="button" role="tab" aria-selected={mode===m}
             className={`pw-tab ${mode===m?"active":""}`}
             onClick={()=>{setMode(m);setErr("");}}>
             {label}
@@ -4475,8 +4481,8 @@ function PasswordGate({ onAuth }) {
             </div>
             <input type="email" autoComplete="email" placeholder="Work email" value={email} onChange={e=>setEmail(e.target.value)} style={{marginBottom:10}}/>
             <div className="field-grid-2" style={{marginBottom:10}}>
-              <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
-              <input placeholder="Promo code (optional)" value={promoCode} onChange={e=>setPromoCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+              <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)}/>
+              <input placeholder="Promo code (optional)" value={promoCode} onChange={e=>setPromoCode(e.target.value)}/>
             </div>
             {err && <div className="pw-error">{err}</div>}
             <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}}
@@ -4498,25 +4504,25 @@ function PasswordGate({ onAuth }) {
           <input placeholder="Last name"  value={last}  onChange={e=>setLast(e.target.value)}/>
         </div>
       )}
-      <input type="email" autoComplete="username" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} autoFocus={mode==="signin"} onKeyDown={e=>e.key==="Enter"&&pw&&submit()} style={{marginBottom:10}} readOnly={!!inviteEmail && mode==="signup"}/>
-      {mode!=="reset"&&<input type="password" autoComplete={mode==="signup"?"new-password":"current-password"} placeholder={mode==="signup"?"Password (8+ characters)":"Password"} value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{marginBottom:10}}/>}
+      <input type="email" autoComplete="username" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} autoFocus={mode==="signin"} style={{marginBottom:10}} readOnly={!!inviteEmail && mode==="signup"}/>
+      {mode!=="reset"&&<input type="password" autoComplete={mode==="signup"?"new-password":"current-password"} placeholder={mode==="signup"?"Password (8+ characters)":"Password"} value={pw} onChange={e=>setPw(e.target.value)} style={{marginBottom:10}}/>}
       {err && <div className="pw-error">{err}</div>}
       {resetSent && <div style={{fontSize:12,color:"var(--green)",fontWeight:600,marginBottom:8}}>Password reset link sent to {email}. Check your inbox.</div>}
       {mode==="reset"?(
         <>
-          <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}} onClick={submit} disabled={loading||!email}>
+          <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}} disabled={loading}>
             {loading?"Sending…":"Send Reset Link →"}
           </button>
-          <button style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:10,textAlign:"center",width:"100%"}}
+          <button type="button" style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:10,textAlign:"center",width:"100%"}}
             onClick={()=>{setMode("signin");setErr("");setResetSent(false);}}>← Back to Sign In</button>
         </>
       ):(
         <>
-          <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}} onClick={submit}
+          <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}}
             disabled={loading||!email||!pw||(mode==="signup"&&(!first||!last))}>
             {loading ? (mode==="signup"?"Creating account…":"Signing in…") : (mode==="signup"?"Create Account →":"Sign In →")}
           </button>
-          {mode==="signin"&&<button style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--ink-2)",marginTop:10,textAlign:"center",width:"100%"}}
+          {mode==="signin"&&<button type="button" style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--ink-2)",marginTop:10,textAlign:"center",width:"100%"}}
             onClick={()=>{setMode("reset");setErr("");}}>Forgot password?</button>}
         </>
       )}

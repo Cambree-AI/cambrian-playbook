@@ -51,6 +51,10 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
   const cleanupRef = useRef(null);
   const [expandedSession, setExpandedSession] = useState(null);
 
+  // ── Access-request queue state (issue #3) ──
+  const [requestBusy, setRequestBusy] = useState(null); // request id being actioned
+  const [removedRequests, setRemovedRequests] = useState([]); // optimistic removals, rolled back on error
+
   // ── Sort state for Members table ──
   const [memberSortKey, setMemberSortKey] = useState(null);
   const [memberSortDir, setMemberSortDir] = useState("asc");
@@ -241,6 +245,32 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
     } catch { setPlanSaveMsg("Error applying plan"); }
   };
 
+  // ── Access-request queue (issue #3) ──
+  const pendingRequests = (data.access_requests || []).filter(rq => !removedRequests.includes(rq.id));
+  const actOnRequest = async (rq, action, reason) => {
+    setRequestBusy(rq.id);
+    setRemovedRequests(prev => [...prev, rq.id]); // optimistic removal
+    try {
+      const r = await fetch("/api/admin", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+        body: JSON.stringify({ action, requestId: rq.id, email: rq.email, ...(reason ? { reason } : {}) }),
+      });
+      const d = await r.json();
+      if (d.ok) {
+        setPlanSaveMsg(d.message || "Done");
+        setTimeout(() => fetchData(false), 500);
+      } else {
+        setRemovedRequests(prev => prev.filter(id => id !== rq.id)); // rollback
+        setPlanSaveMsg(`Error: ${d.error || "Action failed"}`);
+      }
+    } catch {
+      setRemovedRequests(prev => prev.filter(id => id !== rq.id)); // rollback
+      setPlanSaveMsg("Failed to update request");
+    }
+    setRequestBusy(null);
+    setTimeout(() => setPlanSaveMsg(""), 4000);
+  };
+
   // ── Sidebar nav config ──
   const navGroups = [
     {
@@ -250,6 +280,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
       label: "PEOPLE",
       items: [
         { id: "users", label: "Users", count: s.total_users, sub: "Accounts, roles, activity" },
+        { id: "requests", label: "Access Requests", count: pendingRequests.length, sub: "Approve or dismiss beta requests" },
         { id: "orgs", label: "Organizations", count: s.total_orgs, sub: "Teams, plans, run limits" },
       ],
     },
@@ -531,6 +562,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                     const atLimit = (data.orgs || []).filter(o => o.run_count >= o.run_limit && o.run_limit > 0).length;
                     const personalOrgs = (data.orgs || []).filter(o => !o.seller_url && o.member_count <= 1).length;
                     const items = [];
+                    if (pendingRequests.length > 0) items.push({ text: `${pendingRequests.length} access request${pendingRequests.length > 1 ? "s" : ""} awaiting review`, color: "var(--amber)", click: () => setTab("requests") });
                     const orphanUsers = (data.users || []).filter(u => !u.org_id).length;
                     if (orphanUsers > 0) items.push({ text: `${orphanUsers} users without an organization`, color: "var(--red)", click: () => { setUserStatusFilter("orphan"); setTab("users"); } });
                     if (neverActive > 0) items.push({ text: `${neverActive} users never active`, color: "var(--amber)", click: () => { setUserStatusFilter("never_active"); setTab("users"); } });
@@ -1158,6 +1190,77 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                 </tbody>
               </table>
               {filteredUsers.length === 0 && <div style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 13, padding: 20 }}>No members match the current filters.</div>}
+            </div>
+          )}
+
+          {/* ═══ ACCESS REQUESTS ═══ */}
+          {tab === "requests" && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-2)", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 8 }}>
+                Pending Access Requests ({pendingRequests.length})
+              </div>
+              {pendingRequests.length === 0 ? (
+                <div style={{ textAlign: "center", color: "var(--ink-3)", fontSize: 13, padding: 20 }}>No pending access requests.</div>
+              ) : (
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Name / Email</th>
+                      <th>Company</th>
+                      <th>Note</th>
+                      <th>Requested</th>
+                      <th style={{ width: 170 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingRequests.map(rq => {
+                      const busy = requestBusy === rq.id;
+                      return (
+                        <tr key={rq.id}>
+                          <td>
+                            <div style={{ fontWeight: 700, color: "var(--ink-0)", fontSize: 13 }}>{rq.name}</div>
+                            <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 1 }}>{rq.email}</div>
+                            {rq.already_user && <span className="admin-badge" style={{ background: "var(--violet-bg)", color: "var(--violet)", marginTop: 3 }}>Already a user</span>}
+                            {!rq.already_user && rq.invite_pending && <span className="admin-badge" style={{ background: "var(--amber-bg, var(--bg-1))", color: "var(--amber)", marginTop: 3 }}>Invite already sent</span>}
+                          </td>
+                          <td style={{ color: "var(--ink-1)", fontSize: 12 }}>{rq.company}</td>
+                          <td style={{ fontSize: 11, color: "var(--ink-2)", maxWidth: 260 }}>
+                            {rq.note || "—"}
+                            {rq.promo_code && <div style={{ fontSize: 9, color: "var(--amber)", fontWeight: 600, marginTop: 2 }}>Code: {rq.promo_code}</div>}
+                          </td>
+                          <td style={{ fontSize: 11, color: "var(--ink-3)", whiteSpace: "nowrap" }} title={rq.created_at}>{timeAgo(rq.created_at)}</td>
+                          <td>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              {rq.already_user ? (
+                                <button disabled={busy} onClick={() => {
+                                  if (!window.confirm(`${rq.email} already has an account. Mark this request resolved? No email will be sent.`)) return;
+                                  actOnRequest(rq, "dismiss_access_request", "already handled — account exists");
+                                }}
+                                  style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "var(--violet)", color: "var(--surface)", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+                                  {busy ? "Working..." : "Mark Resolved"}
+                                </button>
+                              ) : (
+                              <button disabled={busy} onClick={() => actOnRequest(rq, "approve_access_request")}
+                                style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "var(--green)", color: "var(--surface)", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+                                {busy ? "Working..." : rq.invite_pending ? "Re-send Invite" : "Approve"}
+                              </button>
+                              )}
+                              <button disabled={busy} onClick={() => {
+                                const reason = window.prompt(`Dismiss the request from ${rq.email}? No email will be sent.\n\nOptional reason (OK to confirm, Cancel to abort):`);
+                                if (reason === null) return; // cancelled
+                                actOnRequest(rq, "dismiss_access_request", reason.trim());
+                              }}
+                                style={{ padding: "5px 12px", borderRadius: 6, border: "1.5px solid var(--red)", background: "var(--surface)", color: "var(--red)", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+                                Dismiss
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
