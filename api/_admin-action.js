@@ -11,6 +11,17 @@ const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL;
 if (!SUPERUSER_EMAIL) console.warn("[admin-action] SUPERUSER_EMAIL not set — all admin actions will be rejected");
 
+// Optional additional admins (comma-separated) alongside SUPERUSER_EMAIL —
+// lets a second operator use the Reporting dashboard without replacing the
+// primary superuser (issue #54).
+const ADMIN_EMAIL_SET = new Set(
+  [SUPERUSER_EMAIL, ...(process.env.ADMIN_EMAILS || "").split(",")]
+    .map(e => (e || "").trim().toLowerCase()).filter(Boolean)
+);
+export function isAdminEmail(email) {
+  return !!email && ADMIN_EMAIL_SET.has(email.toLowerCase());
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function sbFetch(path, method = "GET", body = null) {
@@ -48,10 +59,10 @@ export default async function handler(req, res) {
   const payload = decodeJwtPayload(authToken);
   if (!payload?.sub || !UUID_RE.test(payload.sub)) return res.status(401).json({ error: "Authentication required" });
 
-  // Verify superuser — email must match SUPERUSER_EMAIL
+  // Verify admin — SUPERUSER_EMAIL or the optional ADMIN_EMAILS allowlist
   const userRes = await sbFetch(`users?id=eq.${payload.sub}&select=email`);
   const callerEmail = userRes?.[0]?.email;
-  if (!SUPERUSER_EMAIL || callerEmail?.toLowerCase() !== SUPERUSER_EMAIL.toLowerCase()) return res.status(403).json({ error: "Forbidden" });
+  if (!SUPERUSER_EMAIL || !isAdminEmail(callerEmail)) return res.status(403).json({ error: "Forbidden" });
 
   const { action, email, userId, orgId } = req.body || {};
   if (!email) return res.status(400).json({ error: "Email required" });

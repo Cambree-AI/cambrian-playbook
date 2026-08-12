@@ -25,7 +25,7 @@ async function sbFetch(path, maxRows = 10000) {
   return r.json();
 }
 
-import adminActionHandler from "./_admin-action.js";
+import adminActionHandler, { isAdminEmail } from "./_admin-action.js";
 
 export default async function handler(req, res) {
   // Route POST requests to admin-action handler (consolidated to stay within Vercel 12-function limit)
@@ -52,10 +52,10 @@ export default async function handler(req, res) {
   const payload = decodeJwtPayload(authToken);
   if (!payload?.sub || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.sub)) return res.status(401).json({ error: "Authentication required" });
 
-  // Look up the caller's email — must match SUPERUSER_EMAIL
+  // Look up the caller's email — SUPERUSER_EMAIL or the ADMIN_EMAILS allowlist
   const userRes = await sbFetch(`users?id=eq.${payload.sub}&select=email`);
   const callerEmail = userRes?.[0]?.email;
-  if (!SUPERUSER_EMAIL || callerEmail?.toLowerCase() !== SUPERUSER_EMAIL.toLowerCase()) {
+  if (!SUPERUSER_EMAIL || !isAdminEmail(callerEmail)) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
