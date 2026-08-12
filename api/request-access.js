@@ -111,6 +111,11 @@ export default async function handler(req, res) {
   const code = typeof promoCode === "string" ? promoCode.trim() : "";
   if (code.length > 64) return res.status(400).json({ error: "Input too long" });
 
+  // Normalize: auth + users.email are lowercase, and the dedup/queue matching
+  // must treat Louis.Ruiz@ and louis.ruiz@ as the same requester (observed
+  // duplicate in production, 2026-08-11).
+  const cleanEmail = email.trim().toLowerCase();
+
   const created_at = new Date().toISOString();
 
   // Idempotency: if the same email was already submitted within the last 15
@@ -119,7 +124,7 @@ export default async function handler(req, res) {
   const idempotencyWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   try {
     const dupCheck = await sbRest(
-      `access_requests?email=eq.${encodeURIComponent(email.trim())}&created_at=gte.${encodeURIComponent(idempotencyWindow)}&select=id,status&limit=1`
+      `access_requests?email=eq.${encodeURIComponent(cleanEmail)}&created_at=gte.${encodeURIComponent(idempotencyWindow)}&select=id,status&limit=1`
     );
     if (dupCheck.ok) {
       const rows = await dupCheck.json();
@@ -142,7 +147,7 @@ export default async function handler(req, res) {
   let requestId = null;
   try {
     const insRes = await sbRest("access_requests", "POST",
-      { name, email, company, note: note || null, status: "pending", created_at, promo_code: code || null },
+      { name, email: cleanEmail, company, note: note || null, status: "pending", created_at, promo_code: code || null },
       "return=representation");
     if (insRes.ok) {
       const rows = await insRes.json().catch(() => null);
@@ -153,7 +158,7 @@ export default async function handler(req, res) {
   }
 
   if (codeRedeemed) {
-    const prov = await provisionTrialAccess({ email, name, company, invitedBy: "system:promo", promoCode: code });
+    const prov = await provisionTrialAccess({ email: cleanEmail, name, company, invitedBy: "system:promo", promoCode: code });
     if (prov.ok) {
       if (requestId) {
         try {
@@ -166,12 +171,12 @@ export default async function handler(req, res) {
     }
     // Provisioning refused (existing user, etc.) — queue for a human instead.
     console.warn("[request-access] Promo provisioning fell back to queue:", prov.reason);
-    await notifyFounder({ name, email, company, note, created_at, extra: `Valid promo code, but auto-provision failed (${prov.reason}) — approve manually.` });
+    await notifyFounder({ name, email: cleanEmail, company, note, created_at, extra: `Valid promo code, but auto-provision failed (${prov.reason}) — approve manually.` });
     return res.json({ ok: true, approved: false, message: QUEUED_MSG });
   }
 
   // Manual queue path (no code, or code not recognized)
-  await notifyFounder({ name, email, company, note, created_at, extra: code ? "Submitted an unrecognized promo code." : null });
+  await notifyFounder({ name, email: cleanEmail, company, note, created_at, extra: code ? "Submitted an unrecognized promo code." : null });
 
   // Always succeed for the user once validated — email/DB failures are logged, not surfaced.
   return res.json({ ok: true, approved: false, message: code ? BAD_CODE_MSG : QUEUED_MSG });
