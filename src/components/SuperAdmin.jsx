@@ -1220,6 +1220,8 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                           <td>
                             <div style={{ fontWeight: 700, color: "var(--ink-0)", fontSize: 13 }}>{rq.name}</div>
                             <div style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 1 }}>{rq.email}</div>
+                            {rq.already_user && <span className="admin-badge" style={{ background: "var(--violet-bg)", color: "var(--violet)", marginTop: 3 }}>Already a user</span>}
+                            {!rq.already_user && rq.invite_pending && <span className="admin-badge" style={{ background: "var(--amber-bg, var(--bg-1))", color: "var(--amber)", marginTop: 3 }}>Invite already sent</span>}
                           </td>
                           <td style={{ color: "var(--ink-1)", fontSize: 12 }}>{rq.company}</td>
                           <td style={{ fontSize: 11, color: "var(--ink-2)", maxWidth: 260 }}>
@@ -1229,10 +1231,20 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                           <td style={{ fontSize: 11, color: "var(--ink-3)", whiteSpace: "nowrap" }} title={rq.created_at}>{timeAgo(rq.created_at)}</td>
                           <td>
                             <div style={{ display: "flex", gap: 6 }}>
+                              {rq.already_user ? (
+                                <button disabled={busy} onClick={() => {
+                                  if (!window.confirm(`${rq.email} already has an account. Mark this request resolved? No email will be sent.`)) return;
+                                  actOnRequest(rq, "dismiss_access_request", "already handled — account exists");
+                                }}
+                                  style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "var(--violet)", color: "var(--surface)", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+                                  {busy ? "Working..." : "Mark Resolved"}
+                                </button>
+                              ) : (
                               <button disabled={busy} onClick={() => actOnRequest(rq, "approve_access_request")}
                                 style={{ padding: "5px 12px", borderRadius: 6, border: "none", background: "var(--green)", color: "var(--surface)", fontSize: 11, fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-                                {busy ? "Working..." : "Approve"}
+                                {busy ? "Working..." : rq.invite_pending ? "Re-send Invite" : "Approve"}
                               </button>
+                              )}
                               <button disabled={busy} onClick={() => {
                                 const reason = window.prompt(`Dismiss the request from ${rq.email}? No email will be sent.\n\nOptional reason (OK to confirm, Cancel to abort):`);
                                 if (reason === null) return; // cancelled

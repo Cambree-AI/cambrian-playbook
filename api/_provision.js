@@ -7,6 +7,8 @@
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const FROM_ADDR = "Cambree <noreply@cambree.ai>";
 
 async function sbFetch(path, method = "GET", body = null) {
   const headers = {
@@ -37,7 +39,39 @@ async function sendInviteEmail(email, invitationToken) {
 
   const authData = await authRes.json().catch(() => ({}));
   if (authRes.status === 422 || (authData.msg || "").includes("already been registered")) {
+    // Auth account already exists (prior partial invite). A bare recovery
+    // email reads as an out-of-the-blue "reset your password" — send a
+    // contextual approval email with an admin-generated recovery link when
+    // Resend is available, and fall back to the plain recovery template.
     try {
+      if (RESEND_API_KEY) {
+        const linkRes = await fetch(`${SB_URL}/auth/v1/admin/generate_link`, {
+          method: "POST",
+          headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "recovery", email }),
+        });
+        const linkData = await linkRes.json().catch(() => ({}));
+        const actionLink = linkData?.action_link;
+        if (actionLink) {
+          const mailRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: FROM_ADDR,
+              to: email,
+              subject: "Your Cambree access is approved — sign in",
+              text:
+                `Good news — your Cambree access request is approved.\n\n` +
+                `You already have an account with this address, so use the link below to set your password and sign in:\n\n` +
+                `${actionLink}\n\n` +
+                `If you have questions, just reply to this email.\n\n` +
+                `— The Cambree team`,
+            }),
+          });
+          if (mailRes.ok) return { emailSent: true, action: "existing_account_email" };
+          console.warn("[provision] Existing-account Resend failed:", mailRes.status);
+        }
+      }
       await fetch(`${SB_URL}/auth/v1/recover`, {
         method: "POST",
         headers: { apikey: SB_KEY, "Content-Type": "application/json" },
