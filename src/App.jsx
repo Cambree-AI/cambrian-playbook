@@ -4173,21 +4173,37 @@ function PasswordGate({ onAuth }) {
   React.useEffect(()=>{ setErr(""); },[mode]);
 
   React.useEffect(()=>{
-    // Check for Supabase auth redirects in URL hash
+    // Check for Supabase auth redirects in URL hash. When one is present it
+    // must WIN over any stored session: restoring (or refreshing) a prior
+    // session below would switch to the main app and the set-password form
+    // would never render — the observed "reset link lands on the homepage"
+    // bug. The single-use recovery token gets burned each attempt, so the
+    // user can never escape without clearing site data.
+    let authActionHandled = false;
     const hash = window.location.hash;
     if (hash) {
       const hashParams = new URLSearchParams(hash.replace("#", ""));
       const accessToken = hashParams.get("access_token");
       const type = hashParams.get("type");
+      const errCode = hashParams.get("error_code") || hashParams.get("error");
 
       if (accessToken && type === "recovery") {
         // Password reset flow
+        authActionHandled = true;
         setRecoveryToken(accessToken);
         setMode("newpassword");
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (!accessToken && errCode) {
+        // Expired or already-used link (e.g. error_code=otp_expired) — land on
+        // the reset form with an explanation instead of a silent homepage.
+        authActionHandled = true;
+        setMode("reset");
+        setErr("That link has expired or was already used. Enter your email to request a fresh one.");
         window.history.replaceState({}, "", window.location.pathname);
       } else if (accessToken && (type === "invite" || type === "signup" || type === "magiclink")) {
         // Invite flow — user clicked invite email link, Supabase created the account
         // They have a valid token but need to set a password
+        authActionHandled = true;
         setRecoveryToken(accessToken); // reuse recovery token for password setting
         setMode("invite_setpassword");
         // Try to extract email from the token payload
@@ -4225,6 +4241,10 @@ function PasswordGate({ onAuth }) {
 
     // Clear any legacy password-gate session data
     sessionStorage.removeItem('cambrian_auth');
+
+    // An explicit auth action (reset / invite / expired-link notice) takes
+    // precedence — skip session restore so its form actually renders.
+    if (authActionHandled) return;
 
     const restored = sbRestoreSession();
     if (restored?.needsRefresh) {
