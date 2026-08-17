@@ -14513,6 +14513,75 @@ Return ONLY raw JSON:
                   )}
                 </div>
 
+                {/* ── Seller Materials Upload (V2) ─────────────────────────────────────
+                    Always visible directly below the URL field. Starts open (key absent
+                    from collapsedBB initial set). Feeds sellerDocs → buildSellerProofPack
+                    → ICP Pass-2 + all brief sections. Uses <label> + inline <input> so
+                    no docRef is needed (V2 and Classic renders are mutually exclusive). */}
+                <div style={{marginTop:14}}>
+                  <div onClick={()=>toggleBB("sellerDocsUpload")}
+                    style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
+                      background:"var(--bg-1)",border:"1px solid var(--line-0)",
+                      borderRadius:bbIsOpen("sellerDocsUpload")?"8px 8px 0 0":"8px",
+                      ...(bbIsOpen("sellerDocsUpload")?{borderBottom:"none"}:{})}}>
+                    <span style={{fontSize:13}}>{bbIsOpen("sellerDocsUpload")?"▾":"▸"}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--ink-1)"}}>
+                        Upload your materials <span style={{fontWeight:400,color:"var(--ink-3)"}}>(optional — significantly improves output)</span>
+                      </div>
+                      <div style={{fontSize:10,color:"var(--ink-3)"}}>
+                        {sellerDocs.length===0
+                          ?"Product decks · white papers · case studies · screenshots · battle cards"
+                          :`${sellerDocs.length} file${sellerDocs.length>1?"s":""} ready — feeds ICP, briefs, and discovery questions`}
+                      </div>
+                    </div>
+                    {sellerDocs.length>0&&(
+                      <span style={{fontSize:10,fontWeight:700,background:"var(--green-bg)",color:"var(--green)",borderRadius:10,padding:"2px 8px",whiteSpace:"nowrap"}}>
+                        {sellerDocs.length} file{sellerDocs.length>1?"s":""}
+                      </span>
+                    )}
+                  </div>
+                  {bbIsOpen("sellerDocsUpload")&&(
+                  <div style={{border:"1px solid var(--line-0)",borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px"}}>
+                    <label
+                      className={`doc-upload-zone ${docDrag?"drag":""}`}
+                      style={{opacity:sellerDocs.length>=6?0.5:1,cursor:sellerDocs.length>=6?"not-allowed":"pointer"}}
+                      onDragOver={e=>{e.preventDefault();if(sellerDocs.length<6)setDocDrag(true);}}
+                      onDragLeave={()=>setDocDrag(false)}
+                      onDrop={e=>{e.preventDefault();setDocDrag(false);if(sellerDocs.length<6)handleDocFiles(e.dataTransfer.files);}}>
+                      <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp"
+                        multiple disabled={sellerDocs.length>=6} style={{display:"none"}}
+                        onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
+                      <div className="doc-upload-icon">📁</div>
+                      <div className="doc-upload-text">
+                        <div className="doc-upload-title">{sellerDocs.length>=6?"Max 6 files reached":"Drop files here or click to browse"}</div>
+                        <div className="doc-upload-hint">Product overviews · white papers · case studies · marketing decks · screenshots · battle cards · pricing sheets</div>
+                        <div className="doc-upload-hint" style={{marginTop:2}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
+                      </div>
+                    </label>
+                    {sellerDocs.length>0&&(
+                      <div className="doc-chips" style={{marginTop:8}}>
+                        {sellerDocs.map((d,i)=>{
+                          const icon=d.ext==="pdf"?"📄":["png","jpg","jpeg","webp","gif","bmp","tiff"].includes(d.ext)?"🖼️":["pptx","ppt"].includes(d.ext)?"📊":["xlsx","xls","csv"].includes(d.ext)?"📈":["docx","doc"].includes(d.ext)?"📝":"📎";
+                          return(
+                            <div key={i} className="doc-chip">
+                              <span style={{fontSize:11}}>{icon}</span>
+                              <span className="doc-chip-name">{d.name}</span>
+                              <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {sellerDocs.length===0&&(
+                      <div style={{fontSize:11,color:"var(--ink-3)",marginTop:8,lineHeight:1.5}}>
+                        Everything Cambree builds starts from public data. Upload your internal materials and we'll layer them into your ICP, account briefs, and discovery questions.
+                      </div>
+                    )}
+                  </div>
+                  )}
+                </div>
+
                 {/* Add more details — collapsed disclosure; binds the SAME state the classic form feeds
                     into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824, sellerICPInput @8270) */}
                 <div style={{marginTop:14}}>
@@ -14875,14 +14944,11 @@ Return ONLY raw JSON:
                 )}
               </div>
 
-              {/* Divider */}
-              <div style={{height:1,background:"var(--line-0)",margin:"18px 0 16px"}}/>
-
-              {/* Internal doc upload */}
-              <div className="field-row" style={{marginBottom:0}}>
+              {/* Internal doc upload — sits directly below the URL section (no preceding divider) */}
+              <div className="field-row" style={{marginBottom:0,marginTop:14}}>
                 <div className="field-label" style={{marginBottom:8}}>
-                  Internal Sales Materials
-                  <span style={{color:"var(--ink-3)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>(optional — strongly recommended)</span>
+                  Upload Your Materials
+                  <span style={{color:"var(--ink-3)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>(optional — significantly improves ICP + brief quality)</span>
                 </div>
                 <div
                   className={`doc-upload-zone ${docDrag?"drag":""}`}
@@ -14890,11 +14956,11 @@ Return ONLY raw JSON:
                   onDragLeave={()=>setDocDrag(false)}
                   onDrop={e=>{e.preventDefault();setDocDrag(false);handleDocFiles(e.dataTransfer.files);}}
                   onClick={()=>docRef.current.click()}>
-                  <div className="doc-upload-icon">📂</div>
+                  <div className="doc-upload-icon">📁</div>
                   <div className="doc-upload-text">
                     <div className="doc-upload-title">Drop files or click to upload</div>
-                    <div className="doc-upload-hint">Pitch decks · Product overviews · Case studies · Training docs · Use cases · One-pagers</div>
-                    <div className="doc-upload-hint" style={{marginTop:3}}>PDF, DOCX, XLSX, CSV, TXT, MD — up to 6 files</div>
+                    <div className="doc-upload-hint">Product overviews · white papers · case studies · marketing decks · screenshots · battle cards · pricing sheets</div>
+                    <div className="doc-upload-hint" style={{marginTop:3}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
                   </div>
                   <button className="btn btn-secondary btn-sm" style={{flexShrink:0}} onClick={e=>{e.stopPropagation();docRef.current.click();}}>Add Files</button>
                   <input ref={docRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
@@ -14903,14 +14969,17 @@ Return ONLY raw JSON:
 
                 {sellerDocs.length>0&&(
                   <div className="doc-chips" style={{marginTop:10}}>
-                    {sellerDocs.map((d,i)=>(
-                      <div key={i} className="doc-chip">
-                        <span style={{fontSize:11}}>📄</span>
-                        <span className="doc-chip-label">{d.label}</span>
-                        <span className="doc-chip-name">{d.name}</span>
-                        <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
-                      </div>
-                    ))}
+                    {sellerDocs.map((d,i)=>{
+                      const icon=d.ext==="pdf"?"📄":["png","jpg","jpeg","webp","gif","bmp","tiff"].includes(d.ext)?"🖼️":["pptx","ppt"].includes(d.ext)?"📊":["xlsx","xls","csv"].includes(d.ext)?"📈":["docx","doc"].includes(d.ext)?"📝":"📎";
+                      return(
+                        <div key={i} className="doc-chip">
+                          <span style={{fontSize:11}}>{icon}</span>
+                          <span className="doc-chip-label">{d.label}</span>
+                          <span className="doc-chip-name">{d.name}</span>
+                          <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
