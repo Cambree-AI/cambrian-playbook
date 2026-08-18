@@ -1844,6 +1844,21 @@ function sanitizeForPrompt(str) {
     .replace(/^```[\s\S]*?```$/gm, "[code block filtered]");
 }
 
+// ── CONTEXT FINGERPRINT (#65) ─────────────────────────────────────────────
+// Stable djb2 hash over the seller's uploaded docs + free-form ICP notes.
+// Baked into the ICP localStorage cache key, stamped inside saved ICP/brief
+// objects (_ctxFp), and compared on cache read — so adding/removing a doc or
+// editing the notes can never serve a result built without that context.
+// Pure + deterministic (no randomness): same docs + notes → same fingerprint.
+// "0" = no seller context at all.
+function ctxFingerprint(docs = [], icpInput = "") {
+  const src = (docs || []).map(d => d.name + ":" + (d.content || "").length).join("|") + "§" + (icpInput || "");
+  if (src === "§") return "0";
+  let h = 5381;
+  for (let i = 0; i < src.length; i++) h = ((h * 33) ^ src.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+
 // composes everything the seller has captured: ICP differentiators,
 // named customers, competitive alternatives, success factors, priority
 // trigger, traction channels, uploaded docs, and product catalog.
@@ -5937,10 +5952,14 @@ export default function App(){
     _abortSpeculativeResearch(); // docs feed the Pass-1 research prompt — in-flight speculation is stale
     const arr = Array.from(files).slice(0,6); // max 6 docs
     const results = await Promise.all(arr.map(readDocFile));
+    const fresh = results.filter(r=>r.content.trim().length>20);
+    // #65: new doc context — the ICP must rebuild. Correctness comes from the context
+    // fingerprint in the cache keys/stamps (a doc change makes every cached copy miss);
+    // nulling here just resets the "ICP ready" banner so the UI reflects that.
+    if (fresh.length && sellerUrl && sellerUrl !== "research-only") setSellerICP(null);
     setSellerDocs(prev=>{
       const existing = new Set(prev.map(d=>d.name));
-      const fresh = results.filter(r=>!existing.has(r.name)&&r.content.trim().length>20);
-      return [...prev, ...fresh].slice(0,6);
+      return [...prev, ...fresh.filter(r=>!existing.has(r.name))].slice(0,6);
     });
   };
 
@@ -7687,10 +7706,13 @@ Return ONLY raw JSON:
   // "guest" for not-logged-in). Bump ICP_CACHE_VERSION if the ICP schema
   // changes — old entries fall through to regeneration.
   const ICP_CACHE_VERSION = "v4"; // bumped 2026-07-16: #74 cross-seller contamination cache purge
-  const icpCacheKey = (u) => {
+  // #65: key ends with the context fingerprint (docs + ICP notes) so an ICP built
+  // without a doc can never be served after one is uploaded. Pass fp explicitly to
+  // pin the key to a build's context; omit for the current state's fingerprint.
+  const icpCacheKey = (u, fp) => {
     const userScope = sbUser?.id || "guest";
     const normalizedUrl = u.toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,"");
-    return `icp:${ICP_CACHE_VERSION}:${userScope}:${normalizedUrl}`;
+    return `icp:${ICP_CACHE_VERSION}:${userScope}:${normalizedUrl}:${fp ?? ctxFingerprint(sellerDocs, sellerICPInput)}`;
   };
 
   // ── SELLER ADVOCACY FILTER ──────────────────────────────────────────
@@ -8041,6 +8063,11 @@ Return ONLY raw JSON:
           if (cn && ub && !cn.includes(ub) && !ub.includes(cn)) {
             console.warn(`[ICP cache] Stale org cache: url="${orgUrl}" but sellerName="${orgCtx.icp.sellerName}" — clearing`);
             if(sbToken) sbPatch(`orgs?id=eq.${orgCtx.id}`, sbToken, { icp: null }).catch(()=>{});
+          } else if ((orgCtx.icp._ctxFp || "0") !== ctxFingerprint(sellerDocs, sellerICPInput)) {
+            // #65: docs/ICP-notes changed since this org ICP was saved — skip the org copy
+            // (no early return, no localStorage re-write) so the build below runs with the
+            // new context. The stale org row ages out on the next successful build.
+            console.log(`[ICP cache] Org cache fp "${orgCtx.icp._ctxFp || "0"}" ≠ current context — skipping org cache`);
           } else {
             const _icp = sanitizeICP(orgCtx.icp); _icp._forSellerUrl = url; setSellerICP(_icp);
             try{ localStorage.setItem(icpCacheKey(url), JSON.stringify(orgCtx.icp)); }catch{}
@@ -8077,6 +8104,10 @@ Return ONLY raw JSON:
     // Built by the shared helper (also used by the speculative starter) — values are
     // identical to the previously inlined block. Used in both Pass 1 and Pass 2.
     const { activeProductUrls, activeSellerDocs, sellerDocsCtx, productPagesCtx, hasSellerContext } = _buildResearchCtx(productUrls, sellerDocs);
+    // #65: fingerprint of the context this build actually uses — stamped into the saved
+    // ICP (_ctxFp) and pinned into its localStorage key so a docs/notes change mid-build
+    // can't file this result under the wrong context.
+    const _buildCtxFp = ctxFingerprint(sellerDocs, sellerICPInput);
 
     // TWO-PASS ICP BUILD:
     // Pass 1 (Opus + web search): Deep research — products, case studies, customers, competitors
@@ -8398,7 +8429,8 @@ Return ONLY raw JSON:
             const corePopulated = core.filter(v => typeof v === "string" && v.length > 0 && !badPattern.test(v)).length;
             const usable = hasIndustries && corePopulated >= 2;
             if(usable){
-              try{ localStorage.setItem(icpCacheKey(url), JSON.stringify(parsed)); }catch{}
+              parsed._ctxFp = _buildCtxFp; // #65: travels inside the JSON — org-cache read compares it
+              try{ localStorage.setItem(icpCacheKey(url, _buildCtxFp), JSON.stringify(parsed)); }catch{}
               // Persist to org-level Supabase cache for cross-device/cross-session consistency.
               // Only write ICP to org when session URL matches org's configured seller_url.
               // Session-level URL overrides must never modify the org record.
@@ -8705,8 +8737,10 @@ Return ONLY raw JSON:
   const persistICPToCache = () => {
     if (!sellerUrl || !sellerICP) return;
     const url = sellerUrl.replace(/^https?:\/\//, "").replace(/\/$/, "").replace(/^www\./, "");
+    // #65: stamp the current context fingerprint so cache reads can validate it
+    const stamped = { ...sellerICP, _ctxFp: ctxFingerprint(sellerDocs, sellerICPInput) };
     // Write main ICP cache (same key buildSellerICP reads at cache-check time)
-    try { localStorage.setItem(icpCacheKey(url), JSON.stringify(sellerICP)); } catch {}
+    try { localStorage.setItem(icpCacheKey(url), JSON.stringify(stamped)); } catch {}
     // Write manual customer override — survives AI rebuilds
     const customers = (sellerICP.icp?.customerExamples || []).filter(Boolean);
     try {
@@ -8718,9 +8752,9 @@ Return ONLY raw JSON:
     } catch {}
     // Keep orgCtx in sync — without this, the next buildSellerICP orgCtx-cache check
     // would still see the old ICP (orgCtx is only updated by refreshOrgCtx(), not sbPatch)
-    setOrgCtx(prev => prev ? { ...prev, icp: sellerICP } : prev);
+    setOrgCtx(prev => prev ? { ...prev, icp: stamped } : prev);
     if (orgCtx?.id && sbToken) {
-      sbPatch(`orgs?id=eq.${orgCtx.id}`, sbToken, { icp: sellerICP })
+      sbPatch(`orgs?id=eq.${orgCtx.id}`, sbToken, { icp: stamped })
         .then(() => { setEditToast("ICP saved — changes will persist on reload"); setTimeout(() => setEditToast(""), 4000); })
         .catch(() => { setEditToast("ICP saved locally (cloud sync failed)"); setTimeout(() => setEditToast(""), 4000); });
     } else {
