@@ -14573,7 +14573,7 @@ Return ONLY raw JSON:
                         </label>
                         <button className="btn btn-secondary btn-sm"
                           onClick={()=>{
-                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("setupDetails");return next;});
+                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("sellerDocsUpload");return next;});
                             setTimeout(()=>{document.getElementById("kickoffv2-icp-input")?.focus();},80);
                           }}>
                           ✏️ Describe what you sell
@@ -14665,57 +14665,21 @@ Return ONLY raw JSON:
                         Everything Cambree builds starts from public data. Upload your internal materials and we'll layer them into your ICP, account briefs, and discovery questions.
                       </div>
                     )}
-                  </div>
-                  )}
-                </div>
-
-                {/* Add more details — collapsed disclosure; binds the SAME state the classic form feeds
-                    into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824, sellerICPInput @8270) */}
-                <div style={{marginTop:14}}>
-                  <div onClick={()=>toggleBB("setupDetails")} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"var(--bg-1)",borderRadius:8,border:"1px solid var(--line-0)"}}>
-                    <span style={{fontSize:13}}>{bbIsOpen("setupDetails")?"▾":"▸"}</span>
-                    <div style={{flex:1}}>
-                      <div style={{fontSize:12,fontWeight:700,color:"var(--ink-1)"}}>Add more details <span style={{fontWeight:400,color:"var(--ink-3)"}}>(optional — improves targeting)</span></div>
-                      <div style={{fontSize:10,color:"var(--ink-3)"}}>Funding stage, market segment, your own ICP notes</div>
-                    </div>
-                    {sellerStage && <span style={{fontSize:10,fontWeight:700,background:"var(--green-bg)",color:"var(--green)",borderRadius:10,padding:"2px 8px"}}>{sellerStage}</span>}
-                  </div>
-                  <div style={{display:bbIsOpen("setupDetails")?"block":"none",padding:"12px 0 0"}}>
-                    <div style={{marginBottom:10}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Your Funding Stage</div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                        {["Bootstrapped","Angel","Seed","Series A","Series B","Series C","Series D+","PE-Backed","Private","Public"].map(stage=>(
-                          <button key={stage} onClick={()=>setSellerStage(stage)}
-                            style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(sellerStage===stage?"var(--ink-0)":"var(--line-0)"),
-                              background:sellerStage===stage?"var(--ink-0)":"var(--surface)",color:sellerStage===stage?"#fff":"var(--ink-1)",
-                              fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.13s"}}>
-                            {stage}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{marginBottom:10}}>
-                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Market Segment <span style={{fontWeight:400,color:"var(--ink-3)"}}>pick 1</span></div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                        {["SMB","Mid-Market","Enterprise"].map(v=>{
-                          const sel=icpTargeting.segment===v;
-                          return <button key={v} onClick={()=>setIcpTargeting(p=>({...p,segment:sel?"":v}))}
-                            style={{padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all 0.13s",
-                              border:"1.5px solid "+(sel?"var(--navy)":"var(--line-0)"),background:sel?"var(--navy)":"var(--surface)",color:sel?"#fff":"var(--ink-1)"}}>{v}</button>;
-                        })}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Anything else we should know? <span style={{fontWeight:400,color:"var(--ink-3)"}}>your ICP, in your own words</span></div>
+                    {/* Free-form ICP notes — same sellerICPInput state as the classic flow; feeds the
+                        ═══ INTERNAL ICP ═══ prompt block and the context fingerprint. The funding-stage
+                        pills and segment toggle were removed from V2 (#65) — this steering channel stays. */}
+                    <div style={{marginTop:10}}>
+                      <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Anything we should know about these materials? <span style={{fontWeight:400,color:"var(--ink-3)"}}>your ICP, in your own words</span></div>
                       <textarea
                         id="kickoffv2-icp-input"
                         value={sellerICPInput}
                         onChange={e=>setSellerICPInput(e.target.value)}
-                        placeholder={"e.g. \"We sell to SMB restaurants with 1-5 locations, owner-operators, $500K-$5M revenue\""}
+                        placeholder={"e.g. \"This is one of several playbooks — it applies only to branded merch deals\""}
                         style={{width:"100%",minHeight:60,padding:"10px 12px",fontSize:13,border:"1.5px solid var(--line-0)",borderRadius:8,resize:"vertical",fontFamily:"inherit",lineHeight:1.6,background:"var(--bg-0)"}}
                       />
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {/* Single context-aware primary CTA — no two stacked full-width buttons:
