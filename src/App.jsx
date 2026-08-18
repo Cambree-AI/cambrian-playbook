@@ -1859,6 +1859,17 @@ function ctxFingerprint(docs = [], icpInput = "") {
   return h.toString(36);
 }
 
+// ── DOC EXCERPT BUDGETS (#65) ─────────────────────────────────────────────
+// The same uploaded-doc text feeds four prompt surfaces with deliberately
+// different room. One helper + named budgets so the constants stay visible.
+const DOC_EXCERPT_FULL = 2000;        // proof pack + generateBrief per-doc slice (matches ICP Pass-1 research ctx)
+const DOC_EXCERPT_BRIEF_TOTAL = 6000; // generateBrief: bound on the total docs block across max 6 docs
+const DOC_EXCERPT_HYPO = 400;         // buildRiverHypo: hypothesis needs the gist — its proofPack already carries full excerpts
+const DOC_EXCERPT_FIT = 200;          // buildSellerCtx (fit scoring): signal extraction, not prose
+const MILTON_ICP_BUDGET = 1200;       // Milton proof pack: cap on ICP/product/proof sections
+const MILTON_DOC_BUDGET = 1500;       // Milton proof pack: reserved for uploaded-doc excerpts
+const docExcerpt = (d, n) => { const c = d?.content || ""; return c.slice(0, n) + (c.length > n ? "…" : ""); };
+
 // composes everything the seller has captured: ICP differentiators,
 // named customers, competitive alternatives, success factors, priority
 // trigger, traction channels, uploaded docs, and product catalog.
@@ -1866,7 +1877,11 @@ function ctxFingerprint(docs = [], icpInput = "") {
 // CRITICAL: includes explicit instructions telling Haiku to GROUND every
 // claim in this proof — cite named customers, name differentiators, flag
 // unsupported claims rather than asserting them.
-function buildSellerProofPack({ sellerICP, sellerDocs = [], products = [], sellerProofPoints = [], icpEdits = [], userEdits = [] }) {
+// opts (#65): { icpBudget, docBudget } — budgeted assembly for Milton. ICP/product/proof
+// sections are head-sliced to icpBudget and uploaded docs get their own reserved docBudget,
+// so docs ALWAYS reach the prompt even when a rich ICP would fill a blind head-slice.
+// With no opts, output is identical to the original single-string assembly.
+function buildSellerProofPack({ sellerICP, sellerDocs = [], products = [], sellerProofPoints = [], icpEdits = [], userEdits = [] }, { icpBudget = 0, docBudget = 0 } = {}) {
   if (!sellerICP?.icp) return "";
   const icp = sellerICP.icp;
   const out = [];
@@ -1905,9 +1920,11 @@ function buildSellerProofPack({ sellerICP, sellerDocs = [], products = [], selle
     out.push(`\nProven go-to-market channels:`);
     channels.forEach(c => out.push(`  • ${s(c)}`));
   }
+  const docLines = [];
   if (sellerDocs.length) {
-    out.push(`\nUploaded proof documents (case studies, datasheets — quote when relevant):`);
-    sellerDocs.forEach(d => out.push(`  • ${s(d.label)}: ${s((d.content || "").slice(0, 800))}${d.content && d.content.length > 800 ? "…" : ""}`));
+    docLines.push(`\nUploaded proof documents (case studies, datasheets — quote when relevant):`);
+    sellerDocs.forEach(d => docLines.push(`  • ${s(d.label)}: ${s(docExcerpt(d, DOC_EXCERPT_FULL))}`));
+    if (!icpBudget && !docBudget) out.push(...docLines); // default mode: docs stay in their original position
   }
   const namedProducts = (products || []).filter(p => p?.name?.trim());
   if (namedProducts.length) {
@@ -1949,6 +1966,11 @@ function buildSellerProofPack({ sellerICP, sellerDocs = [], products = [], selle
   const editCtx = buildUserEditContext(icpEdits, userEdits);
   if (editCtx) out.push(editCtx);
 
+  if (icpBudget || docBudget) {
+    // Budgeted mode: ICP-and-everything-else head-sliced, docs appended with their own budget.
+    return [out.join("\n").slice(0, icpBudget || MILTON_ICP_BUDGET), docLines.join("\n").slice(0, docBudget || MILTON_DOC_BUDGET)]
+      .filter(Boolean).join("\n") + "\n\n";
+  }
   return out.join("\n") + "\n\n";
 }
 
@@ -2058,8 +2080,11 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
   setTrackingContext(member.company, sellerUrl, sellerUrl === "research-only" ? "quick-brief" : "full-brief");
 
   const activeProductUrls = productUrls.filter(u=>u.url.trim()).map(u=>sanitizeForPrompt(u.url.trim()));
+  // Per-doc slice aligned to DOC_EXCERPT_FULL, but the total docs block is bounded —
+  // 6 rich docs would otherwise put ~12K chars of doc text ahead of every brief section.
+  const _docBudget = sellerDocs.length ? Math.min(DOC_EXCERPT_FULL, Math.floor(DOC_EXCERPT_BRIEF_TOTAL / sellerDocs.length)) : 0;
   const sellerCtx = sellerDocs.length>0
-    ? "SELLER DOCS:\n"+sellerDocs.map(d=>sanitizeForPrompt(d.label)+": "+sanitizeForPrompt(d.content.slice(0,400))).join("\n")
+    ? "SELLER DOCS:\n"+sellerDocs.map(d=>sanitizeForPrompt(d.label)+": "+sanitizeForPrompt(docExcerpt(d,_docBudget))).join("\n")
     : "Seller: "+safeSellerUrl+(activeProductUrls.length?" | Pages: "+activeProductUrls.join(", "):"");
   const prodCtx = products.filter(p=>p.name.trim()).length>0
     ? "\nPRODUCTS: "+products.filter(p=>p.name.trim()).map(p=>p.name+(p.description?" - "+p.description.slice(0,60):"")).join("; ")
@@ -5469,6 +5494,11 @@ export default function App(){
     proofPackCache.current = { key, value: pp };
     return pp;
   };
+  // Milton's budgeted proof pack (#65): ICP sections capped + uploaded docs guaranteed
+  // their own reserved budget, so docs always reach Milton even for rich ICPs.
+  const getProofPackForMilton = () => buildSellerProofPack(
+    { sellerICP, sellerDocs, products, sellerProofPoints, icpEdits, userEdits },
+    { icpBudget: MILTON_ICP_BUDGET, docBudget: MILTON_DOC_BUDGET });
   const logJourney = (action, detail, stepFrom, stepTo) => {
     if (!sbToken || !sbUser) return;
     const SB_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -6265,7 +6295,8 @@ CRITICAL: EVERY COMPANY MUST BE UNIQUE. Never return the same company twice. Nev
     const verified = sellerICP?.icp?.verifiedCustomers || [];
     if (verified.length) ctx += "\nVerified customers: " + verified.slice(0, 5).map(c => sanitizeForPrompt(c.name) + " (" + sanitizeForPrompt(c.industry || "") + ")").join(", ");
     // Uploaded sales materials
-    if (sellerDocs.length > 0) ctx += "\nSales materials: " + sellerDocs.map(d => sanitizeForPrompt(d.label) + ": " + sanitizeForPrompt(d.content.slice(0, 200))).join(" | ");
+    // tight budget — fit scoring extracts signals from this ctx, not prose
+    if (sellerDocs.length > 0) ctx += "\nSales materials: " + sellerDocs.map(d => sanitizeForPrompt(d.label) + ": " + sanitizeForPrompt(docExcerpt(d, DOC_EXCERPT_FIT))).join(" | ");
     if (productUrls.filter(u => u.url).length) ctx += "\nProduct pages: " + productUrls.filter(u => u.url).map(u => sanitizeForPrompt(u.url)).join(", ");
     return ctx;
   };
@@ -11638,7 +11669,8 @@ Return ONLY raw JSON:
     // Seller context — this is what determines what the hypothesis can actually propose
     const activeProductUrls = productUrls.filter(u=>u.url.trim()).map(u=>u.url.trim());
     const sellerCtx = sellerDocs.length>0
-      ? sellerDocs.map(d=>d.label+": "+d.content.slice(0,400)).join(" | ")
+      // gist budget — the proofPack below already carries the full doc excerpts
+      ? sellerDocs.map(d=>d.label+": "+docExcerpt(d, DOC_EXCERPT_HYPO)).join(" | ")
       : "Seller: "+sellerUrl+(activeProductUrls.length?" | Pages: "+activeProductUrls.join(", "):"");
     const productsCtx = products.filter(p=>p.name.trim()).length>0
       ? products.filter(p=>p.name.trim()).map(p=>p.name+(p.description?" — "+p.description.slice(0,80):"")).join("; ")
@@ -13223,7 +13255,7 @@ Return ONLY raw JSON:
       icpEdits.length > 0 ? `\n═══ CHANGES THE USER MADE THIS SESSION ═══\n${icpEdits.map(e => `  Changed "${e.field}": "${String(e.oldValue).slice(0,80)}" → "${String(e.newValue).slice(0,80)}"`).join("\n")}\nIf the user asks about their changes, reference this list.` : "",
       // Intel adjustments the user has added
       Object.keys(intelAdjustments).length > 0 ? `\n═══ USER INTEL ADJUSTMENTS (insider knowledge) ═══\n${Object.entries(intelAdjustments).map(([co,adj])=>`  ${co}: ${adj.modifier>0?"+":""}${adj.modifier} — ${sanitizeForPrompt(adj.reason||"no reason given")}`).join("\n")}\nThese reflect facts the user knows that aren't public. Reference them when discussing these accounts.` : "",
-      getProofPack().slice(0, 800),
+      getProofPackForMilton(),
     ].filter(Boolean).join("\n");
 
     // Build conversation history (last 6 turns max, sanitize user inputs)
