@@ -5502,7 +5502,16 @@ export default function App(){
       // Don't clear sellerICP or productUrls here — buildSellerICP and scanSellerUrl
       // handle their own state. Clearing here races with async scan/build results
       // and overwrites valid data that was just populated.
-      setSellerDocs([]);
+      // #65: docs are cleared conditionally by provenance. "restored" docs (500-char
+      // session stubs) ALWAYS drop — carrying seller A's internal material to seller B's
+      // prompts is a cross-client contamination vector. "upload" docs are user-intentional:
+      // ask once whether to keep them for the new company.
+      const _uploads = sellerDocs.filter(d=>d.source==="upload");
+      if (_uploads.length && window.confirm(`Keep your ${_uploads.length} uploaded file${_uploads.length>1?"s":""} for the new company?`)) {
+        if (_uploads.length !== sellerDocs.length) setSellerDocs(_uploads);
+      } else {
+        setSellerDocs([]);
+      }
       setProducts([{id:Date.now(),name:"",description:"",category:""}]);
       setSellerProofPoints([]);
       setSellerExclusions([]);
@@ -5512,6 +5521,9 @@ export default function App(){
       setAccountRfpData({open:[],closed:[],signals:[],loading:false,error:null,searched:false});
     }
     prevSellerUrlRef.current = sellerUrl;
+    // sellerDocs deliberately not a dep — this effect must fire on URL change only
+    // (a doc add/remove with the same URL must never re-run the clear/confirm logic).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sellerUrl]);
   // Structured ICP targeting preferences — selected by user on Session page.
   // Each field is a string (selected value) or empty string (no preference).
@@ -5959,7 +5971,8 @@ export default function App(){
     if (fresh.length && sellerUrl && sellerUrl !== "research-only") setSellerICP(null);
     setSellerDocs(prev=>{
       const existing = new Set(prev.map(d=>d.name));
-      return [...prev, ...fresh.filter(r=>!existing.has(r.name))].slice(0,6);
+      // source:"upload" = full content from a real file this session (vs "restored" 500-char session stubs)
+      return [...prev, ...fresh.filter(r=>!existing.has(r.name)).map(r=>({...r,source:"upload"}))].slice(0,6);
     });
   };
 
@@ -9026,7 +9039,9 @@ Return ONLY raw JSON:
     if(d.disqualified) setDisqualified(d.disqualified);
     if(d.sellerProofPoints?.length) setSellerProofPoints(d.sellerProofPoints);
     if(d.sellerExclusions?.length) setSellerExclusions(d.sellerExclusions);
-    if(d.sellerDocs?.length) setSellerDocs(d.sellerDocs);
+    // #65: session snapshots keep only the first 500 chars of each doc (getSessionSnap) —
+    // mark restored docs so the chip says so and the URL-change effect always drops them.
+    if(d.sellerDocs?.length) setSellerDocs(d.sellerDocs.map(doc=>({...doc,source:"restored",truncated:true})));
     if(d.accountDocs?.length) setAccountDocs(d.accountDocs);
     if(d.productUrls?.length) setProductUrls(d.productUrls);
     if(d.sellerICP) {
@@ -14606,6 +14621,7 @@ Return ONLY raw JSON:
                             <div key={i} className="doc-chip">
                               <span style={{fontSize:11}}>{icon}</span>
                               <span className="doc-chip-name">{d.name}</span>
+                              {d.source==="restored"&&<span style={{fontSize:9,color:"var(--amber)",whiteSpace:"nowrap"}}>· restored — re-upload for full content</span>}
                               <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
                             </div>
                           );
@@ -15015,6 +15031,7 @@ Return ONLY raw JSON:
                           <span style={{fontSize:11}}>{icon}</span>
                           <span className="doc-chip-label">{d.label}</span>
                           <span className="doc-chip-name">{d.name}</span>
+                          {d.source==="restored"&&<span style={{fontSize:9,color:"var(--amber)",whiteSpace:"nowrap"}}>· restored — re-upload for full content</span>}
                           <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
                         </div>
                       );
