@@ -9891,7 +9891,11 @@ Return ONLY raw JSON:
                 // HQ is now fixed — proceed with serving the cache
               }
               const cachePromptVersion = cd._briefPromptVersion || 1;
-              if (ageDays < 7 && hasCritical && cachePromptVersion >= BRIEF_CACHE_VERSION) {
+              // #65: a brief cached without the current docs/ICP-notes context is stale —
+              // treat like an incomplete brief so it regenerates with the doc context.
+              const ctxFpMatches = (cd._ctxFp || "0") === ctxFingerprint(sellerDocs, sellerICPInput);
+              if (!ctxFpMatches) console.log(`[brief-cache] Context fp mismatch for ${co} (cached "${cd._ctxFp || "0"}") — regenerating with current doc context`);
+              if (ageDays < 7 && hasCritical && cachePromptVersion >= BRIEF_CACHE_VERSION && ctxFpMatches) {
                 console.log(`[brief-cache] Found complete cached brief for ${co} (${ageDays}d old, v${cachePromptVersion}) — loading`);
                 // ── CACHE BACKFILL: serve cached data instantly, then fill gaps ──
                 // Detect which sections are missing from cached data and fire targeted calls.
@@ -11500,6 +11504,7 @@ Return ONLY raw JSON:
             tldr: current.tldr,
             fiveQuestions: current.fiveQuestions,
             _briefPromptVersion: BRIEF_CACHE_VERSION,
+            _ctxFp: ctxFingerprint(sellerDocs, sellerICPInput), // #65: cache read rejects on mismatch
           };
           // Mark old "latest" as superseded before inserting new one (prevents 409 conflict)
           const aoSeller = encodeURIComponent((sellerUrl || "").slice(0, 200));
