@@ -5779,7 +5779,8 @@ export default function App(){
   const[postCall,setPostCall]=useState(null);
   const[postLoading,setPostLoading]=useState(false);
   const[copied,setCopied]=useState("");
-  const[sellerDocs,setSellerDocs]=useState([]); // [{name, label, content}]
+  const[sellerDocs,setSellerDocs]=useState([]); // [{name, label, content, ext, source}]
+  const[docsError,setDocsError]=useState(""); // upload-zone error line (e.g. rejected legacy formats)
   const[accountDocs,setAccountDocs]=useState([]); // [{name, label, content}] — target-company intel (RFPs, requirements, meeting notes, discovery Qs)
   const[docDrag,setDocDrag]=useState(false);
   const[products,setProducts]=useState([]); // [{id, name, description, category}]
@@ -5923,8 +5924,17 @@ export default function App(){
       return;
     }
 
+    // Legacy binary Office formats (#65 M1): not ZIP-XML, so the extraction paths fail
+    // and FileReader.readAsText would inject stripped-binary noise past the >20-char
+    // content filter. Reject with a clear message instead — empty content keeps the
+    // file out of sellerDocs; handleDocFiles surfaces `rejected` to the user.
+    if (["doc", "ppt", "xls"].includes(ext)) {
+      resolve({ name, label: guessLabel(name), content: "", ext, rejected: `Legacy .${ext} isn't supported — please save as .${ext}x and re-upload` });
+      return;
+    }
+
     // Excel files: parse the ZIP structure to extract cell text
-    if (ext === "xlsx" || ext === "xls") {
+    if (ext === "xlsx") {
       const text = await readXlsxAsText(file);
       if (text) { resolve({ name, label: guessLabel(name), content: text, ext }); return; }
     }
@@ -5974,7 +5984,7 @@ export default function App(){
       return;
     }
 
-    // Text-based files (.txt, .md, .csv, .doc, etc.): read as text directly
+    // Text-based files (.txt, .md, .csv, etc.): read as text directly
     const reader = new FileReader();
     reader.onload = e => {
       let content = "";
@@ -5994,6 +6004,8 @@ export default function App(){
     _abortSpeculativeResearch(); // docs feed the Pass-1 research prompt — in-flight speculation is stale
     const arr = Array.from(files).slice(0,6); // max 6 docs
     const results = await Promise.all(arr.map(readDocFile));
+    const rejected = results.filter(r=>r.rejected);
+    setDocsError(rejected.length ? rejected.map(r=>`${r.name}: ${r.rejected}`).join(" · ") : "");
     const fresh = results.filter(r=>r.content.trim().length>20);
     // #65: new doc context — the ICP must rebuild. Correctness comes from the context
     // fingerprint in the cache keys/stamps (a doc change makes every cached copy miss);
@@ -14227,7 +14239,7 @@ Return ONLY raw JSON:
                 </span>
               )}
               <label style={{fontSize:10,color:"var(--tan-0)",fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}} onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
+                <input type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}} onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                 + Add Docs
               </label>
               {sellerDocs.length>0&&<span style={{fontSize:10,color:"var(--ink-3)"}}>{sellerDocs.length} doc{sellerDocs.length>1?"s":""}</span>}
@@ -14567,7 +14579,7 @@ Return ONLY raw JSON:
                       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
                         {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs) */}
                         <label className="btn btn-secondary btn-sm" style={{cursor:"pointer"}}>
-                          <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
+                          <input type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                             onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                           📂 Upload materials
                         </label>
@@ -14635,7 +14647,7 @@ Return ONLY raw JSON:
                       onDragOver={e=>{e.preventDefault();if(sellerDocs.length<6)setDocDrag(true);}}
                       onDragLeave={()=>setDocDrag(false)}
                       onDrop={e=>{e.preventDefault();setDocDrag(false);if(sellerDocs.length<6)handleDocFiles(e.dataTransfer.files);}}>
-                      <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp"
+                      <input type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp"
                         multiple disabled={sellerDocs.length>=6} style={{display:"none"}}
                         onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                       <div className="doc-upload-icon">📁</div>
@@ -14645,6 +14657,9 @@ Return ONLY raw JSON:
                         <div className="doc-upload-hint" style={{marginTop:2}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
                       </div>
                     </label>
+                    {docsError&&(
+                      <div style={{fontSize:11,color:"var(--red)",marginTop:8}}>⚠ {docsError}</div>
+                    )}
                     {sellerDocs.length>0&&(
                       <div className="doc-chips" style={{marginTop:8}}>
                         {sellerDocs.map((d,i)=>{
@@ -15014,9 +15029,13 @@ Return ONLY raw JSON:
                     <div className="doc-upload-hint" style={{marginTop:3}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
                   </div>
                   <button className="btn btn-secondary btn-sm" style={{flexShrink:0}} onClick={e=>{e.stopPropagation();docRef.current.click();}}>Add Files</button>
-                  <input ref={docRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
+                  <input ref={docRef} type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                     onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                 </div>
+
+                {docsError&&(
+                  <div style={{fontSize:11,color:"var(--red)",marginTop:8}}>⚠ {docsError}</div>
+                )}
 
                 {sellerDocs.length>0&&(
                   <div className="doc-chips" style={{marginTop:10}}>
@@ -15151,7 +15170,7 @@ Return ONLY raw JSON:
                     <div className="doc-upload-hint">Upload a product overview, solution brief, or pricing sheet — Cambree extracts each product automatically</div>
                   </div>
                   <button className="btn btn-secondary btn-sm" style={{flexShrink:0}} onClick={e=>{e.stopPropagation();prodDocRef.current.click();}}>Upload</button>
-                  <input ref={prodDocRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
+                  <input ref={prodDocRef} type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                     onChange={e=>{Array.from(e.target.files).forEach(parseProductDoc);e.target.value="";}}/>
                 </div>
 
@@ -17493,7 +17512,7 @@ Return ONLY raw JSON:
                 {/* Account Intel — upload RFPs, requirements, discovery Qs, meeting notes about this specific company */}
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
                   <label style={{display:"flex",alignItems:"center",gap:5,fontSize:11,fontWeight:600,color:"var(--ink-2)",cursor:"pointer",padding:"5px 12px",borderRadius:6,border:"1px dashed var(--line-0)",background:"var(--bg-0)"}}>
-                    <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
+                    <input type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                       onChange={async e=>{
                         const files = Array.from(e.target.files).slice(0, 6);
                         const results = await Promise.all(files.map(readDocFile));
