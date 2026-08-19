@@ -26,6 +26,11 @@ terraform {
 provider "aws" {
   region = var.region
 
+  # Hard guard: this layer creates the organization itself, so running it with
+  # the wrong credentials would parent the org/OU/accounts under a foreign
+  # management account. Refuse to plan/apply as anyone but Cambree AI.
+  allowed_account_ids = ["378656858124"]
+
   default_tags {
     tags = {
       ManagedBy = "terraform"
