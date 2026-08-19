@@ -103,7 +103,18 @@ Concurrency ≈ requests/sec × average duration, so Lambda limits bite on long 
 
 All AWS infrastructure is Terraform-managed from a new `infra/` directory — no console-created resources.
 
-- **State:** S3 backend + DynamoDB lock table; one workspace/state per environment (`dev`, `staging`, `prod`) matching the branch model.
+### Account map (created 2026-08-19, issue #9 — `infra/org/`)
+
+| Account | Id | Root email | Role |
+|---|---|---|---|
+| Cambree AI | 378656858124 | admin+aws@cambree.ai | Organization management account (org `o-tv6xt6jtc4`) |
+| cambree-dev | 405034826234 | admin+aws-dev@cambree.ai | `workloads` OU (`ou-9kh2-kvkbermn`) |
+| cambree-staging | 865526619955 | admin+aws-staging@cambree.ai | `workloads` OU |
+| cambree-production | 062560095244 | admin+aws-production@cambree.ai | `workloads` OU |
+
+SCPs on the `workloads` OU: deny-leave-organization, deny-member-root-user, restrict-regions (us-east-2 + us-east-1/global exceptions). Org-wide CloudTrail → `cambree-org-cloudtrail-378656858124`. Bootstrap access into member accounts: `OrganizationAccountAccessRole` from the management account.
+
+- **State:** one S3 state bucket per account — the org layer's own state lives in `cambree-org-terraform-state-378656858124` (S3-native locking, no DynamoDB table; the original DynamoDB-lock note below predates Terraform 1.10). Per-env workload layers get a bucket in their own account (directory-per-env root modules under `infra/envs/`, not workspaces), so dev credentials can never read prod state.
 - **Modules (proposed):** `network` (VPC, subnets, endpoints), `ecr`, `ecs-worker` (cluster, task defs, autoscaling), `queue` (SQS + DLQ), `orchestration` (Step Functions, IAM roles), `api` (API Gateway REST + WebSocket APIs, Lambdas, DynamoDB connections table), `crons` (EventBridge Scheduler), `secrets` (Secrets Manager/SSM), `amplify` (the Amplify app, branch config, domain, headers/rewrites), `dns` (Route 53, ACM), `observability` (CloudWatch dashboards/alarms, log groups, cost alarms).
 - Amplify itself is created via Terraform (`aws_amplify_app`, `aws_amplify_branch`, `aws_amplify_domain_association`) so hosting config is code, not console.
 - Bedrock access (model-invocation IAM policies, inference profiles) is Terraform-managed.
