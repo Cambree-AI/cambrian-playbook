@@ -5536,12 +5536,13 @@ export default function App(){
       // session stubs) ALWAYS drop — carrying seller A's internal material to seller B's
       // prompts is a cross-client contamination vector. "upload" docs are user-intentional:
       // ask once whether to keep them for the new company.
+      // Fresh uploads are kept by DEFAULT with a visible notice + remove action —
+      // a blocking window.confirm here froze the tab (native dialog mid-effect,
+      // QA P1-2) and its dismissal silently destroyed the files (QA P1-3).
       const _uploads = sellerDocs.filter(d=>d.source==="upload");
-      if (_uploads.length && window.confirm(`Keep your ${_uploads.length} uploaded file${_uploads.length>1?"s":""} for the new company?`)) {
-        if (_uploads.length !== sellerDocs.length) setSellerDocs(_uploads);
-      } else {
-        setSellerDocs([]);
-      }
+      if (_uploads.length !== sellerDocs.length) setSellerDocs(_uploads);
+      setDocsNotice(""); // the "materials added" banner may now point at dropped docs
+      setDocsCarryNotice(_uploads.length ? `Kept ${_uploads.length} uploaded file${_uploads.length>1?"s":""} from your previous company — remove any that don't apply here.` : "");
       setProducts([{id:Date.now(),name:"",description:"",category:""}]);
       setSellerProofPoints([]);
       setSellerExclusions([]);
@@ -5782,6 +5783,7 @@ export default function App(){
   const[sellerDocs,setSellerDocs]=useState([]); // [{name, label, content, ext, source}]
   const[docsError,setDocsError]=useState(""); // upload-zone error line (e.g. rejected legacy formats)
   const[docsNotice,setDocsNotice]=useState(""); // upload-zone info line (ICP-rebuild note after new materials); hidden once ICP is ready again
+  const[docsCarryNotice,setDocsCarryNotice]=useState(""); // uploads carried across a seller-URL change (kept by default, removable)
   const[accountDocs,setAccountDocs]=useState([]); // [{name, label, content}] — target-company intel (RFPs, requirements, meeting notes, discovery Qs)
   const[docDrag,setDocDrag]=useState(false);
   const[products,setProducts]=useState([]); // [{id, name, description, category}]
@@ -14677,6 +14679,13 @@ Return ONLY raw JSON:
                     {docsError&&(
                       <div style={{fontSize:11,color:"var(--red)",marginTop:8}}>⚠ {docsError}</div>
                     )}
+                    {docsCarryNotice&&sellerDocs.some(d=>d.source==="upload")&&(
+                      <div style={{fontSize:11,color:"var(--amber)",marginTop:8}}>
+                        {docsCarryNotice}{" "}
+                        <button type="button" onClick={()=>{setSellerDocs(prev=>prev.filter(d=>d.source!=="upload"));setDocsCarryNotice("");}}
+                          style={{background:"none",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,color:"var(--amber)",textDecoration:"underline",padding:0}}>Remove them</button>
+                      </div>
+                    )}
                     {docsNotice&&!sellerICP&&(
                       <div style={{fontSize:11,color:"var(--green)",marginTop:8}}>✓ {docsNotice}</div>
                     )}
@@ -15055,6 +15064,13 @@ Return ONLY raw JSON:
 
                 {docsError&&(
                   <div style={{fontSize:11,color:"var(--red)",marginTop:8}}>⚠ {docsError}</div>
+                )}
+                {docsCarryNotice&&sellerDocs.some(d=>d.source==="upload")&&(
+                  <div style={{fontSize:11,color:"var(--amber)",marginTop:8}}>
+                    {docsCarryNotice}{" "}
+                    <button type="button" onClick={()=>{setSellerDocs(prev=>prev.filter(d=>d.source!=="upload"));setDocsCarryNotice("");}}
+                      style={{background:"none",border:"none",cursor:"pointer",fontSize:11,fontWeight:700,color:"var(--amber)",textDecoration:"underline",padding:0}}>Remove them</button>
+                  </div>
                 )}
                 {docsNotice&&!sellerICP&&(
                   <div style={{fontSize:11,color:"var(--green)",marginTop:8}}>✓ {docsNotice}</div>
