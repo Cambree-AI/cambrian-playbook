@@ -14276,6 +14276,7 @@ Return ONLY raw JSON:
                 + Add Docs
               </label>
               {sellerDocs.length>0&&<span style={{fontSize:10,color:"var(--ink-3)"}}>{sellerDocs.length} doc{sellerDocs.length>1?"s":""}</span>}
+              {docsError&&<span title={docsError} style={{fontSize:9,color:"var(--red)",fontWeight:600,maxWidth:220,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>⚠ {docsError}</span>}
               <button style={{fontSize:10,color:"var(--red)",fontWeight:600,background:"none",border:"1px solid #9B2C2C44",borderRadius:6,padding:"2px 8px",cursor:"pointer"}}
                 onClick={()=>{if(window.confirm("Clear session and start over?")){clearSession();window.location.reload();}}}>
                 ✕ New Session
@@ -14687,7 +14688,7 @@ Return ONLY raw JSON:
                       <div className="doc-upload-text">
                         <div className="doc-upload-title">{sellerDocs.length>=6?"Max 6 files reached":"Drop files here or click to browse"}</div>
                         <div className="doc-upload-hint">Product overviews · white papers · case studies · marketing decks · screenshots · battle cards · pricing sheets</div>
-                        <div className="doc-upload-hint" style={{marginTop:2}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
+                        <div className="doc-upload-hint" style={{marginTop:2}}>PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), CSV, images — up to 6 files, 20 MB each</div>
                       </div>
                     </label>
                     {docsError&&(
@@ -15069,7 +15070,7 @@ Return ONLY raw JSON:
                   <div className="doc-upload-text">
                     <div className="doc-upload-title">Drop files or click to upload</div>
                     <div className="doc-upload-hint">Product overviews · white papers · case studies · marketing decks · screenshots · battle cards · pricing sheets</div>
-                    <div className="doc-upload-hint" style={{marginTop:3}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
+                    <div className="doc-upload-hint" style={{marginTop:3}}>PDF, Word (.docx), PowerPoint (.pptx), Excel (.xlsx), CSV, images — up to 6 files, 20 MB each</div>
                   </div>
                   <button className="btn btn-secondary btn-sm" style={{flexShrink:0}} onClick={e=>{e.stopPropagation();docRef.current.click();}}>Add Files</button>
                   <input ref={docRef} type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
