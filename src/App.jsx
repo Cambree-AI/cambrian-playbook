@@ -5951,7 +5951,11 @@ export default function App(){
     if (ext === "pdf") {
       try {
         const pdfjsLib = await import("pdfjs-dist/build/pdf.mjs");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+        // pdf.js v5 throws in browsers when workerSrc is empty (QA P1-1) —
+        // point it at the Vite-emitted worker asset once per session.
+        if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs?url")).default;
+        }
         const arrayBuffer = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true }).promise;
         let fullText = "";
