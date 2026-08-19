@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from "react";
 import { OUTCOMES } from "./data/outcomes.js";
 import { RIVER_STAGES } from "./data/riverFramework.js";
 import { SAMPLE_ROWS } from "./data/sampleAccounts.js";
-import { sbAuth, sbGetUser, sbSessions, sbStoreTokens, sbRestoreSession, sbRefreshSession, sbClearTokens, sbSetTokenCallback } from "./lib/supabase.js";
+import { sbAuth, sbGetUser, sbSessions, sbStoreTokens, sbRestoreSession, sbRefreshSession, sbClearTokens, sbSetTokenCallback, sbUpdateUserMetadata } from "./lib/supabase.js";
 import { fetchOrgContext, sbPatch } from "./lib/org.js";
 import SuperAdmin from "./components/SuperAdmin.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
@@ -1310,7 +1310,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
 //   - Track content block types — only feed TEXT blocks to onChunk
 //   - Use extractJsonWithKey for final parse (handles preamble text)
 // anchorKey: the expected top-level JSON key to find (e.g. "elevatorPitch")
-async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null } = {}) {
+async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1, anchorKey=null, onStatus=null, model=null, signal=null, returnRawOnFailure=false, system=null, extraHeaders={} } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   let response = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -1319,7 +1319,7 @@ async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1,
       response = await fetch('/api/claude-stream', {
         method: 'POST',
         signal: signal || undefined,
-        headers: { ...authHeaders(), ..._trackingCtx },
+        headers: { ...authHeaders(), ..._trackingCtx, ...extraHeaders },
         body: JSON.stringify({
           model: model || activeModel(),
           max_tokens: maxTok,
@@ -2616,7 +2616,7 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
         system: JSON_ONLY_SYSTEM,
         tools:[{type:"web_search_20250305",name:"web_search",max_uses:2}],
         messages:[{role:"user",content:execPrompt}],
-      }, { extraHeaders: { "x-billable-run": "1" } });
+      });
       // Gate A — structured per-item extraction from web_search_tool_result blocks.
       // These come directly from Anthropic's search API — the model cannot fabricate them.
       // Bug 2: keep items SEPARATE (not flat-joined) so proximity + recency checks can
@@ -3828,6 +3828,18 @@ function ChatPanel({ messages, onSend, onClose, loading, contextLabel }) {
         {messages.map((msg, i) => (
           <div key={i} className={`chat-msg chat-msg-${msg.role}`}>
             {msg.content.split("\n").map((line, j) => <p key={j}>{line}</p>)}
+            {msg.actions && (
+              <div style={{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"}}>
+                {msg.actions.map((a, k) => (
+                  <a key={k} href={a.href}
+                    {...(a.download ? { download: a.download } : { target: "_blank", rel: "noopener" })}
+                    style={{padding:"8px 14px",borderRadius:8,fontSize:12,fontWeight:700,textDecoration:"none",display:"inline-block",
+                      ...(a.primary ? {background:"var(--tan-0)",color:"white",border:"none"} : {background:"var(--surface)",color:"var(--ink-1)",border:"1.5px solid var(--line-0)"})}}>
+                    {a.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && <div className="chat-typing">Thinking…</div>}
@@ -4161,21 +4173,37 @@ function PasswordGate({ onAuth }) {
   React.useEffect(()=>{ setErr(""); },[mode]);
 
   React.useEffect(()=>{
-    // Check for Supabase auth redirects in URL hash
+    // Check for Supabase auth redirects in URL hash. When one is present it
+    // must WIN over any stored session: restoring (or refreshing) a prior
+    // session below would switch to the main app and the set-password form
+    // would never render — the observed "reset link lands on the homepage"
+    // bug. The single-use recovery token gets burned each attempt, so the
+    // user can never escape without clearing site data.
+    let authActionHandled = false;
     const hash = window.location.hash;
     if (hash) {
       const hashParams = new URLSearchParams(hash.replace("#", ""));
       const accessToken = hashParams.get("access_token");
       const type = hashParams.get("type");
+      const errCode = hashParams.get("error_code") || hashParams.get("error");
 
       if (accessToken && type === "recovery") {
         // Password reset flow
+        authActionHandled = true;
         setRecoveryToken(accessToken);
         setMode("newpassword");
+        window.history.replaceState({}, "", window.location.pathname);
+      } else if (!accessToken && errCode) {
+        // Expired or already-used link (e.g. error_code=otp_expired) — land on
+        // the reset form with an explanation instead of a silent homepage.
+        authActionHandled = true;
+        setMode("reset");
+        setErr("That link has expired or was already used. Enter your email to request a fresh one.");
         window.history.replaceState({}, "", window.location.pathname);
       } else if (accessToken && (type === "invite" || type === "signup" || type === "magiclink")) {
         // Invite flow — user clicked invite email link, Supabase created the account
         // They have a valid token but need to set a password
+        authActionHandled = true;
         setRecoveryToken(accessToken); // reuse recovery token for password setting
         setMode("invite_setpassword");
         // Try to extract email from the token payload
@@ -4213,6 +4241,10 @@ function PasswordGate({ onAuth }) {
 
     // Clear any legacy password-gate session data
     sessionStorage.removeItem('cambrian_auth');
+
+    // An explicit auth action (reset / invite / expired-link notice) takes
+    // precedence — skip session restore so its form actually renders.
+    if (authActionHandled) return;
 
     const restored = sbRestoreSession();
     if (restored?.needsRefresh) {
@@ -4281,9 +4313,9 @@ function PasswordGate({ onAuth }) {
         const r=await fetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{note:"Promo code: "+promoCode.trim()}:{})}),
+          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{})}),
         });
-        if(r.ok){setRequestSent(true);setErr("");}
+        if(r.ok){const d=await r.json().catch(()=>({ok:true}));setRequestSent(d);setErr("");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");reqInFlightRef.current=false;}
         setLoading(false);return;
       }
@@ -4294,15 +4326,21 @@ function PasswordGate({ onAuth }) {
         else if(d.id){setVerifying(true);}
         else setErr(d.msg||d.error_description||'Sign up failed');
       } else if(mode==="reset"){
+        if(reqInFlightRef.current) return; // guard: synchronous check prevents double-fire before React re-renders
+        if(!email.trim()){setErr("Enter your email address first.");setLoading(false);return;}
+        reqInFlightRef.current=true;
+        setResetSent(false);
         const SB_URL=import.meta.env.VITE_SUPABASE_URL;
         const SB_KEY=import.meta.env.VITE_SUPABASE_ANON_KEY;
         const r=await fetch(`${SB_URL}/auth/v1/recover`,{
           method:"POST",
           headers:{"apikey":SB_KEY,"Content-Type":"application/json"},
-          body:JSON.stringify({email}),
+          body:JSON.stringify({email:email.trim()}),
         });
         if(r.ok){setErr("");setResetSent(true);}
+        else if(r.status===429){setErr("Please wait a minute before requesting another reset link.");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error_description||d.msg||`Reset failed (${r.status}). Check that the email exists.`);}
+        reqInFlightRef.current=false;
       } else if(mode==="newpassword"||mode==="invite_setpassword"){
         if(newPw.length<8){setErr("Password must be at least 8 characters.");setLoading(false);return;}
         if(newPw!==newPwConfirm){setErr("Passwords don't match.");setLoading(false);return;}
@@ -4430,7 +4468,7 @@ function PasswordGate({ onAuth }) {
     <form className="card" style={{padding:22,minHeight:(mode==="request"||mode==="signup")?300:220,transition:"min-height 0.2s ease"}} onSubmit={e=>{e.preventDefault();submit();}}>
       <div className="pw-tabs" role="tablist" style={{marginBottom:18}}>
         {[["request","Request Access"],["signin","Sign In"]].map(([m,label])=>(
-          <button key={m} role="tab" aria-selected={mode===m}
+          <button key={m} type="button" role="tab" aria-selected={mode===m}
             className={`pw-tab ${mode===m?"active":""}`}
             onClick={()=>{setMode(m);setErr("");}}>
             {label}
@@ -4440,10 +4478,14 @@ function PasswordGate({ onAuth }) {
       {mode==="request" ? (
         requestSent ? (
           <div style={{textAlign:"center",padding:"12px 4px"}}>
-            <div style={{fontSize:32,marginBottom:8}}>✓</div>
-            <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>Request received</div>
+            <div style={{fontSize:32,marginBottom:8}}>{requestSent.approved?"🎉":"✓"}</div>
+            <div style={{fontSize:15,fontWeight:700,color:"var(--green)",marginBottom:8}}>
+              {requestSent.approved?"You're in — check your email":"Request received"}
+            </div>
             <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.6,marginBottom:16}}>
-              Thanks — we review every request and send invites personally. Watch your inbox.
+              {requestSent.approved
+                ? <>We sent an invite link to <strong style={{color:"var(--ink-0)"}}>{email}</strong>. Click it to set your password and get started.</>
+                : (requestSent.message||"Thanks — we review every request and send invites personally. Watch your inbox.")}
             </div>
             <button type="button" className="btn btn-secondary" style={{width:"100%",justifyContent:"center"}}
               onClick={()=>{setMode("signin");setErr("");setRequestSent(false);}}>Back to Sign In</button>
@@ -4459,8 +4501,8 @@ function PasswordGate({ onAuth }) {
             </div>
             <input type="email" autoComplete="email" placeholder="Work email" value={email} onChange={e=>setEmail(e.target.value)} style={{marginBottom:10}}/>
             <div className="field-grid-2" style={{marginBottom:10}}>
-              <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
-              <input placeholder="Promo code (optional)" value={promoCode} onChange={e=>setPromoCode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+              <input placeholder="Company" value={company} onChange={e=>setCompany(e.target.value)}/>
+              <input placeholder="Promo code (optional)" value={promoCode} onChange={e=>setPromoCode(e.target.value)}/>
             </div>
             {err && <div className="pw-error">{err}</div>}
             <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}}
@@ -4482,25 +4524,25 @@ function PasswordGate({ onAuth }) {
           <input placeholder="Last name"  value={last}  onChange={e=>setLast(e.target.value)}/>
         </div>
       )}
-      <input type="email" autoComplete="username" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} autoFocus={mode==="signin"} onKeyDown={e=>e.key==="Enter"&&pw&&submit()} style={{marginBottom:10}} readOnly={!!inviteEmail && mode==="signup"}/>
-      {mode!=="reset"&&<input type="password" autoComplete={mode==="signup"?"new-password":"current-password"} placeholder={mode==="signup"?"Password (8+ characters)":"Password"} value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()} style={{marginBottom:10}}/>}
+      <input type="email" autoComplete="username" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} autoFocus={mode==="signin"} style={{marginBottom:10}} readOnly={!!inviteEmail && mode==="signup"}/>
+      {mode!=="reset"&&<input type="password" autoComplete={mode==="signup"?"new-password":"current-password"} placeholder={mode==="signup"?"Password (8+ characters)":"Password"} value={pw} onChange={e=>setPw(e.target.value)} style={{marginBottom:10}}/>}
       {err && <div className="pw-error">{err}</div>}
       {resetSent && <div style={{fontSize:12,color:"var(--green)",fontWeight:600,marginBottom:8}}>Password reset link sent to {email}. Check your inbox.</div>}
       {mode==="reset"?(
         <>
-          <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}} onClick={submit} disabled={loading||!email}>
+          <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}} disabled={loading}>
             {loading?"Sending…":"Send Reset Link →"}
           </button>
-          <button style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:10,textAlign:"center",width:"100%"}}
+          <button type="button" style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:10,textAlign:"center",width:"100%"}}
             onClick={()=>{setMode("signin");setErr("");setResetSent(false);}}>← Back to Sign In</button>
         </>
       ):(
         <>
-          <button className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}} onClick={submit}
+          <button type="submit" className="btn btn-primary btn-lg" style={{width:"100%",justifyContent:"center",opacity:loading?0.7:1,marginTop:4}}
             disabled={loading||!email||!pw||(mode==="signup"&&(!first||!last))}>
             {loading ? (mode==="signup"?"Creating account…":"Signing in…") : (mode==="signup"?"Create Account →":"Sign In →")}
           </button>
-          {mode==="signin"&&<button style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--ink-2)",marginTop:10,textAlign:"center",width:"100%"}}
+          {mode==="signin"&&<button type="button" style={{background:"none",border:"none",cursor:"pointer",fontSize:11,color:"var(--ink-2)",marginTop:10,textAlign:"center",width:"100%"}}
             onClick={()=>{setMode("reset");setErr("");}}>Forgot password?</button>}
         </>
       )}
@@ -5104,6 +5146,21 @@ const FAQ_ITEMS = [
 
 // ── DOWNLOADABLE GUIDES ──────────────────────────────────────────────
 // User-facing guides available in-app with PDF download.
+// The User Guide ships as a real PDF in public/ (also served at /user-guide
+// via vercel.json rewrite). View = new tab (CSP: object-src 'none' forbids
+// <object>/<embed>; same-origin navigation is fine).
+const USER_GUIDE_PDF = "/cambree-user-guide.pdf";
+// First-join welcome, seeded client-side into Milton's chat — no API call,
+// zero token cost, deterministic. Shown once per user (#20).
+const GUIDE_WELCOME_MSG = {
+  role: "assistant",
+  content: "Hey, I'm Milton — your AI sales coach. Welcome aboard.\n\nBefore you dive in: we wrote a short User Guide — what a run is, when to use Quick Brief vs a Full Sales Session, and what to do on each of the nine steps. Five pages. Worth it.\n\nView it or download it below — it's always available later under the ⋯ menu → Guides. Then come back and let's go sell something.",
+  actions: [
+    { label: "📖 View the guide", href: USER_GUIDE_PDF, primary: true },
+    { label: "⬇ Download PDF", href: USER_GUIDE_PDF, download: "Cambree-User-Guide.pdf" },
+  ],
+};
+
 const APP_GUIDES = {
   user: {
     title: "User Guide",
@@ -5244,12 +5301,25 @@ ${g.sections.map(s => {
             </div>
           ))}
         </div>
-        {/* Footer with download */}
+        {/* Footer with download — the User Guide ships as a real PDF; Admin/Reseller keep print-to-PDF */}
         <div style={{padding:"12px 20px",borderTop:"1px solid var(--line-0)",display:"flex",gap:8,flexShrink:0}}>
-          <button onClick={printGuide}
-            style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"none",background:"var(--tan-0)",color:"white",cursor:"pointer"}}>
-            Download as PDF
-          </button>
+          {activeGuide === "user" ? (
+            <>
+              <a href={USER_GUIDE_PDF} target="_blank" rel="noopener"
+                style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"1.5px solid var(--line-0)",background:"var(--surface)",color:"var(--ink-1)",cursor:"pointer",textAlign:"center",textDecoration:"none"}}>
+                View PDF
+              </a>
+              <a href={USER_GUIDE_PDF} download="Cambree-User-Guide.pdf"
+                style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"none",background:"var(--tan-0)",color:"white",cursor:"pointer",textAlign:"center",textDecoration:"none"}}>
+                Download PDF
+              </a>
+            </>
+          ) : (
+            <button onClick={printGuide}
+              style={{flex:1,padding:"10px 16px",fontSize:13,fontWeight:700,borderRadius:8,border:"none",background:"var(--tan-0)",color:"white",cursor:"pointer"}}>
+              Download as PDF
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -5471,6 +5541,7 @@ export default function App(){
   const celebrate=(id)=>{if(!celebratedRef.current.has(id)&&MILESTONES[id]){celebratedRef.current.add(id);setActiveCelebration(id);}};
   const[icpLoading,setIcpLoading]=useState(false);
   const[icpStatus,setIcpStatus]=useState(""); // progressive status during ICP build
+  const[icpPreview,setIcpPreview]=useState(null); // #26 display-only fields streamed during ICP build — feeds the Step-2 skeleton card, NEVER merged into the final parsed ICP
   const[icpTab,setIcpTab]=useState("icp"); // "icp" | "rfp"
   const[sellerICPInput,setSellerICPInput]=useState(""); // seller's own ICP description
   const[icpDelta,setIcpDelta]=useState(null); // {alignments:[], gaps:[], recommendations:[]}
@@ -7749,12 +7820,79 @@ Return ONLY raw JSON:
         `Search 2: "${url.split('.')[0]}" customers OR "selected by" OR "case study" OR "works with" press release\n\n`
     );
 
+  // ── #26 PROGRESSIVE ICP PREVIEW (display-only) ──────────────────────────
+  // Extracts landed fields from accumulating partial text with regex anchors —
+  // the same technique generateBrief's onStream callbacks use (~p1/p3 micro-calls).
+  // Pass 1 streams a numbered plain-text research summary (COMPANY / COMPETITORS /
+  // DIFFERENTIATORS section headers); Pass 2 streams the ICP JSON (sellerDescription /
+  // marketCategory / uniqueDifferentiators keys). Both feed icpPreview, which ONLY
+  // drives the Step-2 skeleton card. The final ICP is still parsed from the complete
+  // response exactly as before — preview fields never leak into the parsed object,
+  // so run-to-run determinism of the final JSON is untouched.
+  const _ICP_PREVIEW_HEADER = /^[\s#*]*(?:\d+[.)]\s*)?\**(COMPANY|PRODUCTS?(?:\/|\s+AND\s+|\s*&\s*)?SERVICES|NAMED CUSTOMERS|COMPETITORS|DIFFERENTIATORS|FINANCIAL CONTEXT)\b\**:?\**\s*(.*)$/;
+  const _icpPreviewFromPartial = (partial) => {
+    const found = {};
+    const _unesc = (s) => s.replace(/\\"/g, '"').replace(/\\n/g, "\n");
+    // JSON-key anchors — land during Pass 2 (same pattern as generateBrief's onStream)
+    const descJson = partial.match(/"sellerDescription"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (descJson && descJson[1].length > 10) found.sellerDescription = _unesc(descJson[1]);
+    const catJson = partial.match(/"marketCategory"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (catJson && catJson[1].length > 2) found.marketCategory = _unesc(catJson[1]);
+    const diffJson = partial.match(/"uniqueDifferentiators"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+    if (diffJson) {
+      const items = [...diffJson[1].matchAll(/"((?:[^"\\]|\\.){3,}?)"/g)].map(m => _unesc(m[1]));
+      if (items.length) found.differentiators = items.slice(0, 5);
+    }
+    // Text-section anchors — land during the Pass-1 research summary
+    const bodies = {};
+    let section = "";
+    for (const line of partial.split("\n")) {
+      const h = line.match(_ICP_PREVIEW_HEADER);
+      if (h) { section = h[1]; bodies[section] = h[2] ? [h[2]] : []; continue; }
+      if (section) bodies[section].push(line);
+    }
+    if (!found.sellerDescription) {
+      const companyText = (bodies.COMPANY || []).join(" ").replace(/\s+/g, " ").trim();
+      if (companyText.length > 30) found.sellerDescription = companyText.slice(0, 500);
+    }
+    const _items = (name) => (bodies[name] || [])
+      .map(l => l.replace(/^\s*(?:[-•*]|\d+[.)])\s*/, "").trim())
+      .filter(l => l.length > 2 && /[a-z]/.test(l)); // all-caps line = a mid-stream truncated section header, not an item
+    if (!found.differentiators) {
+      const diffs = _items("DIFFERENTIATORS").map(d => d.length > 90 ? d.slice(0, 87) + "…" : d);
+      if (diffs.length) found.differentiators = diffs.slice(0, 5);
+    }
+    const comps = _items("COMPETITORS")
+      .map(c => c.replace(/\s*[:(—–].*$/, "").trim())
+      .filter(c => c.length > 1 && c.length < 60);
+    if (comps.length) found.competitors = comps.slice(0, 4);
+    return found;
+  };
+  // Merge landed fields into icpPreview; returns the previous reference when
+  // nothing changed so per-chunk callbacks don't trigger no-op re-renders.
+  const _pushIcpPreview = (found) => {
+    const keys = Object.keys(found);
+    if (!keys.length) return;
+    setIcpPreview(prev => {
+      let changed = false;
+      const next = { ...(prev || {}) };
+      for (const k of keys) {
+        const a = Array.isArray(found[k]) ? found[k].join("¦") : found[k];
+        const b = Array.isArray(next[k]) ? next[k].join("¦") : next[k];
+        if (a && a !== b) { next[k] = found[k]; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  };
+
   // Status callback — moved verbatim from the inline callback in buildSellerICP.
+  // #26: also pushes landed fields into the display-only skeleton card state.
   const _researchOnPartial = (partial) => {
     if (partial.length > 50 && partial.length < 200) setIcpStatus("Found the company...");
     if (partial.includes("PRODUCTS") || partial.includes("products")) setIcpStatus("Analyzing products and services...");
     if (partial.includes("CUSTOMERS") || partial.includes("customers")) setIcpStatus("Identifying customers and case studies...");
     if (partial.includes("COMPETITORS") || partial.includes("competitors")) setIcpStatus("Mapping competitive landscape...");
+    if (partial.length > 40) _pushIcpPreview(_icpPreviewFromPartial(partial)); // #26 display-only
   };
 
   // Identity of a research context. Any change to seller URL, product pages, or docs
@@ -7815,6 +7953,61 @@ Return ONLY raw JSON:
     } catch { /* speculation is best-effort — must never break the scan flow */ }
   };
 
+  // Meter one run at a user-intent boundary via /api/meter-run. Returns true when
+  // the run was recorded and work may proceed. Fails closed: anything other than a
+  // 2xx means no run — a metering outage must never hand out free runs.
+  const meterRun = async (kind) => {
+    const meterFailed = () => {
+      setEditToast("Could not verify your run allowance — please try again.");
+      setTimeout(() => setEditToast(""), 5000);
+      return false;
+    };
+    try {
+      const r = await fetch("/api/meter-run", {
+        method: "POST",
+        headers: { ...authHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ kind }),
+      });
+      if (r.status === 402) {
+        const d = await r.json().catch(() => ({}));
+        // Same event claudeFetch dispatches on 402 — opens the upgrade modal.
+        window.dispatchEvent(new CustomEvent("usage-limit-exceeded", { detail: d }));
+        return false;
+      }
+      if (!r.ok) {
+        console.warn("[meterRun] non-OK:", r.status);
+        return meterFailed();
+      }
+      const d = await r.json();
+      // Keep the header run counter honest without a refetch.
+      setOrgCtx(prev => prev ? { ...prev, run_count: d.run_count } : prev);
+      return true;
+    } catch (e) {
+      console.warn("[meterRun] network error:", e && e.message);
+      return meterFailed();
+    }
+  };
+
+  // A Full Sales Session costs ONE run, charged at whichever user-intent boundary
+  // the seller reaches first — "Analyze my company" (scan) or a direct ICP build.
+  // Keyed by normalized seller URL so the scan → confirm → build sequence that
+  // follows a single click is not billed two or three times. Per component mount:
+  // a reload plus a fresh click is a new session and bills again.
+  const fullSessionMeteredRef = useRef(null);
+  const meterFullSession = async (rawUrl) => {
+    const url = _normalizeSellerUrl(rawUrl || "");
+    if (url && fullSessionMeteredRef.current === url) return true; // already paid for this session
+    if (!(await meterRun("full_session"))) return false;
+    fullSessionMeteredRef.current = url;
+    return true;
+  };
+  // Name-only input is metered on what the seller typed ("acme"), then
+  // disambiguation resolves it to a real domain ("acme.io"). Move the paid
+  // marker onto the resolved domain so the scan that follows is not billed again.
+  const _carryFullSessionMeter = (resolvedUrl) => {
+    if (fullSessionMeteredRef.current) fullSessionMeteredRef.current = _normalizeSellerUrl(resolvedUrl || "");
+  };
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -7865,14 +8058,14 @@ Return ONLY raw JSON:
       return;
     }
 
-    // Check usage limit before starting a billable ICP build
-    if (orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
-      setUpgradeOpen(true);
-      return;
-    }
+    // Meter one run for the Full Sales Session at the user-intent boundary.
+    // The gate this replaced checked a counter that was never incremented.
+    // No-op when the scan already charged this seller URL this session.
+    if (!(await meterFullSession(url))) return;
 
     setIcpLoading(true);
     setIcpStatus("Researching your company...");
+    setIcpPreview(null); // #26 fresh skeleton card for this build
     // Capture current edits BEFORE clearing — inject into rebuild prompt so AI respects user changes
     const priorEdits = [...icpEdits];
     setIcpEdits([]); // Clear edit history for fresh tracking
@@ -8051,6 +8244,9 @@ Return ONLY raw JSON:
           else if (partial.length < 50) newStatus = "Researching your company...";
           if (newStatus) { setIcpStatus(newStatus); lastStatusChange = now; }
         }
+
+        // #26: feed the Step-2 skeleton card — display-only, never merged into the final parse
+        if (partial.length > 40) _pushIcpPreview(_icpPreviewFromPartial(partial));
 
         // Progressive data rendering — parse partial JSON and show what we have
         try {
@@ -8590,6 +8786,10 @@ Return ONLY raw JSON:
   // ── SCAN SELLER URL FOR PRODUCT PAGES ────────────────────────────────────
   const scanSellerUrl = async(rawUrl) => {
     if(!rawUrl.trim()) return;
+    // Enter-to-scan and the standalone Scan button reach here without passing
+    // through handleSellerGo. Same one-run-per-session dedupe applies, so the
+    // normal button flow is not billed twice.
+    if(!(await meterFullSession(rawUrl))) return;
     const url = rawUrl.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
     setUrlScanStatus("scanning");
     setUrlScanConfirmed(false);
@@ -9497,6 +9697,7 @@ Return ONLY raw JSON:
   const verifyAndLaunch = async (input, overrideSellerUrl) => {
     const co = input.trim();
     if (!co) return;
+    if (!(await meterRun("quick_brief"))) return;
     const domain = extractCompanyUrl(co);
     const displayName = extractCompanyName(co);
 
@@ -9594,8 +9795,9 @@ Return ONLY raw JSON:
     // Check usage limit before starting a billable brief generation.
     // forceRebuild (Retry Brief / Full Rebuild) is exempt: the UI promises
     // "Retry Brief (free)", and a retry of a failed brief must never be
-    // swallowed by the upgrade modal. Metering itself is unchanged — only the
-    // P2 web-search fallback sends x-billable-run, increments are post-2xx.
+    // swallowed by the upgrade modal. Metering happens once at the
+    // user-intent boundary (Quick Brief Go / Analyze my company) via
+    // /api/meter-run — no model call carries a billing header.
     if (!forceRebuild && orgCtx && orgCtx.run_count >= orgCtx.run_limit) {
       setUpgradeOpen(true);
       return;
@@ -13032,7 +13234,7 @@ Return ONLY raw JSON:
       // knowledge, compliance, battle cards, etc. Without this, the cached
       // trial-tier layers would persist until the 5-min cache expires.
       setTimeout(fetchKnowledgeLayer, 2500);
-      setChatMessages(prev => [...prev, { role: "assistant", content: `Welcome to the ${plan.charAt(0).toUpperCase()+plan.slice(1)} plan! Your runs have been upgraded. Let's go close some deals.` }]);
+      setChatMessages(prev => [...prev, { role: "assistant", content: plan === "promo_pack" ? "Your 20-run pack is active — the runs are already on your account. Let's go close some deals." : `Welcome to the ${plan.charAt(0).toUpperCase()+plan.slice(1)} plan! Your runs have been upgraded. Let's go close some deals.` }]);
       setChatOpen(true);
     } else if (checkout === "cancel") {
       window.history.replaceState({}, "", window.location.pathname);
@@ -13162,6 +13364,16 @@ Return ONLY raw JSON:
       const guestState = localStorage.getItem("cambrian_guest_state");
       if (guestState) { restoreSession({ id: null, name: "Guest Session", data: JSON.parse(guestState) }); localStorage.removeItem("cambrian_guest_state"); }
     } catch {}
+    // First join: Milton presents the User Guide once per user (#20). The seen
+    // flag lives in auth user_metadata (durable across devices); a per-user
+    // localStorage guard covers the case where the metadata write fails.
+    // Milton is authed-only (the chat toggle requires sbUser), so guests skip this.
+    if (u && !u.user_metadata?.user_guide_seen && !localStorage.getItem(`cambree_guide_seen_${u.id}`)) {
+      setChatMessages([GUIDE_WELCOME_MSG]);
+      setChatOpen(true);
+      try { localStorage.setItem(`cambree_guide_seen_${u.id}`, "1"); } catch { /* storage unavailable */ }
+      sbUpdateUserMetadata(tok, { user_guide_seen: true }).catch(() => {});
+    }
     // Auto-refresh tokens — update app state when token is silently refreshed
     sbSetTokenCallback((newToken) => { setSbToken(newToken); setAuthToken(newToken); });
   }}/>;
@@ -13213,6 +13425,10 @@ Return ONLY raw JSON:
   const handleSellerGo = async()=>{
     const norm = sellerInput.trim().replace(/^https?:\/\//,"").replace(/\/$/,"");
     if(!norm) return;
+    // "Analyze my company" IS the Full Session boundary — it kicks off the seller
+    // scan and its speculative Opus research, neither of which reaches
+    // buildSellerICP. Charge here, before any of that work starts.
+    if(!(await meterFullSession(norm))) return;
     const hasUrl = /\.(com|io|ai|org|net|app|co|dev|so|gov|edu|xyz|us|uk|de|fr|eu)($|\/)/i.test(norm);
     if(hasUrl) {
       // URL with TLD — go directly to scan + build
@@ -13251,23 +13467,28 @@ Return ONLY raw JSON:
           // No matches — fall back to name.com
           const fb = norm + ".com";
           setSellerUrl(fb); setSellerInput(fb);
+          _carryFullSessionMeter(fb);
           scanSellerUrl(fb);
         } else if (matches.length === 1) {
           const domain = (matches[0].domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
           setSellerUrl(domain); setSellerInput(domain);
+          _carryFullSessionMeter(domain);
           scanSellerUrl(domain);
         } else {
           setDisambigOptions({ matches, input: norm, onSelect: (match) => {
             const domain = (match.domain||"").replace(/^https?:\/\//,"").replace(/\/$/,"");
             setSellerUrl(domain); setSellerInput(domain);
             setDisambigOptions(null);
+            _carryFullSessionMeter(domain);
             scanSellerUrl(domain);
           }});
         }
       } catch (e) {
         console.warn("[Go] Disambiguation failed:", e.message);
         const fb = norm + ".com";
-        setSellerUrl(fb); setSellerInput(fb); scanSellerUrl(fb);
+        setSellerUrl(fb); setSellerInput(fb);
+        _carryFullSessionMeter(fb);
+        scanSellerUrl(fb);
       } finally {
         setDisambigLoading(false);
       }
@@ -14292,6 +14513,75 @@ Return ONLY raw JSON:
                   )}
                 </div>
 
+                {/* ── Seller Materials Upload (V2) ─────────────────────────────────────
+                    Always visible directly below the URL field. Starts open (key absent
+                    from collapsedBB initial set). Feeds sellerDocs → buildSellerProofPack
+                    → ICP Pass-2 + all brief sections. Uses <label> + inline <input> so
+                    no docRef is needed (V2 and Classic renders are mutually exclusive). */}
+                <div style={{marginTop:14}}>
+                  <div onClick={()=>toggleBB("sellerDocsUpload")}
+                    style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
+                      background:"var(--bg-1)",border:"1px solid var(--line-0)",
+                      borderRadius:bbIsOpen("sellerDocsUpload")?"8px 8px 0 0":"8px",
+                      ...(bbIsOpen("sellerDocsUpload")?{borderBottom:"none"}:{})}}>
+                    <span style={{fontSize:13}}>{bbIsOpen("sellerDocsUpload")?"▾":"▸"}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"var(--ink-1)"}}>
+                        Upload your materials <span style={{fontWeight:400,color:"var(--ink-3)"}}>(optional — significantly improves output)</span>
+                      </div>
+                      <div style={{fontSize:10,color:"var(--ink-3)"}}>
+                        {sellerDocs.length===0
+                          ?"Product decks · white papers · case studies · screenshots · battle cards"
+                          :`${sellerDocs.length} file${sellerDocs.length>1?"s":""} ready — feeds ICP, briefs, and discovery questions`}
+                      </div>
+                    </div>
+                    {sellerDocs.length>0&&(
+                      <span style={{fontSize:10,fontWeight:700,background:"var(--green-bg)",color:"var(--green)",borderRadius:10,padding:"2px 8px",whiteSpace:"nowrap"}}>
+                        {sellerDocs.length} file{sellerDocs.length>1?"s":""}
+                      </span>
+                    )}
+                  </div>
+                  {bbIsOpen("sellerDocsUpload")&&(
+                  <div style={{border:"1px solid var(--line-0)",borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px"}}>
+                    <label
+                      className={`doc-upload-zone ${docDrag?"drag":""}`}
+                      style={{opacity:sellerDocs.length>=6?0.5:1,cursor:sellerDocs.length>=6?"not-allowed":"pointer"}}
+                      onDragOver={e=>{e.preventDefault();if(sellerDocs.length<6)setDocDrag(true);}}
+                      onDragLeave={()=>setDocDrag(false)}
+                      onDrop={e=>{e.preventDefault();setDocDrag(false);if(sellerDocs.length<6)handleDocFiles(e.dataTransfer.files);}}>
+                      <input type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp"
+                        multiple disabled={sellerDocs.length>=6} style={{display:"none"}}
+                        onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
+                      <div className="doc-upload-icon">📁</div>
+                      <div className="doc-upload-text">
+                        <div className="doc-upload-title">{sellerDocs.length>=6?"Max 6 files reached":"Drop files here or click to browse"}</div>
+                        <div className="doc-upload-hint">Product overviews · white papers · case studies · marketing decks · screenshots · battle cards · pricing sheets</div>
+                        <div className="doc-upload-hint" style={{marginTop:2}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
+                      </div>
+                    </label>
+                    {sellerDocs.length>0&&(
+                      <div className="doc-chips" style={{marginTop:8}}>
+                        {sellerDocs.map((d,i)=>{
+                          const icon=d.ext==="pdf"?"📄":["png","jpg","jpeg","webp","gif","bmp","tiff"].includes(d.ext)?"🖼️":["pptx","ppt"].includes(d.ext)?"📊":["xlsx","xls","csv"].includes(d.ext)?"📈":["docx","doc"].includes(d.ext)?"📝":"📎";
+                          return(
+                            <div key={i} className="doc-chip">
+                              <span style={{fontSize:11}}>{icon}</span>
+                              <span className="doc-chip-name">{d.name}</span>
+                              <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {sellerDocs.length===0&&(
+                      <div style={{fontSize:11,color:"var(--ink-3)",marginTop:8,lineHeight:1.5}}>
+                        Everything Cambree builds starts from public data. Upload your internal materials and we'll layer them into your ICP, account briefs, and discovery questions.
+                      </div>
+                    )}
+                  </div>
+                  )}
+                </div>
+
                 {/* Add more details — collapsed disclosure; binds the SAME state the classic form feeds
                     into the ICP prompt (sellerStage @7754, icpTargeting @5817-5824, sellerICPInput @8270) */}
                 <div style={{marginTop:14}}>
@@ -14654,14 +14944,11 @@ Return ONLY raw JSON:
                 )}
               </div>
 
-              {/* Divider */}
-              <div style={{height:1,background:"var(--line-0)",margin:"18px 0 16px"}}/>
-
-              {/* Internal doc upload */}
-              <div className="field-row" style={{marginBottom:0}}>
+              {/* Internal doc upload — sits directly below the URL section (no preceding divider) */}
+              <div className="field-row" style={{marginBottom:0,marginTop:14}}>
                 <div className="field-label" style={{marginBottom:8}}>
-                  Internal Sales Materials
-                  <span style={{color:"var(--ink-3)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>(optional — strongly recommended)</span>
+                  Upload Your Materials
+                  <span style={{color:"var(--ink-3)",fontWeight:400,textTransform:"none",letterSpacing:0,fontSize:11,marginLeft:6}}>(optional — significantly improves ICP + brief quality)</span>
                 </div>
                 <div
                   className={`doc-upload-zone ${docDrag?"drag":""}`}
@@ -14669,11 +14956,11 @@ Return ONLY raw JSON:
                   onDragLeave={()=>setDocDrag(false)}
                   onDrop={e=>{e.preventDefault();setDocDrag(false);handleDocFiles(e.dataTransfer.files);}}
                   onClick={()=>docRef.current.click()}>
-                  <div className="doc-upload-icon">📂</div>
+                  <div className="doc-upload-icon">📁</div>
                   <div className="doc-upload-text">
                     <div className="doc-upload-title">Drop files or click to upload</div>
-                    <div className="doc-upload-hint">Pitch decks · Product overviews · Case studies · Training docs · Use cases · One-pagers</div>
-                    <div className="doc-upload-hint" style={{marginTop:3}}>PDF, DOCX, XLSX, CSV, TXT, MD — up to 6 files</div>
+                    <div className="doc-upload-hint">Product overviews · white papers · case studies · marketing decks · screenshots · battle cards · pricing sheets</div>
+                    <div className="doc-upload-hint" style={{marginTop:3}}>PDF, Word, PowerPoint, Excel, CSV, images — up to 6 files, 20 MB each</div>
                   </div>
                   <button className="btn btn-secondary btn-sm" style={{flexShrink:0}} onClick={e=>{e.stopPropagation();docRef.current.click();}}>Add Files</button>
                   <input ref={docRef} type="file" accept=".pdf,.docx,.doc,.txt,.md,.pptx,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
@@ -14682,14 +14969,17 @@ Return ONLY raw JSON:
 
                 {sellerDocs.length>0&&(
                   <div className="doc-chips" style={{marginTop:10}}>
-                    {sellerDocs.map((d,i)=>(
-                      <div key={i} className="doc-chip">
-                        <span style={{fontSize:11}}>📄</span>
-                        <span className="doc-chip-label">{d.label}</span>
-                        <span className="doc-chip-name">{d.name}</span>
-                        <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
-                      </div>
-                    ))}
+                    {sellerDocs.map((d,i)=>{
+                      const icon=d.ext==="pdf"?"📄":["png","jpg","jpeg","webp","gif","bmp","tiff"].includes(d.ext)?"🖼️":["pptx","ppt"].includes(d.ext)?"📊":["xlsx","xls","csv"].includes(d.ext)?"📈":["docx","doc"].includes(d.ext)?"📝":"📎";
+                      return(
+                        <div key={i} className="doc-chip">
+                          <span style={{fontSize:11}}>{icon}</span>
+                          <span className="doc-chip-label">{d.label}</span>
+                          <span className="doc-chip-name">{d.name}</span>
+                          <span className="doc-chip-x" onClick={e=>{e.stopPropagation();setSellerDocs(prev=>prev.filter((_,j)=>j!==i));}} title="Remove">✕</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -14978,13 +15268,54 @@ Return ONLY raw JSON:
               )}
             </div>
 
+            {/* #26 — progressive ICP skeleton card (replaces the old full-screen spinner):
+                fields fill from icpPreview as Pass-1/Pass-2 text streams in */}
             {icpLoading&&(!sellerICP||sellerICP?._loading)&&(
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:16,padding:"60px 0",textAlign:"center"}}>
-                <div className="load-spin" style={{width:32,height:32,borderWidth:3}}/>
-                <div style={{fontSize:15,color:"var(--ink-1)",fontWeight:500}}>{icpStatus || getQuip("icp")}</div>
-                <div style={{fontSize:13,color:"var(--ink-3)"}}>Building your ICP for {sellerUrl}</div>
-                {icpStatus && <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginTop:-8}}>{icpStatus}</div>}
-                <div style={{fontSize:12.5,color:"var(--ink-3)",marginTop:10,maxWidth:360,lineHeight:1.55}}>Good intel takes a minute. ☕ Grab a coffee or knock out that email you've been dodging — we'll have this ready when you're back.</div>
+              <div className="bb" style={{marginTop:16}}>
+                <div className="bb-hdr">
+                  <div className="bb-icon">🎯</div>
+                  <div>
+                    <div className="bb-title">How the Market Sees You</div>
+                    <div className="bb-sub" style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div className="load-spin" style={{width:12,height:12,borderWidth:2}}/> {icpStatus || getQuip("icp")}
+                    </div>
+                  </div>
+                </div>
+                <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Seller Description</div>
+                    {icpPreview?.sellerDescription
+                      ? <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{icpPreview.sellerDescription}</div>
+                      : <><div className="skeleton" style={{width:"92%",height:12,marginBottom:6}}/><div className="skeleton" style={{width:"68%",height:12}}/></>}
+                  </div>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Market Category</div>
+                    {icpPreview?.marketCategory
+                      ? <div style={{fontSize:13,color:"var(--ink-1)"}}>{icpPreview.marketCategory}</div>
+                      : <div className="skeleton" style={{width:180,height:12}}/>}
+                  </div>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Why We Win — Unique Differentiators</div>
+                    {(icpPreview?.differentiators||[]).length>0
+                      ? <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {icpPreview.differentiators.map((d,i)=>(
+                            <span key={i} style={{background:"var(--green-bg)",border:"1px solid #2E6B2E44",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--green)"}}>{d}</span>
+                          ))}
+                        </div>
+                      : <div style={{display:"flex",gap:6}}>{[96,132,74].map((w,i)=><div key={i} className="skeleton skeleton-pill" style={{width:w,height:22}}/>)}</div>}
+                  </div>
+                  <div>
+                    <div className="field-label" style={{marginBottom:4}}>Competitive Alternatives</div>
+                    {(icpPreview?.competitors||[]).length>0
+                      ? <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {icpPreview.competitors.map((c,i)=>(
+                            <span key={i} style={{background:"var(--bg-1)",border:"1px solid var(--line-0)",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--ink-1)"}}>{c}</span>
+                          ))}
+                        </div>
+                      : <div style={{display:"flex",gap:6}}>{[84,108,68].map((w,i)=><div key={i} className="skeleton skeleton-pill" style={{width:w,height:22}}/>)}</div>}
+                  </div>
+                  <div style={{fontSize:11,color:"var(--ink-3)"}}>Building your ICP for {sellerUrl} — fields fill in as research lands. You can review and edit everything when it completes.</div>
+                </div>
               </div>
             )}
 
@@ -19462,6 +19793,35 @@ Return ONLY raw JSON:
 
             {/* Pricing cards */}
             <div style={{padding:"20px 24px",display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(145px, 1fr))",gap:10}}>
+              {/* One-time run pack — only for orgs admitted via a promo code, still on trial (or topping up a prior pack). Eligibility is re-verified server-side in /api/checkout. */}
+              {sbUser&&orgCtx?.promo_code&&(orgCtx?.plan==="trial"||orgCtx?.plan==="promo")&&(
+                <div style={{border:"2px solid var(--green)",borderRadius:10,padding:"18px 16px",position:"relative",background:"var(--surface)"}}>
+                  <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--green)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Your Offer</div>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>Run Pack</div>
+                  <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:2}}>
+                    <span style={{fontSize:32,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>$45</span>
+                    <span style={{fontSize:12,color:"var(--ink-3)"}}>one-time</span>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>20 runs</div>
+                  <div style={{fontSize:11,color:"var(--ink-3)",marginBottom:10}}>Exclusive {orgCtx.promo_code} offer — no subscription</div>
+                  {["Full ICP + brief pipeline","RIVER hypothesis + discovery","Milton coaching","Paid-tier knowledge layers"].map(f=>(
+                    <div key={f} style={{fontSize:11,color:"var(--ink-1)",padding:"2px 0",display:"flex",gap:6}}>
+                      <span style={{color:"var(--green)",flexShrink:0}}>✓</span>{f}
+                    </div>
+                  ))}
+                  <button onClick={async()=>{
+                    try{
+                      const r=await fetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({planId:"promo_pack"})});
+                      const d=await r.json();
+                      if(d.url)window.location.href=d.url;
+                      else alert(d.error||"Checkout failed — please try again.");
+                    }catch{alert("Failed to start checkout — check your connection.");}
+                  }}
+                    style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:"var(--green)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:12,fontFamily:"var(--font-sans)"}}>
+                    Get 20 runs →
+                  </button>
+                </div>
+              )}
               {PRICING_TIERS.map(plan=>(
                 <div key={plan.id} style={{border:plan.popular?"2px solid var(--tan-0)":"1.5px solid var(--line-0)",borderRadius:10,padding:"18px 16px",position:"relative",background:plan.popular?"var(--bg-1)":"var(--surface)"}}>
                   {plan.popular&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--tan-0)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Most Popular</div>}
