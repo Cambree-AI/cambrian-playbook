@@ -2,7 +2,8 @@
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
-    { "source": "/support", "destination": "/support.html" }
+    { "source": "/support", "destination": "/support.html" },
+    { "source": "/user-guide", "destination": "/cambree-user-guide.pdf" }
   ],
   "functions": {
     "api/claude.js": { "maxDuration": 120 },
