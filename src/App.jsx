@@ -7862,7 +7862,7 @@ Return ONLY raw JSON:
     `Return a structured research summary:\n`+
     `1. COMPANY: What they do (2 sentences, specific). Include ownership type, approximate revenue, and employee count if findable.\n`+
     `2. PRODUCTS/SERVICES: List each product/service found on their website with a 1-sentence description and the URL where you found it\n`+
-    `3. NAMED CUSTOMERS: Every customer name found in case studies, press releases, partner pages, or logo walls — with the source URL for each\n`+
+    `3. NAMED CUSTOMERS: Every customer name found in case studies, press releases, partner pages, or logo walls — with the source URL for each. If SELLER'S OWN MATERIALS are provided above, customers named in them are HIGH-CONFIDENCE and MUST be included — cite them as [seller material: <document name>] instead of a URL\n`+
     `4. COMPETITORS: Named competitors found in the research, with any evidence of their customers\n`+
     `5. DIFFERENTIATORS: What makes this company different from competitors (specific, not generic)\n`+
     `6. FINANCIAL CONTEXT: Revenue, funding, ownership details. For PUBLIC companies: total revenue from most recent annual report. For PE: deal details. For VC: funding rounds and total raised.\n\n`+
@@ -8011,6 +8011,15 @@ Return ONLY raw JSON:
   const _specResearchKeyFor = (url, activeProductUrls, activeSellerDocs) =>
     `${url}::${activeProductUrls.map(u => u.url.trim()).sort().join(",")}::${activeSellerDocs.map(d => `${d.label || d.name || ""}:${(d.content || "").length}`).join("|")}`;
 
+  // #65: fingerprint of everything doc/page-shaped that enters the Pass-1 research
+  // prompt. Replaces the old binary "1"/"0" context flag in the research cache key —
+  // that flag couldn't tell "product pages, no docs" from "product pages + a new PDF",
+  // so a same-week rebuild after an upload reused doc-less research and the doc never
+  // surfaced in the ICP. Notes (sellerICPInput) are deliberately excluded: they feed
+  // Pass 2 only, so a notes edit must not discard still-valid research.
+  const _researchCtxFp = (activeProductUrls, activeSellerDocs) =>
+    ctxFingerprint(activeSellerDocs, activeProductUrls.map(u => u.url.trim()).sort().join(","));
+
   const _abortSpeculativeResearch = () => {
     const rec = specResearchRef.current;
     if (rec) {
@@ -8044,7 +8053,7 @@ Return ONLY raw JSON:
       // Research cache hit → Pass 1 would be skipped; nothing to speculate.
       const _week = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
       try {
-        const c = localStorage.getItem(`research:v1:${url}:${_week}:${hasSellerContext ? "1" : "0"}`);
+        const c = localStorage.getItem(`research:v2:${url}:${_week}:${_researchCtxFp(activeProductUrls, activeSellerDocs)}`);
         if (c && c.length > 100) return;
       } catch {}
       const key = _specResearchKeyFor(url, activeProductUrls, activeSellerDocs);
@@ -8204,13 +8213,14 @@ Return ONLY raw JSON:
     // Opus does the expensive critical work, Sonnet does the cheap formatting.
 
     // ── RESEARCH CACHE (Option 3) ──
-    // Key: url + ISO week number + context flag (docs/pages present or not).
-    // Context flag prevents using "no docs" research when docs are added mid-week.
+    // Key: url + ISO week number + docs/pages fingerprint (#65). The fingerprint —
+    // not a binary flag — prevents a same-week rebuild from reusing research that
+    // was run before a doc was added, removed, or replaced ("v2": old flag-keyed
+    // entries are never read and age out with the week bucket).
     // forceRefresh bypasses cache so the Regenerate button always gets fresh research.
     // TTL is natural: week bucket rolls over every 7 days, old keys are never read.
     const _researchWeek = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
-    const _researchCtx = hasSellerContext ? "1" : "0";
-    const _researchCacheKey = `research:v1:${url}:${_researchWeek}:${_researchCtx}`;
+    const _researchCacheKey = `research:v2:${url}:${_researchWeek}:${_researchCtxFp(activeProductUrls, activeSellerDocs)}`;
 
     // ── PASS 1: Opus Research ──
     setIcpStatus("Researching your products and customers...");
@@ -8277,7 +8287,7 @@ Return ONLY raw JSON:
       `- For "PICK ONE" fields: return ONLY the exact value from the list. No extra words, no custom ranges, no parentheticals.\n`+
       `- For "PICK FROM" fields: choose from the canonical list provided. Do NOT invent your own labels.\n`+
       `- If a buyer fits two buckets, pick the one matching the MEDIAN customer.\n`+
-      `- CUSTOMER NAMES: Only include customers you found in the RESEARCH above or are certain from training knowledge. Do NOT guess or invent customer names — a wrong name destroys credibility. 3-5 verified names, or fewer if you can't verify more.\n`+
+      `- CUSTOMER NAMES: Only include customers you found in the RESEARCH or SELLER'S OWN MATERIALS above, or are certain from training knowledge. Customers named in the seller's uploaded materials are HIGH-CONFIDENCE — include them. Do NOT guess or invent customer names — a wrong name destroys credibility. 3-5 verified names, or fewer if you can't verify more.\n`+
       `- COMPETITOR NAMES: Only include competitors you can verify. Include "Status quo / do nothing" as the first alternative.\n`+
       `- COMPETITOR CUSTOMERS — EVIDENCE REQUIRED: For each competitor's named customers, you MUST provide a source: a case study URL, press release, partnership announcement, or specific verifiable reference. "InComm serves Albertsons" is NOT enough — include WHY you know this (e.g. "InComm case study: incomm.com/case-studies/albertsons" or "Press release: Albertsons selects InComm for loyalty card program, Jan 2025"). If you cannot cite evidence for a competitor-customer relationship, do NOT include it. An unverified claim is worse than no claim — a rep who cites a wrong competitor relationship in a meeting loses the deal.\n`+
       `- DIFFERENTIATORS: Must be specific to THIS seller, not generic category claims. "AI-powered" is generic. "Only platform with native Visa/Mastercard issuing" is specific.\n`+
@@ -8308,14 +8318,14 @@ Return ONLY raw JSON:
       `"tractionChannels":["GTM channels"],`+
       `"dealSize":"<$10K|$10K-$50K|$50K-$250K|$250K-$1M|$1M+",`+
       `"salesCycle":"<30d|30-60d|60-90d|90-180d|180+d",`+
-      `"customerExamples":["from research ONLY"],`+
+      `"customerExamples":["from research or seller materials ONLY"],`+
       `"relevantEvents":[],`+
       `"linesOfBusiness":[{"name":"LOB name","description":"","revenueWeight":"","buyerProfile":"","namedCustomers":[]}],`+
       `"namedCustomerProfiles":[{"name":"","industry":"","estimatedSize":"","useCase":"","lob":"","whyTheyBuy":""}],`+
       `"winPatterns":{"industriesWhereTheyWin":[],"companySizeSweet":"","typicalEntryPoint":"","expansionPath":""},`+
-      `"productCatalog":[{"name":"from website","description":"specific","targetBuyer":"","painSolved":"","industries":[],"evidence":"URL"}],`+
-      `"verifiedCustomers":[{"name":"from case study/press","industry":"","useCase":"","source":"case_study|press_release|partner_page|website_logo","sourceUrl":""}]}`+
-      `\n\nRULES: productCatalog 2-6 from website (NOT training knowledge). verifiedCustomers 3-10 from research. competitiveAlternatives with evidence URLs. customerExamples from research only. Empty array if not found. relevantEvents leave empty.`;
+      `"productCatalog":[{"name":"from website or seller materials","description":"specific","targetBuyer":"","painSolved":"","industries":[],"evidence":"URL or seller material name"}],`+
+      `"verifiedCustomers":[{"name":"from case study/press/seller materials","industry":"","useCase":"","source":"case_study|press_release|partner_page|website_logo|seller_material","sourceUrl":"URL, or document name for seller_material"}]}`+
+      `\n\nRULES: productCatalog 2-6 from website or seller materials (NOT training knowledge). verifiedCustomers 3-10 from research + seller materials. competitiveAlternatives with evidence URLs. customerExamples from research or seller materials only. Empty array if not found. relevantEvents leave empty.`;
 
     // Cached system block: ANTI_HALLUCINATION + static instructions.
     // Sent as array for prompt-caching. Guard prepends SERVER_PREAMBLE as block[0].
@@ -8332,7 +8342,7 @@ Return ONLY raw JSON:
       (sellerResearch ? `═══ RESEARCH RESULTS (from deep web search — use these facts) ═══\n${sellerResearch.slice(0, 6000)}\n═══ END RESEARCH ═══\n\n` : `No pre-research available. Use your training knowledge about ${url} to build the ICP.\n\n`)+
       sellerDocsCtx +
       productPagesCtx +
-      `CUSTOMER RESEARCH IS CRITICAL: Named customers from case studies and press releases are HIGH-CONFIDENCE data. These become the anchor for scoring — "does this prospect look like companies we've already won?" A seller with 3 verified customer wins produces better scores than one with 20 guesses.\n\n`+
+      `CUSTOMER RESEARCH IS CRITICAL: Named customers from case studies and press releases are HIGH-CONFIDENCE data — and customers named in the SELLER'S OWN MATERIALS above are equally high-confidence (the seller uploaded them as proof). Both become the anchor for scoring — "does this prospect look like companies we've already won?" A seller with 3 verified customer wins produces better scores than one with 20 guesses.\n\n`+
       `Then use your research to build the ICP below. Adapt for their actual market model — B2B, B2C, B2B2C, B2G, marketplace, or hybrid.\n\n`+
       getVerticalInjection({ marketCategory: sellerICP?.marketCategory || "", sellerDescription: url }) +
       `Seller stage: ${sellerStage||"unknown"}.\n`+
