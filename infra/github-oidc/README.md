@@ -43,6 +43,11 @@ the policy tolerates the bucket not existing yet.
 - Trust policies pin `aud = sts.amazonaws.com` and exact-match `sub` — no
   `StringLike` wildcards. Changing a GitHub Environment's name breaks the
   matching deploy role on purpose; update both together.
+- This repo's tokens use GitHub's **immutable-id subject form**
+  (`repo:Cambree-AI@311088446/cambrian-playbook@1203192265:...`), verified
+  against a live token 2026-08-20 — the classic `repo:ORG/REPO:...` form
+  does NOT match. The numeric ids survive renames, which is the point;
+  they live in `variables.tf` (`github_org_id`/`github_repo_id`).
 - The deploy role stays AdministratorAccess only until the env layers have
   real resource shapes; tightening is a tracked follow-up (issue #73).
 - If GitHub's OIDC thumbprint guidance changes, AWS ignores the value for

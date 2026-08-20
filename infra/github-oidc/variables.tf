@@ -10,6 +10,18 @@ variable "github_repo" {
   default     = "Cambree-AI/cambrian-playbook"
 }
 
+variable "github_org_id" {
+  description = "Numeric GitHub org id (gh api orgs/Cambree-AI --jq .id). The token's sub claim uses the immutable name@id form."
+  type        = string
+  default     = "311088446"
+}
+
+variable "github_repo_id" {
+  description = "Numeric GitHub repo id (gh api repos/... --jq .id). The token's sub claim uses the immutable name@id form."
+  type        = string
+  default     = "1203192265"
+}
+
 variable "accounts" {
   description = <<-EOT
     env slug => member account. Ids from infra/org `account_ids` output.
@@ -30,6 +42,16 @@ variable "accounts" {
 }
 
 locals {
+  # This repo's tokens present the immutable-id subject form
+  # (repo:ORG@orgid/REPO@repoid:...), verified against a live pull_request
+  # token 2026-08-20 — NOT the classic repo:ORG/REPO:... form. Ids are
+  # rename-resistant, so exact-matching this form is strictly stronger.
+  github_sub_prefix = format(
+    "repo:%s@%s/%s@%s",
+    split("/", var.github_repo)[0], var.github_org_id,
+    split("/", var.github_repo)[1], var.github_repo_id,
+  )
+
   default_tags = {
     ManagedBy = "terraform"
     Layer     = "github-oidc"

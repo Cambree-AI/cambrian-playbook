@@ -1,5 +1,5 @@
-variable "github_repo" {
-  description = "GitHub org/repo allowed in the trust policies (e.g. Cambree-AI/cambrian-playbook)"
+variable "github_sub_prefix" {
+  description = "Subject-claim prefix the trust policies exact-match, in GitHub's immutable-id form (repo:ORG@orgid/REPO@repoid)"
   type        = string
 }
 
