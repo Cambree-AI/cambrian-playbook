@@ -31,3 +31,7 @@ staging ──┬─► xxx/issue-yyy-zzzz ──PR──► dev ──(test in 
 3. Once validated in `dev`, open a PR from the work branch into `staging`.
 4. Integration testing happens on `staging` (Vercel preview deployment).
 5. When staging is verified, flip to `main` (production). Tag before merging to main; roll back by resetting to the last good tag.
+
+## Infrastructure (`infra/`)
+
+Merges that touch `infra/envs/**` are auto-applied to the matching AWS account by `.github/workflows/terraform.yml` via GitHub OIDC: `dev` → cambree-dev (405034826234), `staging` → cambree-staging (865526619955), `main` → cambree-production (062560095244, after required-reviewer approval on the `production` GitHub Environment). PRs get a read-only Terraform plan comment. `infra/org/` and `infra/github-oidc/` are the exception: they run laptop-only as the management account and are deliberately excluded from CI (issue #73; rationale in their READMEs).

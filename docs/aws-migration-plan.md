@@ -115,6 +115,20 @@ All AWS infrastructure is Terraform-managed from a new `infra/` directory — no
 SCPs on the `workloads` OU: deny-leave-organization, deny-member-root-user, restrict-regions (us-east-2 + us-east-1/global exceptions). Org-wide CloudTrail → `cambree-org-cloudtrail-378656858124`. Bootstrap access into member accounts: `OrganizationAccountAccessRole` from the management account.
 
 - **State:** one S3 state bucket per account — the org layer's own state lives in `cambree-org-terraform-state-378656858124` (S3-native locking, no DynamoDB table; the original DynamoDB-lock note below predates Terraform 1.10). Per-env workload layers get a bucket in their own account (directory-per-env root modules under `infra/envs/`, not workspaces), so dev credentials can never read prod state.
+### CI credentials (created 2026-08-20, issue #73 — `infra/github-oidc/` + `infra/envs/`)
+
+GitHub Actions reaches AWS via **OIDC federation only** — no AWS access keys exist in GitHub. Each member account has an OIDC identity provider for `token.actions.githubusercontent.com` and two roles, Terraform-managed in `infra/github-oidc/` (state: org bucket, key `github-oidc/terraform.tfstate`; laptop-only layer like `infra/org/`):
+
+| Env | Plan role (PR jobs, read-only) | Deploy role (environment-bound jobs, admin) |
+|---|---|---|
+| dev | `arn:aws:iam::405034826234:role/github-plan` | `arn:aws:iam::405034826234:role/github-deploy` |
+| staging | `arn:aws:iam::865526619955:role/github-plan` | `arn:aws:iam::865526619955:role/github-deploy` |
+| prod | `arn:aws:iam::062560095244:role/github-plan` | `arn:aws:iam::062560095244:role/github-deploy` |
+
+Deploy-role trust policies match `sub = repo:Cambree-AI/cambrian-playbook:environment:<dev|staging|production>`, so the branch → account mapping is enforced by IAM through the GitHub Environments (production: required reviewer, `main`-only), not by workflow YAML. The ARNs are mirrored in the repo variables `AWS_PLAN_ROLE_*` / `AWS_DEPLOY_ROLE_*` consumed by `.github/workflows/terraform.yml` (plan on PR touching `infra/envs/**`, apply on merge to `dev`/`staging`/`main`).
+
+`infra/envs/{dev,staging,prod}` each own their state bucket `cambree-<env>-terraform-state-<account-id>` (versioned, public-access-blocked, `use_lockfile`, key `env/terraform.tfstate`). Bootstrap procedure (one-time per env, done 2026-08-20): assume `OrganizationAccountAccessRole` into the account, `terraform init && apply` with the backend block commented (local state creates the bucket), uncomment the backend, `terraform init -migrate-state`, confirm two clean plans. Terraform is pinned to 1.10.x (`.tool-versions` and the workflow) — state written by a newer CLI would lock the pinned CI out.
+
 - **Modules (proposed):** `network` (VPC, subnets, endpoints), `ecr`, `ecs-worker` (cluster, task defs, autoscaling), `queue` (SQS + DLQ), `orchestration` (Step Functions, IAM roles), `api` (API Gateway REST + WebSocket APIs, Lambdas, DynamoDB connections table), `crons` (EventBridge Scheduler), `secrets` (Secrets Manager/SSM), `amplify` (the Amplify app, branch config, domain, headers/rewrites), `dns` (Route 53, ACM), `observability` (CloudWatch dashboards/alarms, log groups, cost alarms).
 - Amplify itself is created via Terraform (`aws_amplify_app`, `aws_amplify_branch`, `aws_amplify_domain_association`) so hosting config is code, not console.
 - Bedrock access (model-invocation IAM policies, inference profiles) is Terraform-managed.
@@ -123,7 +137,7 @@ SCPs on the `workloads` OU: deny-leave-organization, deny-member-root-user, rest
 
 Each phase = issue-backed branches per docs/branching.md; every phase ends with the app fully working (strangler pattern — Vercel stays live until Phase 9 cutover).
 
-1. **Phase 0 — Foundations.** AWS account/org, Terraform state backend, `infra/` skeleton, ECR repo, Secrets Manager entries mirroring Vercel env vars, CI credentials (GitHub OIDC → AWS), Lambda concurrency quota raise (§6).
+1. **Phase 0 — Foundations.** AWS account/org, Terraform state backend, `infra/` skeleton, ECR repo, Secrets Manager entries mirroring Vercel env vars, CI credentials (GitHub OIDC → AWS — done 2026-08-20, issue #73, see §7), Lambda concurrency quota raise (§6).
 2. **Phase 1 — Jest test suite.** Jest + RTL wiring, LLM mock layer at `src/lib/api.js`, unit tests for `fitScoring.js` and lib modules, first component tests, CI job. Extract validator/merge logic from App.jsx as needed to test it.
 3. **Phase 2 — Amplify hosting (frontend parity).** Terraform-created Amplify app connected to the GitHub repo; branch builds for `dev`/`staging`/`main`; port rewrites + security headers from `vercel.json`; SPA still calls the existing Vercel `api/` (CORS/CSP updated). Validate on a test domain.
 4. **Phase 3 — Port light API endpoints.** `knowledge`, `enrich`, `enrich-free`, `checkout`, `stripe-webhook`, `contact`, `invite`, `referral`, `hubspot`, `admin` → Lambda + API Gateway, reusing `_guard.js`/`_usage.js` logic as a shared layer. Point the SPA at the new API per environment.
