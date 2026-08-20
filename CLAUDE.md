@@ -39,6 +39,7 @@ Full workflow: **[docs/branching.md](docs/branching.md)**. Summary:
 - Rollback = reset to the last good tag (e.g. `v2.0.0-stable`) and force-push. Release history: docs/AUDIT_GUIDE.md and docs/archive/PRODUCTION_RELEASE_2026-06-09.md.
 - Before shipping any scoring or brief-pipeline change: run the 10-target Stage-0 validation (always include Stripe for contamination and Boeing for revenue/HQ); reject the change if any correctly-scored target regresses >5 points. Protocol in docs/STAGE_0_REMEDIATION_PLAN.md.
 - **Never attribute Claude anywhere on GitHub** — no "Generated with Claude Code", "Co-Authored-By: Claude", or similar in commit messages, PR bodies, or comments on issues/PRs.
+- **Infrastructure changes go through Terraform applied by GitHub Actions** (`.github/workflows/terraform.yml`, issue #73) — never the AWS console, never a local `terraform apply`. Merging `dev`/`staging`/`main` auto-applies `infra/envs/*` to the matching account (production gated by required-reviewer approval). The one-time bootstraps in issues #9/#73 were the last laptop applies. Sole standing exception: the laptop-only layers `infra/org/` and `infra/github-oidc/`, which stay out of CI by design and are applied locally as the management account only with explicit human sign-off. Console access is read-only/diagnostic.
 
 ## Architecture
 
