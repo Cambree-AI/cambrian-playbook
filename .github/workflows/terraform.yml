@@ -107,7 +107,9 @@ jobs:
             }
 
   apply:
-    name: apply (${{ github.ref_name == 'main' && 'prod' || github.ref_name }})
+    # Static name: expressions in a skipped job's name render unevaluated in
+    # the PR checks list. The target env shows in the run's environment badge.
+    name: apply
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     # Binding to the GitHub Environment is what makes the deploy role
