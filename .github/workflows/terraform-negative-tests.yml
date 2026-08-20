@@ -54,3 +54,14 @@ jobs:
           else
             echo "FAIL: mutation was not cleanly denied (rc=$rc)"; exit 1
           fi
+
+  show-oidc-claims:
+    name: TEMP dump OIDC token claims
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decode claim payload (no signature/token printed)
+        run: |
+          resp=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")
+          payload=$(echo "$resp" | jq -r .value | cut -d. -f2 | tr '_-' '/+')
+          pad=$(( (4 - ${#payload} % 4) % 4 ))
+          printf '%s' "$payload" | { cat; printf '%.0s=' $(seq 1 $pad 2>/dev/null); } | base64 -d 2>/dev/null | jq '{iss, aud, sub, repository, repository_id, repository_owner, repository_owner_id, ref, event_name}'
