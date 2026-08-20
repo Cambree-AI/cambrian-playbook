@@ -1,0 +1,56 @@
+# TEMPORARY — issue #73 trust-boundary verification; delete after the tests
+# pass once. Proves from a real pull_request job that (a) the deploy role is
+# NOT assumable (its trust policy only matches environment-bound subs) and
+# (b) the plan role cannot mutate anything.
+
+name: terraform-negative-tests
+
+on:
+  pull_request:
+    paths:
+      - "infra/envs/**"
+      - ".github/workflows/terraform-negative-tests.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-role-denied:
+    name: deploy role must reject pull_request jobs
+    runs-on: ubuntu-latest
+    steps:
+      - id: assume
+        continue-on-error: true
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_DEV }}
+          aws-region: us-east-2
+      - name: Assert the assume failed
+        run: |
+          if [ "${{ steps.assume.outcome }}" = "failure" ]; then
+            echo "PASS: github-deploy refused a pull_request-sub token"
+          else
+            echo "FAIL: pull_request job assumed the deploy role"; exit 1
+          fi
+
+  plan-role-readonly:
+    name: plan role must be read-only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_DEV }}
+          aws-region: us-east-2
+      - name: Attempt a mutating call (must be denied)
+        run: |
+          set +e
+          out=$(aws s3 mb s3://cambree-negative-test-should-be-denied --region us-east-2 2>&1)
+          rc=$?
+          set -e
+          echo "$out"
+          if [ $rc -ne 0 ] && echo "$out" | grep -qi "AccessDenied"; then
+            echo "PASS: mutation denied under github-plan"
+          else
+            echo "FAIL: mutation was not cleanly denied (rc=$rc)"; exit 1
+          fi
