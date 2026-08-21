@@ -8,7 +8,7 @@ variable "env_slug" {
   type        = string
 }
 
-variable "github_environment" {
-  description = "GitHub Environment name the deploy role trusts (dev/staging/production)"
-  type        = string
+variable "github_environments" {
+  description = "GitHub Environment names the deploy role trusts (exact-match, OR'd — multiple entries cover casing variants of the same environment)"
+  type        = list(string)
 }
