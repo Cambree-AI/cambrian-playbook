@@ -37,4 +37,15 @@ src/data/files.zip
 src/data/knowledge-layer.zip
 .env.test
 .env.production
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 .env*
