@@ -27,17 +27,21 @@ variable "accounts" {
     env slug => member account. Ids from infra/org `account_ids` output.
     - The slug (dev/staging/prod) names the infra/envs/<slug> directory and its
       state bucket cambree-<slug>-terraform-state-<id>.
-    - github_environment is the GitHub Environment name bound into the deploy
-      role's trust policy (note: prod's is "production", not "prod").
+    - github_environments are the GitHub Environment names the deploy role's
+      trust policy accepts (exact-match, OR'd). Prod lists both casings:
+      the workflow says "production" but GitHub matched it case-insensitively
+      onto the pre-existing Vercel "Production" environment, and IAM
+      StringEquals is case-sensitive — so trust whichever form the token's
+      sub claim presents.
   EOT
   type = map(object({
-    id                 = string
-    github_environment = string
+    id                  = string
+    github_environments = list(string)
   }))
   default = {
-    dev     = { id = "405034826234", github_environment = "dev" }
-    staging = { id = "865526619955", github_environment = "staging" }
-    prod    = { id = "062560095244", github_environment = "production" }
+    dev     = { id = "405034826234", github_environments = ["dev"] }
+    staging = { id = "865526619955", github_environments = ["staging"] }
+    prod    = { id = "062560095244", github_environments = ["production", "Production"] }
   }
 }
 
