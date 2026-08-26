@@ -6,6 +6,8 @@
 //
 // Priority: SEC EDGAR (authoritative for public cos) > Wikidata (notable cos) > null
 
+import { applyCors, isAllowedOrigin } from "./_guard.js";
+
 const UA = "Cambree info@cambree.ai";
 
 // ── In-memory cache (24hr TTL, max 500 entries) ──
@@ -177,21 +179,11 @@ async function wikidataLookup(company) {
   } catch { return null; }
 }
 
-// ── Origin check (replicates _guard.js logic) ──
-function isAllowedOrigin(origin) {
-  if (!origin) return process.env.VERCEL_ENV !== "production";
-  let u;
-  try { u = new URL(origin); } catch { return false; }
-  const h = u.hostname;
-  if (h === "cambriancatalyst.ai" || h === "www.cambriancatalyst.ai") return true;
-  if (h === "cambrian-playbook.vercel.app") return true;
-  if (/^cambrian-playbook[a-z0-9-]*\.vercel\.app$/.test(h)) return true;
-  if (h === "localhost" || h === "127.0.0.1") return true;
-  return false;
-}
-
 // ── Main handler ──
+// Origin check now shared with _guard.js (issue #83) — the local replica had
+// drifted (it never learned cambree.ai, silently 403ing in production).
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "GET") return res.status(405).json({ error: "GET only" });
 
   // Origin check — block external callers

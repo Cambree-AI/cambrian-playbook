@@ -5,7 +5,7 @@
 
 export const config = { maxDuration: 120 };
 
-import { checkRateLimit, isAllowedOrigin, verifyJwt, decodeJwtPayload } from "./_guard.js";
+import { applyCors, checkRateLimit, isAllowedOrigin, verifyJwt, decodeJwtPayload } from "./_guard.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -28,6 +28,7 @@ async function sbFetch(path, maxRows = 10000) {
 import adminActionHandler, { isAdminEmail } from "./_admin-action.js";
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   // Route POST requests to admin-action handler (consolidated to stay within Vercel 12-function limit)
   if (req.method === "POST") return adminActionHandler(req, res);
   if (req.method !== "GET") return res.status(405).end();

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
+import { apiFetch } from "./lib/api.js";
 import { OUTCOMES } from "./data/outcomes.js";
 import { RIVER_STAGES } from "./data/riverFramework.js";
 import { SAMPLE_ROWS } from "./data/sampleAccounts.js";
@@ -162,7 +163,7 @@ let KL_DISPLACEMENT_DISCOVERY = ""; // Displacement discovery questions
 
 async function fetchKnowledgeLayer() {
   try {
-    const r = await fetch("/api/knowledge", { headers: authHeaders() });
+    const r = await apiFetch("/api/knowledge", { headers: authHeaders() });
     if (!r.ok) return;
     const d = await r.json();
     KL_NEGOTIATIONS = d.negotiations || "";
@@ -1131,7 +1132,7 @@ async function claudeFetch(body, { retries = 3, extraHeaders = {} } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const r = await fetch("/api/claude", {
+      const r = await apiFetch("/api/claude", {
         method: "POST",
         headers: { ...authHeaders(), ..._trackingCtx, ...extraHeaders },
         body: JSON.stringify(body),
@@ -1222,7 +1223,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
   for (let attempt = 0; attempt < 3; attempt++) {
     if (signal?.aborted) return null;
     try {
-      response = await fetch('/api/claude-stream', {
+      response = await apiFetch('/api/claude-stream', {
         method: 'POST',
         signal: signal || undefined,
         headers: { ...authHeaders(), ..._trackingCtx },
@@ -1316,7 +1317,7 @@ async function streamAIWithSearch(prompt, onChunk, maxTok=2000, { maxSearches=1,
   for (let attempt = 0; attempt < 3; attempt++) {
     if (signal?.aborted) return null;
     try {
-      response = await fetch('/api/claude-stream', {
+      response = await apiFetch('/api/claude-stream', {
         method: 'POST',
         signal: signal || undefined,
         headers: { ...authHeaders(), ..._trackingCtx, ...extraHeaders },
@@ -2333,7 +2334,7 @@ async function runExecIntelPipeline({ co, url, member, sellerUrl, products, sell
 
       for (const _leadershipUrl of _candidateUrls) {
         try {
-          const _fr = await fetch("/api/fetch", {
+          const _fr = await apiFetch("/api/fetch", {
             method: "POST",
             headers: authHeaders(),
             body: JSON.stringify({ url: _leadershipUrl, render: "auto" }),
@@ -4402,7 +4403,7 @@ function PasswordGate({ onAuth }) {
         if(!first||!last||!email||!company){setErr("Please fill in every field.");setLoading(false);return;}
         if(!EMAIL_RE.test(email)){setErr("Please enter a valid work email.");setLoading(false);return;}
         reqInFlightRef.current=true;
-        const r=await fetch("/api/request-access",{
+        const r=await apiFetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{})}),
@@ -5685,7 +5686,7 @@ export default function App(){
     if(hubspotStatus!==null||hubspotCheckedRef.current||!sbToken) return;
     hubspotCheckedRef.current=true;
     console.log("[hubspot] Checking status...");
-    fetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({action:"status"})})
+    apiFetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({action:"status"})})
       .then(r=>{
         console.log("[hubspot] Status response:", r.status, r.statusText);
         return r.ok?r.json():r.text().then(t=>{console.warn("[hubspot] Status error body:",t);return null;});
@@ -5944,7 +5945,7 @@ export default function App(){
       const base64 = btoa(new Uint8Array(arrayBuffer).reduce((s, b) => s + String.fromCharCode(b), ""));
       const mimeType = file.type || (file.name.endsWith(".png") ? "image/png" : "image/jpeg");
 
-      const r = await fetch("/api/claude", {
+      const r = await apiFetch("/api/claude", {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({
@@ -8135,7 +8136,7 @@ Return ONLY raw JSON:
       return false;
     };
     try {
-      const r = await fetch("/api/meter-run", {
+      const r = await apiFetch("/api/meter-run", {
         method: "POST",
         headers: { ...authHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ kind }),
@@ -9750,7 +9751,7 @@ Return ONLY raw JSON:
     try {
       const freeResults = await Promise.all(members.map(async m => {
         try {
-          const r = await fetch(`/api/enrich-free?company=${encodeURIComponent(m.company)}&domain=${encodeURIComponent(m.company_url || "")}`);
+          const r = await apiFetch(`/api/enrich-free?company=${encodeURIComponent(m.company)}&domain=${encodeURIComponent(m.company_url || "")}`);
           if (!r.ok) return [m.company, null];
           const d = await r.json();
           return [m.company, d.organization || null];
@@ -10604,7 +10605,7 @@ Return ONLY raw JSON:
     refreshOrgCtx();
     // Process referral reward on first brief completion
     if (sbToken) {
-      fetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+      apiFetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ action: "process_reward" }) })
         .then(r => r.json()).then(d => { if (d.rewarded) { refreshOrgCtx(); setChatMessages(prev => [...prev, { role: "assistant", content: "Nice — your referral just earned the person who invited you a bonus run. Pay it forward: share your own referral link from the My Company panel." }]); } })
         .catch(() => {});
@@ -12470,7 +12471,7 @@ Return ONLY raw JSON:
     console.log(`[hubspot] Pushing ${action}:`, JSON.stringify({company: data?.company?.name, domain: data?.company?.domain, selectedAccount: selectedAccount?.company}, null, 2));
     setHubspotPushing(action);
     try{
-      const r=await fetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({action,data})});
+      const r=await apiFetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({action,data})});
       const d=await r.json();
       if(d.ok){
         const parts=[];
@@ -12535,7 +12536,7 @@ Return ONLY raw JSON:
         const fitReason = fit?.reason ?? "";
         const ownership = fit?.ownership || m.publicPrivate || "";
         try {
-          const r = await fetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({
+          const r = await apiFetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({
             action: "push_brief",
             data: {
               company: { name: m.company, domain: m.company_url || "", industry: m.ind || "", employees: m.employees || "" },
@@ -13560,7 +13561,7 @@ Return ONLY raw JSON:
   if(!authed) return <PasswordGate onAuth={async(u,tok)=>{
     setAuthed(true);setSbUser(u);setSbToken(tok);setAuthToken(tok);fetchKnowledgeLayer();
     // Check HubSpot connection status
-    fetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${tok}`},body:JSON.stringify({action:"status"})})
+    apiFetch("/api/hubspot",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${tok}`},body:JSON.stringify({action:"status"})})
       .then(r=>{console.log("[hubspot] Login status check:",r.status);return r.json();})
       .then(d=>{console.log("[hubspot] Login status result:",JSON.stringify(d));setHubspotStatus(d);})
       .catch(e=>console.error("[hubspot] Login status failed:",e.message));
@@ -13582,7 +13583,7 @@ Return ONLY raw JSON:
     // Process pending referral code
     const pendingRef = sessionStorage.getItem("pending_referral_code");
     if (pendingRef && tok) {
-      fetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+      apiFetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
         body: JSON.stringify({ action: "set_referrer", referralCode: pendingRef }) })
         .then(r => r.json()).then(d => { if (d.ok) sessionStorage.removeItem("pending_referral_code"); })
         .catch(() => {});
@@ -20039,7 +20040,7 @@ Return ONLY raw JSON:
                   ))}
                   <button onClick={async()=>{
                     try{
-                      const r=await fetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({planId:"promo_pack"})});
+                      const r=await apiFetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({planId:"promo_pack"})});
                       const d=await r.json();
                       if(d.url)window.location.href=d.url;
                       else alert(d.error||"Checkout failed — please try again.");
@@ -20068,7 +20069,7 @@ Return ONLY raw JSON:
                   <button onClick={async()=>{
                     if(!sbUser){setUpgradeOpen(false);setAuthed(false);return;}
                     try{
-                      const r=await fetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({priceId:plan.priceId,planId:plan.id})});
+                      const r=await apiFetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({priceId:plan.priceId,planId:plan.id})});
                       const d=await r.json();
                       if(d.url)window.location.href=d.url;
                       else alert(d.error||"Checkout failed — please try again.");
@@ -20156,7 +20157,7 @@ Return ONLY raw JSON:
                       const message=document.getElementById("cf-message")?.value?.trim();
                       if(!name||!email||!company){alert("Please fill in name, email, and company.");return;}
                       try{
-                        const r=await fetch("/api/contact",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,email,company,interest,message})});
+                        const r=await apiFetch("/api/contact",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,email,company,interest,message})});
                         const d=await r.json();
                         if(d.ok){setContactFormMsg(d.message);}
                         else{alert(d.error||"Failed to submit");}

@@ -8,7 +8,7 @@
 // promo code — never trusted from the client, since price IDs ship in the
 // bundle.
 
-import { verifyJwt, decodeJwtPayload, isAllowedOrigin, checkRateLimit } from "./_guard.js";
+import { applyCors, verifyJwt, decodeJwtPayload, isAllowedOrigin, checkRateLimit } from "./_guard.js";
 
 const STRIPE_SECRET = process.env.STRIPE_SECRET_KEY;
 const APP_URL = process.env.VITE_APP_URL || "https://www.cambriancatalyst.ai";
@@ -28,6 +28,7 @@ const PLAN_LIMITS = {
 const PROMO_PACK_RUNS = 20;
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
   if (!STRIPE_SECRET) return res.status(500).json({ error: "Stripe not configured" });
 
