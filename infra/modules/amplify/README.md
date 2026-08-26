@@ -36,3 +36,12 @@ the Supabase URL + anon key are designed to be public; **no server secret
 (`ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_KEY`, ...) may ever be set here.**
 Fill the values in each env root's `amplify.auto.tfvars` from the Vercel
 project settings before merging.
+
+## Post-create console step (per app, once)
+
+Apps created via the PAT flow show **"Update required"** in the Amplify
+console: open the app and click through the Git-connection migration to the
+GitHub App (already installed org-wide). Until this is done, webhook builds
+may not trigger. Also: the first build never runs automatically for
+API-created branches (start one release), and branch env-var changes need a
+release to be baked into the bundle.
