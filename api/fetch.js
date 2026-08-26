@@ -19,7 +19,7 @@
 // Security model: HANDOFF_06 §2. All SSRF validation in api/_fetch-ssrf.js.
 // Redirect re-validation: each 3xx hop is SSRF-checked before following.
 
-import { verifyJwt, isAllowedOrigin } from './_guard.js';
+import { applyCors, verifyJwt, isAllowedOrigin } from './_guard.js';
 import { validateUrl } from './_fetch-ssrf.js';
 
 export const config = { maxDuration: 30 };
@@ -351,6 +351,7 @@ async function renderWithService(url) {
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   // All failures → { ok: false, reason, url } — never a 500 that breaks the brief.
 
   if (req.method !== 'POST') return res.status(405).json({ ok: false, reason: 'fetch_failed' });

@@ -9,7 +9,7 @@
 // Does NOT create any auth account directly — signup happens via the emailed
 // invite link.
 
-import { isAllowedOrigin, checkRateLimit } from "./_guard.js";
+import { applyCors, isAllowedOrigin, checkRateLimit } from "./_guard.js";
 import { provisionTrialAccess } from "./_provision.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
@@ -120,6 +120,7 @@ async function notifyRequester({ name, email }) {
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
 
   const origin = req.headers.origin || req.headers.referer || "";

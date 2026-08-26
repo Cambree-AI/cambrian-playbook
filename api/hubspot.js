@@ -7,7 +7,7 @@
 // GET  /api/hubspot?code=...&state=...  → OAuth callback
 // POST /api/hubspot { action: "start" | "status" | "disconnect" | "push_postcall" | "push_brief" }
 
-import { isAllowedOrigin, verifyJwt, decodeJwtPayload, checkRateLimit } from "./_guard.js";
+import { applyCors, isAllowedOrigin, verifyJwt, decodeJwtPayload, checkRateLimit } from "./_guard.js";
 import {
   isConfigured, buildAuthUrl, signState, verifyState,
   exchangeCodeForTokens, getPortalInfo, getOwnerByToken, saveTokenForUser,
@@ -233,6 +233,7 @@ async function pushExecutivesAsContacts(userId, { executives, companyName, compa
 // ── Main handler ───────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   // ── GET: OAuth callback from HubSpot ─────────────────────────────────
   // HubSpot redirects here with ?code=...&state=... after user approves.
   // Exchange code for tokens immediately and redirect back to the app.
