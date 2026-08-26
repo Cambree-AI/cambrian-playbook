@@ -16,10 +16,10 @@ name: terraform
 on:
   pull_request:
     branches: [dev, staging, main]
-    paths: ["infra/envs/**"]
+    paths: ["infra/envs/**", "infra/modules/**"]
   push:
     branches: [dev, staging, main]
-    paths: ["infra/envs/**"]
+    paths: ["infra/envs/**", "infra/modules/**"]
 
 permissions:
   id-token: write # OIDC token for aws-actions/configure-aws-credentials
@@ -34,6 +34,11 @@ concurrency:
 
 env:
   TF_VERSION: "1.10.3" # matches .tool-versions; state is written by this minor
+  # GitHub PAT for the Amplify repo connection (infra/modules/amplify) — a
+  # GitHub credential, NOT an AWS one; the no-AWS-keys rule above stands.
+  # Only consumed when creating the Amplify app or rotating its connection;
+  # empty is fine otherwise (the module ignores drift on it).
+  TF_VAR_amplify_github_token: ${{ secrets.AMPLIFY_GITHUB_TOKEN }}
 
 jobs:
   plan:
