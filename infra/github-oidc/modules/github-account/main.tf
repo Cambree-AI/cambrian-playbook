@@ -113,14 +113,14 @@ data "aws_iam_policy_document" "deploy_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["${var.github_sub_prefix}:environment:${var.github_environment}"]
+      values   = [for env in var.github_environments : "${var.github_sub_prefix}:environment:${env}"]
     }
   }
 }
 
 resource "aws_iam_role" "deploy" {
   name               = "github-deploy"
-  description        = "Terraform apply role for merges deploying the ${var.github_environment} environment (GitHub OIDC)"
+  description        = "Terraform apply role for merges deploying the ${var.github_environments[0]} environment (GitHub OIDC)"
   assume_role_policy = data.aws_iam_policy_document.deploy_trust.json
 }
 
