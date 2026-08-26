@@ -1,0 +1,21 @@
+# Amplify Hosting custom headers (issue #82) - ported byte-for-byte from the
+# "headers" block in vercel.json; keep the two in sync while both hosts serve
+# the SPA. The CSP connect-src additions for calling the Vercel API
+# cross-origin land with issue #83.
+customHeaders:
+  - pattern: '**'
+    headers:
+      - key: Strict-Transport-Security
+        value: 'max-age=63072000; includeSubDomains; preload'
+      - key: X-Frame-Options
+        value: 'DENY'
+      - key: X-Content-Type-Options
+        value: 'nosniff'
+      - key: X-XSS-Protection
+        value: '1; mode=block'
+      - key: Referrer-Policy
+        value: 'strict-origin-when-cross-origin'
+      - key: Permissions-Policy
+        value: 'camera=(), microphone=(), geolocation=()'
+      - key: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.hubapi.com https://vercel.live; img-src 'self' data: https:; worker-src 'self' blob:; frame-src 'self' https://vercel.live; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
