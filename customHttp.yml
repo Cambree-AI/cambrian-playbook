@@ -1,7 +1,9 @@
-# Amplify Hosting custom headers (issue #82) - ported byte-for-byte from the
-# "headers" block in vercel.json; keep the two in sync while both hosts serve
-# the SPA. The CSP connect-src additions for calling the Vercel API
-# cross-origin land with issue #83.
+# Amplify Hosting custom headers (issue #82) - ported from the "headers"
+# block in vercel.json; keep the two in sync while both hosts serve the SPA.
+# Deviation from vercel.json (issue #83): connect-src additionally allows the
+# Vercel API origins (staging.cambree.ai, www.cambree.ai, cambree.ai) so the
+# Amplify-hosted SPA can call the functions cross-origin until they move to
+# AWS (#86-#89).
 customHeaders:
   - pattern: '**'
     headers:
@@ -18,4 +20,4 @@ customHeaders:
       - key: Permissions-Policy
         value: 'camera=(), microphone=(), geolocation=()'
       - key: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.hubapi.com https://vercel.live; img-src 'self' data: https:; worker-src 'self' blob:; frame-src 'self' https://vercel.live; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+        value: "default-src 'self'; script-src 'self' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.anthropic.com https://api.hubapi.com https://vercel.live https://staging.cambree.ai https://www.cambree.ai https://cambree.ai; img-src 'self' data: https:; worker-src 'self' blob:; frame-src 'self' https://vercel.live; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
