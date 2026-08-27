@@ -25,6 +25,12 @@ variable "vite_app_url" {
   default     = ""
 }
 
+variable "vite_api_url" {
+  description = "Origin the SPA calls for /api/* (issue #83). Empty = same-origin relative paths."
+  type        = string
+  default     = ""
+}
+
 module "amplify" {
   source = "../../modules/amplify"
 
@@ -37,6 +43,7 @@ module "amplify" {
     VITE_SUPABASE_URL      = var.vite_supabase_url
     VITE_SUPABASE_ANON_KEY = var.vite_supabase_anon_key
     VITE_APP_URL           = var.vite_app_url
+    VITE_API_URL           = var.vite_api_url
   }
 }
 

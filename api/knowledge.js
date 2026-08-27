@@ -58,9 +58,10 @@ import { RFP_PROCUREMENT_INJECTION, RFP_SIGNAL_SCORING, RFP_SOURCE_TIERS, RFP_SE
 import { PRE_RFP_SIGNAL_INJECTION, PRE_RFP_INTENT_KEYWORDS, PRE_RFP_SCORING_RUBRIC } from "../src/data/preRfpSignalKnowledge.js";
 import { DISPLACEMENT_INJECTION, DISPLACEMENT_DISCOVERY } from "../src/data/displacementKnowledge.js";
 
-import { checkRateLimit, isAllowedOrigin, checkGuestLimit, incrementGuestUsage, verifyJwt } from "./_guard.js";
+import { applyCors, checkRateLimit, isAllowedOrigin, checkGuestLimit, incrementGuestUsage, verifyJwt } from "./_guard.js";
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "GET") { res.status(405).end(); return; }
 
   // Origin check — only allow requests from known domains

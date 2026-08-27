@@ -3,6 +3,7 @@
 // into a single two-column layout using admin-* CSS classes from App.css.
 
 import React, { useState, useEffect, useMemo } from "react";
+import { apiFetch } from "../lib/api.js";
 import { fetchOrgMembers, fetchOrgInvitations, sbPatch } from "../lib/org.js";
 import { timeAgo } from "../lib/utils.js";
 
@@ -28,14 +29,14 @@ function HubSpotSection({ sbToken, onStatusChange }) {
 
   useEffect(() => {
     if (!sbToken) return;
-    fetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "status" }) })
       .then(r => r.json()).then(s => { setStatus(s); onStatusChange?.(s); }).catch(() => setStatus({ connected: false }));
   }, [sbToken]);
 
   const startConnect = () => {
     setLoading(true);
-    fetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "start" }) })
       .then(r => r.json())
       .then(d => { if (d.url) window.location.href = d.url; else setLoading(false); })
@@ -45,7 +46,7 @@ function HubSpotSection({ sbToken, onStatusChange }) {
   const disconnect = () => {
     if (!confirm("Disconnect HubSpot? You can reconnect anytime.")) return;
     setDisconnecting(true);
-    fetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "disconnect" }) })
       .then(() => { setStatus({ connected: false }); onStatusChange?.({ connected: false }); })
       .finally(() => setDisconnecting(false));
@@ -89,7 +90,7 @@ function ReferralWidget({ sbToken }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!sbToken) return;
-    fetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "get_referral_info" }) })
       .then(r => r.json()).then(d => { if (d.ok) setInfo(d); }).catch(() => {});
   }, [sbToken]);
@@ -273,7 +274,7 @@ export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, save
     setInviteLoading(true);
     if (!emailOverride) setInviteMsg("");
     try {
-      const res = await fetch("/api/invite", {
+      const res = await apiFetch("/api/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ email: email.toLowerCase(), role: inviteRole }),
@@ -341,7 +342,7 @@ export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, save
     if (!isAdmin) return;
     setInviteLoading(true);
     try {
-      const res = await fetch("/api/invite", {
+      const res = await apiFetch("/api/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ email: inv.email, role: inv.role }),
