@@ -3,7 +3,7 @@
 // POST { email, role } with admin JWT → creates invitation row +
 // sends Supabase invite email with acceptance link.
 
-import { isAllowedOrigin, verifyJwt, decodeJwtPayload } from "./_guard.js";
+import { applyCors, isAllowedOrigin, verifyJwt, decodeJwtPayload } from "./_guard.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -39,6 +39,7 @@ async function sbFetch(path, method = "GET", body = null, token = SB_KEY) {
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
   if (!SB_KEY) return res.status(500).json({ error: "Server not configured for invitations" });
 

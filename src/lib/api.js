@@ -1,12 +1,21 @@
 // lib/api.js — Anthropic API wrapper
 // All Claude calls go through /api/claude serverless proxy
 
+// API origin (issue #83). Unset/empty => relative paths (same-origin), so
+// Vercel-served deploys are byte-identical in behavior. Amplify builds set
+// VITE_API_URL to the Vercel API origin until the functions migrate to AWS.
+export const API_BASE = import.meta.env.VITE_API_URL || "";
+
+// Every client call to /api/* goes through this so the origin is switchable
+// per deployment (and later per endpoint, when functions move to AWS).
+export const apiFetch = (path, opts) => fetch(API_BASE + path, opts);
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export async function callAI(prompt, maxTok=1000){
   for(let attempt=0; attempt<3; attempt++){
     try{
-      const r = await fetch("/api/claude",{
+      const r = await apiFetch("/api/claude",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
@@ -105,7 +114,7 @@ export async function callAI(prompt, maxTok=1000){
 // ── GENERATE BRIEF ────────────────────────────────────────────────────────────
 
 export async function callAIRaw(payload) {
-  const r = await fetch("/api/claude", {
+  const r = await apiFetch("/api/claude", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(payload),
@@ -114,7 +123,7 @@ export async function callAIRaw(payload) {
 }
 
 export async function streamAI(prompt, onChunk, maxTok=2000) {
-  const response = await fetch('/api/claude-stream', {
+  const response = await apiFetch('/api/claude-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

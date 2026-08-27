@@ -3,7 +3,7 @@
 // Handles enterprise/invoice inquiry form submissions.
 // Logs the inquiry to the database and sends notification emails.
 
-import { isAllowedOrigin, checkRateLimit } from "./_guard.js";
+import { applyCors, isAllowedOrigin, checkRateLimit } from "./_guard.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -14,6 +14,7 @@ if (!ADMIN_EMAIL) console.warn("[contact] SUPERUSER_EMAIL not set — admin noti
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
 
   const origin = req.headers.origin || req.headers.referer || "";

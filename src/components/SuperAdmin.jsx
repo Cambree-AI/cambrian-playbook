@@ -2,6 +2,7 @@
 // Locked to superuser email only. Shows engagement metrics across all users.
 
 import React, { useState, useEffect, useRef } from "react";
+import { apiFetch } from "../lib/api.js";
 import { timeAgo } from "../lib/utils.js";
 
 // ── Sortable column header component ──
@@ -73,7 +74,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
   const fetchData = (showSpinner) => {
     if (showSpinner) setLoading(true);
     else setRefreshing(true);
-    fetch("/api/admin", {
+    apiFetch("/api/admin", {
       headers: { Authorization: `Bearer ${sbToken}` },
     })
       .then(r => r.json())
@@ -251,7 +252,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
     setRequestBusy(rq.id);
     setRemovedRequests(prev => [...prev, rq.id]); // optimistic removal
     try {
-      const r = await fetch("/api/admin", {
+      const r = await apiFetch("/api/admin", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ action, requestId: rq.id, email: rq.email, ...(reason ? { reason } : {}) }),
       });
@@ -1034,7 +1035,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                   const role = document.getElementById("sa-invite-role")?.value || "rep";
                   if (!email || !orgId) { setPlanSaveMsg("Email and org required"); setTimeout(() => setPlanSaveMsg(""), 3000); return; }
                   try {
-                    const r = await fetch("/api/invite", {
+                    const r = await apiFetch("/api/invite", {
                       method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                       body: JSON.stringify({ email, role, orgId }),
                     });
@@ -1069,7 +1070,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                   {sortRows(filteredUsers, memberSortKey, memberSortDir, { dateKeys: { last_active: true, created_at: true } }).map(u => {
                     const adminAction = async (action, extra = {}) => {
                       try {
-                        const r = await fetch("/api/admin", {
+                        const r = await apiFetch("/api/admin", {
                           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                           body: JSON.stringify({ action, email: u.email, userId: u.id, ...extra }),
                         });
@@ -1080,7 +1081,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                     };
                     const patchUser = async (fields, msg) => {
                       try {
-                        const r = await fetch("/api/admin", {
+                        const r = await apiFetch("/api/admin", {
                           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                           body: JSON.stringify({ action: "update_user", userId: u.id, email: u.email, fields }),
                         });
@@ -1292,7 +1293,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                     const body = { name, plan, ...(limits[plan] || {}) };
                     if (url) body.seller_url = url.startsWith("http") ? url : `https://${url}`;
                     try {
-                      const r = await fetch("/api/admin", {
+                      const r = await apiFetch("/api/admin", {
                         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                         body: JSON.stringify({ action: "create_org", email: "org", orgData: body }),
                       });
@@ -1334,7 +1335,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                           const members = data.users.filter(u => u.org_id === o.id);
                           const patchOrg = async (fields, msg) => {
                             try {
-                              const r = await fetch("/api/admin", {
+                              const r = await apiFetch("/api/admin", {
                                 method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                                 body: JSON.stringify({ action: "update_org", orgId: o.id, email: "org", fields }),
                               });
@@ -1410,7 +1411,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                                         : `Delete "${o.name}"?`;
                                       if (!window.confirm(msg)) return;
                                       try {
-                                        const r = await fetch("/api/admin", {
+                                        const r = await apiFetch("/api/admin", {
                                           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                                           body: JSON.stringify({ action: "delete_org", orgId: o.id, email: "org" }),
                                         });
@@ -1440,7 +1441,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                 const companyOrgList = (data.orgs || []).filter(o => o.seller_url || o.member_count > 1);
                 const patchOrgApi = async (orgId, fields, msg) => {
                   try {
-                    const r = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+                    const r = await apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                       body: JSON.stringify({ action: "update_org", orgId, email: "org", fields }) });
                     const d = await r.json();
                     setPlanSaveMsg(d.ok ? msg : `Error: ${d.error}`);
@@ -1449,7 +1450,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                 };
                 const moveUserToOrg = async (userId, email, targetOrgId, targetOrgName) => {
                   try {
-                    const r = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+                    const r = await apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                       body: JSON.stringify({ action: "update_user", userId, email, fields: { org_id: targetOrgId } }) });
                     const d = await r.json();
                     setPlanSaveMsg(d.ok ? `✓ Moved ${email} → ${targetOrgName}` : `Error: ${d.error}`);
@@ -1471,7 +1472,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                           let cleaned = 0;
                           for (const o of unused) {
                             try {
-                              const r = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` }, body: JSON.stringify({ action: "delete_org", orgId: o.id, email: "cleanup" }) });
+                              const r = await apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` }, body: JSON.stringify({ action: "delete_org", orgId: o.id, email: "cleanup" }) });
                               const d = await r.json();
                               if (d.ok) cleaned++;
                             } catch {}
@@ -1527,7 +1528,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                                   onClick={async () => {
                                     if (!window.confirm(`Delete "${o.name}"?${members.length > 0 ? ` ${members.length} member(s) will be unassigned.` : ""}`)) return;
                                     try {
-                                      const r = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` }, body: JSON.stringify({ action: "delete_org", orgId: o.id, email: "org" }) });
+                                      const r = await apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` }, body: JSON.stringify({ action: "delete_org", orgId: o.id, email: "org" }) });
                                       const d = await r.json();
                                       setPlanSaveMsg(d.ok ? `✓ Deleted ${o.name}` : `Error: ${d.error}`);
                                     } catch { setPlanSaveMsg("Failed"); }
@@ -2365,7 +2366,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
         <div className="admin-action-menu" style={{ position: "fixed", top: menuPos.top, right: menuPos.right, left: "auto", zIndex: 99999 }}
           onClick={e => e.stopPropagation()}>
           <button className="admin-action-item" onClick={() => {
-            fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+            apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
               body: JSON.stringify({ action: "reset_password", email: menuContext.email, userId: menuContext.userId }) })
               .then(r => r.json()).then(d => setPlanSaveMsg(d.ok ? d.message || "Password reset sent" : `Error: ${d.error}`))
               .catch(() => setPlanSaveMsg("Failed"));
@@ -2377,7 +2378,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             if (!targetEmail || !targetEmail.includes("@")) { setOpenMenu(null); return; }
             const target = data.users?.find(tu => tu.email?.toLowerCase() === targetEmail.toLowerCase());
             if (target) {
-              fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+              apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                 body: JSON.stringify({ action: "update_user", userId: target.id, email: target.email, fields: { org_id: menuContext.orgId, role: menuContext.role } }) })
                 .then(r => r.json()).then(d => { setPlanSaveMsg(d.ok ? `Cloned → ${targetEmail}` : `Error: ${d.error}`); setTimeout(fetchData, 500); })
                 .catch(() => setPlanSaveMsg("Clone failed"));
@@ -2392,7 +2393,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             setOpenMenu(null);
           }}>Copy Invite Link</button>
           <button className="admin-action-item" onClick={() => {
-            fetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+            apiFetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
               body: JSON.stringify({ email: menuContext.email, role: menuContext.role }) })
               .then(r => r.json()).then(d => setPlanSaveMsg(d.ok ? (d.note || `Sent to ${menuContext.email}`) : `Error: ${d.error}`))
               .catch(() => setPlanSaveMsg("Failed"));
@@ -2403,7 +2404,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             <button className="admin-action-item danger" onClick={async () => {
               if (!window.confirm(`Delete ${menuContext.email}? This removes their account permanently.`)) { setOpenMenu(null); return; }
               try {
-                const r = await fetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+                const r = await apiFetch("/api/admin", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
                   body: JSON.stringify({ action: "delete_user", userId: menuContext.userId, email: menuContext.email }) });
                 const d = await r.json();
                 setPlanSaveMsg(d.ok ? `Deleted ${menuContext.email}` : `Error: ${d.error}`);
