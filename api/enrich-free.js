@@ -70,7 +70,7 @@ async function edgarSearchCIK(company) {
   } catch { return null; }
 }
 
-// ── SEC EDGAR: get company submissions (name, ticker, SIC, address) ──
+// ── SEC EDGAR: get company submissions (name, ticker, SIC, address, website) ──
 async function edgarSubmissions(cik) {
   try {
     const padded = String(cik).replace(/^0+/, "").padStart(10, "0");
@@ -81,6 +81,38 @@ async function edgarSubmissions(cik) {
     if (!r.ok) return null;
     return await r.json();
   } catch { return null; }
+}
+
+// ── Domain-match guard ─────────────────────────────────────────────────────
+// Normalize a URL/domain to its meaningful stem: strip protocol, www, TLD,
+// and common product prefixes (get/my/use/try) so "getcensus.com" → "census"
+// and "getsalesforce.com" would → "salesforce".
+function domainStem(raw) {
+  if (!raw) return "";
+  try {
+    const host = new URL(raw.startsWith("http") ? raw : `https://${raw}`).hostname;
+    return host
+      .replace(/^www\./, "")
+      .replace(/\.[^.]+$/, "")          // strip TLD
+      .replace(/^(get|my|use|try|go)/, "") // strip common prefixes
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  } catch { return ""; }
+}
+
+// Returns true when the EDGAR-matched company's filed website is non-empty
+// and clearly belongs to a different domain than the target. Empty website
+// means we can't tell → allow (uncertain is not wrong).
+function isDomainMismatch(edgarWebsite, targetDomain) {
+  if (!edgarWebsite || !targetDomain) return false;
+  const matchedStem = domainStem(edgarWebsite);
+  const targetStem  = domainStem(targetDomain);
+  if (!matchedStem || !targetStem) return false;
+  // Mismatch only when both stems are known and share no substring (≥4 chars)
+  const longer  = matchedStem.length >= targetStem.length ? matchedStem : targetStem;
+  const shorter = matchedStem.length <  targetStem.length ? matchedStem : targetStem;
+  if (shorter.length < 4) return false; // too short to be reliable
+  return !longer.includes(shorter);
 }
 
 // ── SEC EDGAR: get XBRL facts (employee count, revenue) ──
@@ -223,6 +255,7 @@ export default async function handler(req, res) {
       return {
         name: subs.name || "",
         cik,
+        website: subs.website || "",          // filed website — used for domain guard
         employeeCount: empFact ? String(empFact.val) : "",
         revenue: revFact ? formatRevenue(revFact.val) : "",
         revenueRaw: revFact?.val || null,
@@ -236,23 +269,37 @@ export default async function handler(req, res) {
     wikidataLookup(company),
   ]);
 
+  // ── Domain guard: discard EDGAR result when its filed website clearly belongs
+  // to a different company. "Empty > wrong" — if we can't verify, we keep it;
+  // if we can confirm mismatch, we drop it. This catches name-collision cases
+  // (e.g. searching "Census" returning a healthcare filer whose website is
+  // censusnursing.com when the caller wants getcensus.com).
+  let guardedEdgar = edgarResult;
+  if (edgarResult && domain && edgarResult.website) {
+    if (isDomainMismatch(edgarResult.website, domain)) {
+      console.warn(`[enrich-free] DOMAIN MISMATCH: searched "${company}", EDGAR matched "${edgarResult.name}" (${edgarResult.website}) ≠ target "${domain}" — discarding`);
+      guardedEdgar = null;
+    }
+  }
+
   // ── Merge: EDGAR > Wikidata > null ──
-  if (!edgarResult && !wikiResult) {
+  if (!guardedEdgar && !wikiResult) {
     const result = { organization: null };
     cacheSet(cacheKey, result);
     return res.json(result);
   }
 
   const org = {
-    name: edgarResult?.name || company,
-    employeeCount: edgarResult?.employeeCount || wikiResult?.employees || "",
-    revenue: edgarResult?.revenue || "",
-    industry: edgarResult?.industry || wikiResult?.industry || "",
-    headquarters: edgarResult?.headquarters || wikiResult?.hq || "",
+    name: guardedEdgar?.name || company,
+    matchedName: guardedEdgar?.name || "",  // surfaced in firmographicsTruth for LLM disambiguation
+    employeeCount: guardedEdgar?.employeeCount || wikiResult?.employees || "",
+    revenue: guardedEdgar?.revenue || "",
+    industry: guardedEdgar?.industry || wikiResult?.industry || "",
+    headquarters: guardedEdgar?.headquarters || wikiResult?.hq || "",
     founded: wikiResult?.founded || "",
-    publiclyTraded: edgarResult?.publiclyTraded || "",
-    sic: edgarResult?.sic || "",
-    source: [edgarResult ? "sec_edgar" : "", wikiResult ? "wikidata" : ""].filter(Boolean).join("+"),
+    publiclyTraded: guardedEdgar?.publiclyTraded || "",
+    sic: guardedEdgar?.sic || "",
+    source: [guardedEdgar ? "sec_edgar" : "", wikiResult ? "wikidata" : ""].filter(Boolean).join("+"),
   };
 
   const result = { organization: org };

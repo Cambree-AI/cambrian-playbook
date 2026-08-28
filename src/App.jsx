@@ -2614,9 +2614,23 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
     founded: enrichment?.founded || "",
     revenue: enrichment?.revenue || "",
     website: member.company_url || enrichment?.linkedIn || "",
+    // matchedName: the actual EDGAR entity name returned — may differ from the search term
+    // when a common word (Census, Mercury, Apollo) hits an unrelated filer. Exposed in
+    // firmographicsTruth so the LLM can self-correct before using the data.
+    matchedName: enrichment?.matchedName || "",
   };
+  // Warn the LLM when the EDGAR-matched name differs meaningfully from what we searched for.
+  const _enrichMatchWarning = (() => {
+    if (!_fg.matchedName) return "";
+    const searched  = co.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const matched   = _fg.matchedName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    // Suppress warning when matched name contains the search term (or vice-versa)
+    if (matched.includes(searched) || searched.includes(matched.slice(0, 6))) return "";
+    return `⚠️ ENRICHMENT MISMATCH WARNING: enrichment searched for "${co}" but the closest EDGAR record is "${_fg.matchedName}" — these may be different entities. Verify with web search before using any enrichment data below.\n`;
+  })();
   const firmographicsTruth = Object.values(_fg).some(v => v)
     ? `\nCOMPANY DATA (from automated enrichment — use as reference, but if your web search on ${url || co} returns different data, trust the web search):\n` +
+      _enrichMatchWarning +
       (_fg.employees ? `Employees: ${_fg.employees}\n` : "") +
       (_fg.ownership ? `Ownership: ${_fg.ownership}\n` : "") +
       (_fg.industry ? `Industry: ${_fg.industry}\n` : "") +
@@ -2967,9 +2981,15 @@ function generateBrief(member, sellerUrl, sellerDocs, products, selectedCohort, 
       const prompt =
         firmographicsTruth +
         `Search for recent information about "${co}"${url && url !== co ? ` (website: ${url})` : ""}. Use at least one search specifically for press releases.\n\n`+
+        // Entity gate: always warn on common/ambiguous names; strengthen when domain differs.
+        // Industry context from firmographicsTruth helps the model rule out government agencies,
+        // nonprofits, or unrelated businesses that share a word with the target company name.
+        `ENTITY GATE: You are researching the SPECIFIC company at ${url || co}${_fg.industry ? `, which operates in the ${_fg.industry} industry` : ""}. ` +
+        `Headlines and signals MUST be about this company — not any government agency, nonprofit, academic institution, or unrelated business that shares a similar name. ` +
+        `Before including any result, confirm it references ${url || co} or a source that is unambiguously about this specific ${_fg.industry || "commercial"} company. If in doubt → discard.\n` +
         (url && url !== co
-          ? `CONTAMINATION WARNING: "${co}" is a common name shared by multiple unrelated companies. You MUST only include results about the company at ${url}. Discard any results about differently-named entities (e.g., "YouScience Brightpath", "BrightPath Bio", "BrightPath Behavior" are all DIFFERENT companies). Check: does the result reference ${url} or the specific entity described at ${url}? If not → discard.\n\n`
-          : "") +
+          ? `COMMON-NAME WARNING: "${co}" is also used by unrelated organizations (e.g., government agencies, NGOs, other businesses). Every headline and signal must be verifiably about the company at ${url}. Any result about a differently-named entity — even one that contains "${co}" as a word — must be discarded.\n\n`
+          : "\n") +
         `SEARCH STRATEGY (you have 2 searches — use BOTH, one for each purpose):\n`+
         `- Search 1 (NEWS): "${co}"${url && url !== co ? ` "${url}"` : ""} news OR press release 2025 OR 2026\n`+
         `- Search 2 (REVIEWS — MANDATORY): "${co}" Glassdoor rating employer reviews site:glassdoor.com\n`+
@@ -4236,7 +4256,7 @@ function AuthShell({ children }) {
         </div>
       </header>
       {children}
-      <footer className="footer">© 2026 Cambrian Catalyst LLC · Seattle, WA · Evolve how you sell · <a href="mailto:info@cambree.ai" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambree.ai</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a></footer>
+      <footer className="footer">© 2026 Cambree.ai, Inc. · Seattle, WA · Evolve how you sell · <a href="mailto:info@cambree.ai" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambree.ai</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a></footer>
     </div>
   );
 }
@@ -5350,7 +5370,7 @@ ${g.sections.map(s => {
         .replace(/\n(?=\d+\.)/g, "</p><p>");
       return `<h2>${s.h}</h2><p>${body}</p>`;
     }).join("\n")}
-<div class="footer">Cambrian Catalyst LLC · cambree.ai · Generated ${new Date().toLocaleDateString()}</div>
+<div class="footer">Cambree.ai, Inc. · cambree.ai · Generated ${new Date().toLocaleDateString()}</div>
 </body></html>`;
     w.document.write(html);
     w.document.close();
@@ -6301,9 +6321,27 @@ CRITICAL: EVERY COMPANY MUST BE UNIQUE. Never return the same company twice. Nev
       }
 
       // ── DEDUP + VALIDATION ─────────────────────────────────────────────
-      // Remove duplicates by normalized company name, filter out defunct companies
+      // Remove duplicates by normalized company name, filter defunct/acquired/competitor companies.
       const seen = new Set();
-      const DEFUNCT_PATTERNS = /bankrupt|liquidat|chapter\s*(7|11)|ceased\s*operations|no\s*longer\s*operat|wound\s*down|shut\s*down/i;
+      // Extended to catch acquisitions and shutdowns — the original set missed "acquired by Fivetran"
+      const DEFUNCT_PATTERNS = /bankrupt|liquidat|chapter\s*(7|11)|ceased\s*operations|no\s*longer\s*operat|wound\s*down|shut\s*down|acquired\s+by|acqui(?:red|sition)|merged\s+into|now\s+part\s+of|absorbed\s+by|no\s+longer\s+independent|sunset\s+(?:by|in|after)|discontinued/i;
+      // Build competitor name set from ICP for post-gen filtering (F-010).
+      // Normalizes to lowercase alphanum so "HubSpot" matches "hubspot" in a company name.
+      const _competitorNames = new Set(
+        (sellerICP?.icp?.competitiveAlternatives || [])
+          .map(c => (typeof c === "object" ? c.name : c) || "")
+          .filter(Boolean)
+          .map(n => n.toLowerCase().replace(/[^a-z0-9]/g, ""))
+      );
+      const _isCompetitorName = (companyName) => {
+        if (!_competitorNames.size || !companyName) return false;
+        const norm = companyName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        for (const comp of _competitorNames) {
+          // Match when either contains the other (handles "Salesloft" in "Salesloft Inc")
+          if (comp.length >= 5 && (norm.includes(comp) || comp.includes(norm))) return true;
+        }
+        return false;
+      };
       const generated = parsed.accounts.filter(a => {
         if (!a?.company?.trim()) return false;
         // Normalize: lowercase, strip Inc/LLC/Corp suffixes, collapse whitespace
@@ -6316,14 +6354,20 @@ CRITICAL: EVERY COMPANY MUST BE UNIQUE. Never return the same company twice. Nev
           return false;
         }
         seen.add(key);
-        // Filter known-defunct companies
-        if (DEFUNCT_PATTERNS.test(a.why || "") || DEFUNCT_PATTERNS.test(a.company || "")) {
+        // Filter known-defunct/acquired companies — check company name, why, and outcome fields
+        if (DEFUNCT_PATTERNS.test(a.why || "") || DEFUNCT_PATTERNS.test(a.outcome || "") || DEFUNCT_PATTERNS.test(a.company || "")) {
           console.log(`[generateTargets] DEFUNCT: skipped "${a.company}"`);
           return false;
         }
         // Filter Bed Bath & Beyond specifically (training data artifact)
         if (/bed\s*bath/i.test(a.company)) {
           console.log(`[generateTargets] FILTERED: skipped "${a.company}" (bankrupt 2023)`);
+          return false;
+        }
+        // Filter competitors (F-010): company whose name matches a known competitor is
+        // never a target — anti-fabrication doctrine requires the ICP disqualifier to hold.
+        if (_isCompetitorName(a.company)) {
+          console.log(`[generateTargets] COMPETITOR: skipped "${a.company}" (matches ICP competitive alternatives)`);
           return false;
         }
         return true;
@@ -16217,11 +16261,11 @@ Return ONLY raw JSON:
 
                     {/* Why these defaults */}
                     <div style={{marginTop:14,background:"var(--bg-0)",borderRadius:8,padding:"10px 14px",border:"1px solid var(--line-0)"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",marginBottom:4}}>Why is the default 40 / 30 / 30?</div>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",marginBottom:4}}>Why is the default 45 / 30 / 25?</div>
                       <div style={{fontSize:11,color:"var(--ink-2)",lineHeight:1.6}}>
-                        <strong>Right Profile (40%)</strong> gets the most weight because the #1 predictor of a successful deal is whether the company actually matches your target market — wrong industry or wrong size rarely converts regardless of other factors.{" "}
+                        <strong>Right Profile (45%)</strong> gets the most weight because the #1 predictor of a successful deal is whether the company actually matches your target market — wrong industry or wrong size rarely converts regardless of other factors.{" "}
                         <strong>Past Wins (30%)</strong> is next because the best predictor of a future win is similarity to a past win — same playbook, same objections, same buyer.{" "}
-                        <strong>Easy to Get In (30%)</strong> matters because even a perfect-fit company is a hard sell if they just signed a 3-year deal with your competitor.
+                        <strong>Easy to Get In (25%)</strong> matters because even a perfect-fit company is a hard sell if they just signed a 3-year deal with your competitor.
                       </div>
                     </div>
 
@@ -16574,7 +16618,7 @@ Return ONLY raw JSON:
                       {(()=>{
                         // Seed suggestions from ICP industries + common verticals
                         const icpInd = (sellerICP.icp.industries||[]).filter(Boolean);
-                        const commonInd = ["Banking","Insurance","Healthcare","Retail & E-commerce","Technology / SaaS","Fintech","Consumer Goods","Hospitality & Travel","Manufacturing","Professional Services","Education","Energy & Utilities","Transportation & Logistics","Media & Entertainment","Real Estate","Telecom","Government"];
+                        const commonInd = ["Banking","Insurance","Healthcare","Retail & E-commerce","Technology/SaaS","Fintech","Consumer Goods","Hospitality & Travel","Manufacturing","Professional Services","Education","Energy & Utilities","Transportation & Logistics","Media & Entertainment","Real Estate","Telecom","Government"];
                         const suggestions = [...new Set([...icpInd, ...commonInd])].filter(s => !targetIndustries.includes(s));
                         const addInd = (ind) => { if(ind && targetIndustries.length < 3 && !targetIndustries.includes(ind)) setTargetIndustries(prev => [...prev, ind]); };
                         const removeInd = (ind) => setTargetIndustries(prev => prev.filter(i => i !== ind));
@@ -18420,7 +18464,7 @@ Return ONLY raw JSON:
                       {/* NPS / CSAT signal */}
                       {brief.publicSentiment.npsSignal&&(
                         <div style={{background:"var(--navy-bg)",border:"1px solid #1B3A6B33",borderRadius:8,padding:"10px 14px",marginBottom:12}}>
-                          <div style={{fontSize:10,fontWeight:700,color:"var(--navy)",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:4}}>📊 NPS / Customer Loyalty Signal</div>
+                          <div style={{fontSize:10,fontWeight:700,color:"var(--navy)",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:4}}>📊 Customer Satisfaction Signal</div>
                           <div style={{fontSize:13,color:"var(--ink-0)",lineHeight:1.6}}>{brief.publicSentiment.npsSignal}</div>
                         </div>
                       )}
@@ -19752,7 +19796,7 @@ Return ONLY raw JSON:
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
               <div>
                 <div style={{fontFamily:"'Crimson Pro',serif",fontSize:21,fontWeight:700,color:"var(--ink-0)"}}>Contact Us</div>
-                <div style={{fontSize:12,color:"var(--ink-3)",marginTop:2}}>Cambrian Catalyst LLC · Seattle, WA</div>
+                <div style={{fontSize:12,color:"var(--ink-3)",marginTop:2}}>Cambree.ai, Inc. · Seattle, WA</div>
               </div>
               <button onClick={()=>setContactOpen(false)} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"var(--ink-3)"}} aria-label="Close">✕</button>
             </div>
@@ -20182,12 +20226,12 @@ Return ONLY raw JSON:
       )}
 
       <footer className="footer">
-        © 2026 Cambrian Catalyst LLC · Seattle, WA · All rights reserved · <a href="mailto:info@cambree.ai" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambree.ai</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a>
+        © 2026 Cambree.ai, Inc. · Seattle, WA · All rights reserved · <a href="mailto:info@cambree.ai" style={{color:"var(--tan-0)",textDecoration:"none"}}>info@cambree.ai</a> · <a href="/terms" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Terms</a> · <a href="/privacy" style={{color:"var(--ink-3)",textDecoration:"none",fontSize:11}}>Privacy</a>
       </footer>
 
       {/* Print-only footer — appears on every printed page */}
       <div className="print-footer" style={{display:"none"}}>
-        <span className="pf-brand">Cam<span>bree</span></span> · © 2026 Cambrian Catalyst LLC · Confidential
+        <span className="pf-brand">Cam<span>bree</span></span> · © 2026 Cambree.ai, Inc. · Confidential
       </div>
     </>
   );
