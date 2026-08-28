@@ -157,5 +157,10 @@ export async function sbSessions(method, path, token, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const t = await r.text();
-  return t ? JSON.parse(t) : null;
+  const parsed = t ? JSON.parse(t) : null;
+  if (!r.ok) throw Object.assign(
+    new Error(parsed?.message || parsed?.error || `Supabase ${method} failed: ${r.status}`),
+    { status: r.status, code: parsed?.code }
+  );
+  return parsed;
 }
