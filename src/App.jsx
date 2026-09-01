@@ -8189,6 +8189,19 @@ Return ONLY raw JSON:
     if (fullSessionMeteredRef.current) fullSessionMeteredRef.current = _normalizeSellerUrl(resolvedUrl || "");
   };
 
+  // Single exit for ICP build failures. Rules: (1) a complete prior ICP (no _loading) is preserved and annotated, never wiped;
+  // (2) a partial (_loading:true) or null becomes an _error card — _loading is always stripped so a render gate always matches;
+  // (3) the reason code from the last stream diagnostic is appended so prod users and support can see WHY without DevTools.
+  const icpFail = (msg) => {
+    const d = (typeof window !== "undefined" && Array.isArray(window.__cambreeDiag)) ? window.__cambreeDiag[window.__cambreeDiag.length - 1] : null;
+    const code = d?.reason === "parse" ? (d?.stopReason === "max_tokens" ? " [E-ICP-TRUNC]" : " [E-ICP-PARSE]") : d?.reason === "no-json" ? " [E-ICP-EMPTY]" : "";
+    setSellerICP(prev => {
+      if (prev && !prev._loading && prev.icp) return { ...prev, _warning: msg + code };
+      const { _loading, ...rest } = prev || {};
+      return { ...rest, _error: msg + code };
+    });
+  };
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -8485,11 +8498,17 @@ Return ONLY raw JSON:
         const err = raw?.error;
         console.warn("[ICP] Phase 2 error:", err ?? "(null response — model returned nothing)");
         if (err?.type === "usage_limit_exceeded" || err?.type === "max_limit_exceeded") {
-          setSellerICP(prev => prev || ({ _error: "You've reached your plan limit. Upgrade to continue building ICPs." }));
+          icpFail("You've reached your plan limit. Upgrade to continue building ICPs.");
           setIcpLoading(false); setIcpStatus(""); return;
         }
         if (err?.type === "unavailable" || err?.type === "overloaded_error") {
-          setSellerICP(prev => prev || ({ _error: "Our AI engine is temporarily overloaded. Click Regenerate ICP in a moment to retry." }));
+          icpFail("Our AI engine is temporarily overloaded. Click Regenerate ICP in a moment to retry.");
+        } else if (!err) {
+          // null return with no error object: clean stream end whose JSON did not parse (see window.__cambreeDiag). Issue #111.
+          icpFail("ICP build didn't complete — the response couldn't be read. Click Regenerate ICP to retry.");
+        } else {
+          // A defined error type this block doesn't recognise (e.g. rate_limit_error, invalid_request_error). Say so; don't call it 'busy'.
+          icpFail(`ICP build failed (${String(err.type || "error")}). Click Regenerate ICP to retry.`);
         }
         setIcpLoading(false); setIcpStatus(""); return;
       }
@@ -8610,18 +8629,18 @@ Return ONLY raw JSON:
           }
         }catch(e){
           console.warn("ICP JSON parse failed:",e.message,raw.slice(0,200));
-          setSellerICP(prev => prev || ({ _error: "ICP build returned an unexpected format. Click Regenerate ICP to try again — this usually resolves on retry." }));
+          icpFail("ICP build returned an unexpected format. Click Regenerate ICP to try again — this usually resolves on retry.");
         }
       } else {
         console.warn("ICP phase 2 returned no text content");
-        setSellerICP(prev => prev || ({ _error: "ICP build didn't return usable data. Click Regenerate ICP to try again." }));
+        icpFail("ICP build didn't return usable data. Click Regenerate ICP to try again.");
       }
     }catch(e){
       console.warn("ICP build phase 2 failed:",e.message);
       const isTimeout = e.message?.includes("timed out");
-      setSellerICP(prev => prev || ({ _error: isTimeout
+      icpFail(isTimeout
         ? "ICP build timed out — this happens when our AI engine is under heavy load. Click Regenerate ICP to try again."
-        : "ICP build failed — our AI engine may be temporarily busy. Click Regenerate ICP to retry." }));
+        : "ICP build failed — our AI engine may be temporarily busy. Click Regenerate ICP to retry.");
     }
     setIcpLoading(false);
     setIcpStatus("");
