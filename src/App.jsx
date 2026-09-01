@@ -8482,6 +8482,19 @@ Return ONLY raw JSON:
         }
         if (err?.type === "unavailable" || err?.type === "overloaded_error") {
           setSellerICP(prev => prev || ({ _error: "Our AI engine is temporarily overloaded. Click Regenerate ICP in a moment to retry." }));
+        } else {
+          // No recognised error type (null return, parse failure, network drop).
+          // Preserve any partial data that streamed in; only fall back to the error
+          // card if nothing was captured — prevents the empty-state "Build ICP Now"
+          // flash that occurs when the stream fails before partial JSON lands.
+          setSellerICP(prev => {
+            if (prev && (prev.sellerName || prev.icp)) {
+              // Partial data present — strip _loading so the partial ICP renders.
+              const { _loading, ...rest } = prev;
+              return { ...rest, _warning: "ICP build returned partial results. Click Regenerate to complete it." };
+            }
+            return prev || { _error: "ICP build failed — our AI engine may be temporarily busy. Click Regenerate ICP to retry." };
+          });
         }
         setIcpLoading(false); setIcpStatus(""); return;
       }
