@@ -1214,6 +1214,11 @@ Do not introduce any claim, name, number, or title not present in the source. If
 is not in the source, omit it — never infer, estimate, or approximate. Every sentence you
 write must be traceable to a labeled source section.`;
 
+// Prod-safe stream diagnostics. console.* is stripped by the production build (vite.config drop:['console']),
+// so failures record here instead. Inspect with window.__cambreeDiag in DevTools. Never sent anywhere.
+const _cambreeDiag = [];
+function recordStreamDiag(d) { try { _cambreeDiag.push({ at: new Date().toISOString(), ...d }); if (_cambreeDiag.length > 20) _cambreeDiag.shift(); if (typeof window !== "undefined") window.__cambreeDiag = _cambreeDiag; } catch {} }
+
 async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = null, system = null } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   // Wrap the initial fetch in retry. Once the stream is open we let it run
@@ -1265,6 +1270,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
   const decoder = new TextDecoder();
   let buffer = '';
   let fullText = '';
+  let _stopReason = null, _outputTokens = null;
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -1278,6 +1284,7 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
         if (data === '[DONE]') continue;
         try {
           const event = JSON.parse(data);
+          if (event.type === 'message_delta') { _stopReason = event.delta?.stop_reason ?? _stopReason; _outputTokens = event.usage?.output_tokens ?? _outputTokens; }
           if (event.type === 'content_block_delta' && event.delta?.text) {
             fullText += event.delta.text;
             onChunk(fullText.replace(/<\/?cite[^>]*>/g, "").replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").replace(/<\/?thinking>/g, ""));
@@ -1298,8 +1305,9 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
       try { return stripCitations(JSON.parse(candidate)); } catch { /* try repair */ }
       const san = candidate.replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,"-").replace(/[\u2026]/g,"...").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/,\s*([}\]])/g,"$1");
       try { return stripCitations(JSON.parse(san)); } catch { /* try repair */ }
-      try { return stripCitations(JSON.parse(repairJSON(san))); } catch(e) { console.warn("[streamAI] JSON parse/repair failed:", e?.message, "| preview:", (san||"").slice(0,200)); return null; }
+      try { return stripCitations(JSON.parse(repairJSON(san))); } catch(e) { recordStreamDiag({ fn: "streamAI", reason: "parse", stopReason: _stopReason, outputTokens: _outputTokens, maxTok, textLen: fullText.length, parseError: e?.message, tail: (san||"").slice(-160) }); console.warn("[streamAI] JSON parse/repair failed:", e?.message, "| preview:", (san||"").slice(0,200)); return null; }
     }
+    recordStreamDiag({ fn: "streamAI", reason: "no-json", stopReason: _stopReason, outputTokens: _outputTokens, maxTok, textLen: fullText.length, tail: fullText.slice(-160) });
     return null;
   } catch { return null; }
 }
