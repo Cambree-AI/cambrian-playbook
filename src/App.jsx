@@ -15471,8 +15471,8 @@ Return ONLY raw JSON:
                           </span>
                         )}
                         {sellerICP?._warning && (
-                          <div style={{marginTop:6,fontSize:11,color:"var(--amber)",fontWeight:600}}>
-                            {sellerICP._warning}
+                          <div style={{marginTop:8,fontSize:12,color:"var(--amber)",fontWeight:700,background:"var(--amber-bg)",border:"1px solid var(--amber)",borderRadius:8,padding:"8px 12px"}}>
+                            ⚠ {sellerICP._warning}
                           </div>
                         )}
                       </>
@@ -15571,6 +15571,14 @@ Return ONLY raw JSON:
 
             {sellerICP?._error&&!sellerICP?.icp&&(
               <div style={{maxWidth:520,margin:"40px auto",textAlign:"center"}}>
+                {(icpPreview?.sellerDescription || icpPreview?.marketCategory || (icpPreview?.differentiators||[]).length>0) && (
+                  <div style={{textAlign:"left",background:"var(--bg-1)",border:"1px solid var(--line-0)",borderRadius:"var(--r-md)",padding:"14px 16px",marginBottom:14}}>
+                    <div style={{fontSize:10,fontWeight:700,letterSpacing:.6,color:"var(--ink-3)",marginBottom:8}}>WHAT WE FOUND BEFORE THE BUILD FAILED — NOT SAVED, NOT USED FOR SCORING</div>
+                    {icpPreview?.sellerDescription && <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6,marginBottom:8}}>{icpPreview.sellerDescription}</div>}
+                    {icpPreview?.marketCategory && <div style={{fontSize:12,color:"var(--ink-2)",marginBottom:8}}>{icpPreview.marketCategory}</div>}
+                    {(icpPreview?.differentiators||[]).length>0 && <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{icpPreview.differentiators.map((d,i)=><span key={i} style={{background:"var(--green-bg)",border:"1px solid #2E6B2E44",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--green)"}}>{d}</span>)}</div>}
+                  </div>
+                )}
                 <div style={{background:"var(--red-bg)",border:"1.5px solid var(--red)",borderRadius:"var(--r-md)",padding:"20px 24px",marginBottom:16}}>
                   <div style={{fontSize:14,fontWeight:700,color:"var(--red)",marginBottom:6}}>ICP Build Issue</div>
                   <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{sellerICP._error}</div>
