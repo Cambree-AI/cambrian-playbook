@@ -9,6 +9,8 @@ import SuperAdmin from "./components/SuperAdmin.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
 import S9SolutionFit from "./stages/S9_SolutionFit.jsx";
 import { computeFitScore, buildSignalExtractionPrompt, labelForScore } from "./lib/fitScoring.js";
+import { stripCitations, repairJSON, consumeClaudeSse, parseStreamJson } from "./lib/icpStream.js";
+import { icpErrorCode, icpFailureState, classifyIcpPhase2Error } from "./lib/icpFailure.js";
 
 // ── Sortable column header for Fit Check table ──
 function FitSortTh({ sortKey, sortDir, onSort, colKey, children, style }) {
@@ -553,16 +555,8 @@ function extractJsonWithKey(text, anchorKey) {
 
 // ── CITATION STRIPPER — web_search returns <cite index="...">text</cite> tags ─
 // Strip them globally from any AI response text before it enters state.
-function stripCitations(text) {
-  if (typeof text === "string") return text.replace(/<\/?cite[^>]*>/g, "");
-  if (Array.isArray(text)) return text.map(stripCitations);
-  if (text && typeof text === "object") {
-    const out = {};
-    for (const [k, v] of Object.entries(text)) out[k] = stripCitations(v);
-    return out;
-  }
-  return text;
-}
+// (function body moved to src/lib/icpStream.js — imported at the top of this file
+// so the stream failure paths are unit-testable; issue #111)
 
 // ── AUTH TOKEN — module-level so all AI helpers can include it ─────────────
 let _authToken = "";
@@ -1214,6 +1208,11 @@ Do not introduce any claim, name, number, or title not present in the source. If
 is not in the source, omit it — never infer, estimate, or approximate. Every sentence you
 write must be traceable to a labeled source section.`;
 
+// Prod-safe stream diagnostics. console.* is stripped by the production build (vite.config drop:['console']),
+// so failures record here instead. Inspect with window.__cambreeDiag in DevTools. Never sent anywhere.
+const _cambreeDiag = [];
+function recordStreamDiag(d) { try { _cambreeDiag.push({ at: new Date().toISOString(), ...d }); if (_cambreeDiag.length > 20) _cambreeDiag.shift(); if (typeof window !== "undefined") window.__cambreeDiag = _cambreeDiag; } catch {} }
+
 async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = null, system = null } = {}) {
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   // Wrap the initial fetch in retry. Once the stream is open we let it run
@@ -1261,47 +1260,23 @@ async function streamAI(prompt, onChunk, maxTok=2000, { model = null, signal = n
     } catch { /* non-critical */ }
     return null;
   }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let fullText = '';
+  // SSE read + JSON recovery live in src/lib/icpStream.js (issue #111) so both
+  // are unit-testable against a mocked stream. Behavior is unchanged: abort \u2192
+  // null; unreadable JSON \u2192 diag entry (window.__cambreeDiag) + null.
+  let streamed;
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const event = JSON.parse(data);
-          if (event.type === 'content_block_delta' && event.delta?.text) {
-            fullText += event.delta.text;
-            onChunk(fullText.replace(/<\/?cite[^>]*>/g, "").replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").replace(/<\/?thinking>/g, ""));
-          }
-        } catch { /* non-critical */ }
-      }
-    }
+    streamed = await consumeClaudeSse(response.body, onChunk);
   } catch (e) {
     if (e.name === 'AbortError') return null;
     throw e;
   }
-  try {
-    let cleaned = fullText.replace(/<\/?cite[^>]*>/g, "").replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").replace(/<\/?thinking>/g, "").trim();
-    const fb = cleaned.indexOf("{");
-    const lb = cleaned.lastIndexOf("}");
-    if (fb >= 0 && lb > fb) {
-      const candidate = cleaned.slice(fb, lb + 1);
-      try { return stripCitations(JSON.parse(candidate)); } catch { /* try repair */ }
-      const san = candidate.replace(/[\u2018\u2019]/g,"'").replace(/[\u201C\u201D]/g,'"').replace(/[\u2013\u2014]/g,"-").replace(/[\u2026]/g,"...").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,"").replace(/,\s*([}\]])/g,"$1");
-      try { return stripCitations(JSON.parse(san)); } catch { /* try repair */ }
-      try { return stripCitations(JSON.parse(repairJSON(san))); } catch(e) { console.warn("[streamAI] JSON parse/repair failed:", e?.message, "| preview:", (san||"").slice(0,200)); return null; }
-    }
+  const parsed = parseStreamJson(streamed.fullText);
+  if (parsed.failure) {
+    recordStreamDiag({ fn: "streamAI", stopReason: streamed.stopReason, outputTokens: streamed.outputTokens, maxTok, ...parsed.failure });
+    if (parsed.failure.reason === "parse") console.warn("[streamAI] JSON parse/repair failed:", parsed.failure.parseError, "| tail:", parsed.failure.tail);
     return null;
-  } catch { return null; }
+  }
+  return parsed.data;
 }
 
 // streamAIWithSearch: like streamAI but with web_search tool support.
@@ -1469,36 +1444,8 @@ async function callAI(prompt, { maxTokens = 5500, skipJsonSuffix = false, model:
 }
 
 // JSON repair: escapes unescaped quotes and raw newlines inside strings
-function repairJSON(s) {
-  let out="", inStr=false, esc=false;
-  for(let i=0;i<s.length;i++){
-    const ch=s[i];
-    if(esc){out+=ch;esc=false;continue;}
-    if(ch==="\\"){out+=ch;esc=true;continue;}
-    if(inStr){
-      if(ch==="\n"){out+="\\n";continue;}
-      if(ch==="\r"){out+="\\r";continue;}
-      if(ch==="\t"){out+="\\t";continue;}
-      if(ch==='"'){
-        let j=i+1;
-        while(j<s.length){
-          if(s[j]==="\n"||s[j]==="\r"||s[j]===" "||s[j]==="\t"){j++;continue;}
-          if(s[j]==="\\"){j+=2;continue;}
-          break;
-        }
-        const nxt=j<s.length?s[j]:"";
-        if(nxt===","||nxt==="}"||nxt==="]"||nxt===":"||nxt===""){inStr=false;out+=ch;}
-        else{out+='\\"';}
-        continue;
-      }
-      out+=ch;
-    }else{
-      if(ch==='"'){inStr=true;out+=ch;continue;}
-      out+=ch;
-    }
-  }
-  return out;
-}
+// repairJSON moved to src/lib/icpStream.js (issue #111) — imported at the top
+// of this file so the JSON-recovery ladder is unit-testable.
 
 // ── THE PLAY — pure helper functions (v2-staging) ────────────────────────────
 
@@ -8181,6 +8128,15 @@ Return ONLY raw JSON:
     if (fullSessionMeteredRef.current) fullSessionMeteredRef.current = _normalizeSellerUrl(resolvedUrl || "");
   };
 
+  // Single exit for ICP build failures. Rules: (1) a complete prior ICP (no _loading) is preserved and annotated, never wiped;
+  // (2) a partial (_loading:true) or null becomes an _error card — _loading is always stripped so a render gate always matches;
+  // (3) the reason code from the last stream diagnostic is appended so prod users and support can see WHY without DevTools.
+  // Code + state transition live in src/lib/icpFailure.js (unit-tested).
+  const icpFail = (msg) => {
+    const d = (typeof window !== "undefined" && Array.isArray(window.__cambreeDiag)) ? window.__cambreeDiag[window.__cambreeDiag.length - 1] : null;
+    setSellerICP(prev => icpFailureState(prev, msg + icpErrorCode(d)));
+  };
+
   const buildSellerICP = async(rawUrl, {forceRefresh=false, cacheOnly=false}={}) => {
     // Catch both "research-only" and "research-only.com" before any processing
     if (/^research-only(\.com)?$/i.test((rawUrl || "").trim())) return;
@@ -8476,13 +8432,11 @@ Return ONLY raw JSON:
       if (!raw || (typeof raw === "object" && raw.error)) {
         const err = raw?.error;
         console.warn("[ICP] Phase 2 error:", err ?? "(null response — model returned nothing)");
-        if (err?.type === "usage_limit_exceeded" || err?.type === "max_limit_exceeded") {
-          setSellerICP(prev => prev || ({ _error: "You've reached your plan limit. Upgrade to continue building ICPs." }));
-          setIcpLoading(false); setIcpStatus(""); return;
-        }
-        if (err?.type === "unavailable" || err?.type === "overloaded_error") {
-          setSellerICP(prev => prev || ({ _error: "Our AI engine is temporarily overloaded. Click Regenerate ICP in a moment to retry." }));
-        }
+        // Every branch — including err === undefined (issue #111) — yields a
+        // message, so the user always lands on an error card or an annotated
+        // ICP, never the "Build ICP Now" empty state. Ladder lives in
+        // src/lib/icpFailure.js (unit-tested).
+        icpFail(classifyIcpPhase2Error(err).message);
         setIcpLoading(false); setIcpStatus(""); return;
       }
       setIcpStatus("Processing results...");
@@ -8602,18 +8556,18 @@ Return ONLY raw JSON:
           }
         }catch(e){
           console.warn("ICP JSON parse failed:",e.message,raw.slice(0,200));
-          setSellerICP(prev => prev || ({ _error: "ICP build returned an unexpected format. Click Regenerate ICP to try again — this usually resolves on retry." }));
+          icpFail("ICP build returned an unexpected format. Click Regenerate ICP to try again — this usually resolves on retry.");
         }
       } else {
         console.warn("ICP phase 2 returned no text content");
-        setSellerICP(prev => prev || ({ _error: "ICP build didn't return usable data. Click Regenerate ICP to try again." }));
+        icpFail("ICP build didn't return usable data. Click Regenerate ICP to try again.");
       }
     }catch(e){
       console.warn("ICP build phase 2 failed:",e.message);
       const isTimeout = e.message?.includes("timed out");
-      setSellerICP(prev => prev || ({ _error: isTimeout
+      icpFail(isTimeout
         ? "ICP build timed out — this happens when our AI engine is under heavy load. Click Regenerate ICP to try again."
-        : "ICP build failed — our AI engine may be temporarily busy. Click Regenerate ICP to retry." }));
+        : "ICP build failed — our AI engine may be temporarily busy. Click Regenerate ICP to retry.");
     }
     setIcpLoading(false);
     setIcpStatus("");
@@ -15444,8 +15398,8 @@ Return ONLY raw JSON:
                           </span>
                         )}
                         {sellerICP?._warning && (
-                          <div style={{marginTop:6,fontSize:11,color:"var(--amber)",fontWeight:600}}>
-                            {sellerICP._warning}
+                          <div style={{marginTop:8,fontSize:12,color:"var(--amber)",fontWeight:700,background:"var(--amber-bg)",border:"1px solid var(--amber)",borderRadius:8,padding:"8px 12px"}}>
+                            ⚠ {sellerICP._warning}
                           </div>
                         )}
                       </>
@@ -15544,6 +15498,14 @@ Return ONLY raw JSON:
 
             {sellerICP?._error&&!sellerICP?.icp&&(
               <div style={{maxWidth:520,margin:"40px auto",textAlign:"center"}}>
+                {(icpPreview?.sellerDescription || icpPreview?.marketCategory || (icpPreview?.differentiators||[]).length>0) && (
+                  <div style={{textAlign:"left",background:"var(--bg-1)",border:"1px solid var(--line-0)",borderRadius:"var(--r-md)",padding:"14px 16px",marginBottom:14}}>
+                    <div style={{fontSize:10,fontWeight:700,letterSpacing:.6,color:"var(--ink-3)",marginBottom:8}}>WHAT WE FOUND BEFORE THE BUILD FAILED — NOT SAVED, NOT USED FOR SCORING</div>
+                    {icpPreview?.sellerDescription && <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6,marginBottom:8}}>{icpPreview.sellerDescription}</div>}
+                    {icpPreview?.marketCategory && <div style={{fontSize:12,color:"var(--ink-2)",marginBottom:8}}>{icpPreview.marketCategory}</div>}
+                    {(icpPreview?.differentiators||[]).length>0 && <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{icpPreview.differentiators.map((d,i)=><span key={i} style={{background:"var(--green-bg)",border:"1px solid #2E6B2E44",borderRadius:20,padding:"3px 10px",fontSize:12,color:"var(--green)"}}>{d}</span>)}</div>}
+                  </div>
+                )}
                 <div style={{background:"var(--red-bg)",border:"1.5px solid var(--red)",borderRadius:"var(--r-md)",padding:"20px 24px",marginBottom:16}}>
                   <div style={{fontSize:14,fontWeight:700,color:"var(--red)",marginBottom:6}}>ICP Build Issue</div>
                   <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{sellerICP._error}</div>
