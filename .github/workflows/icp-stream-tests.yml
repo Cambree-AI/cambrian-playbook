@@ -1,0 +1,38 @@
+name: icp-stream-tests
+
+# Regression guard for issue #111: the ICP build stream/failure paths.
+# Runs src/lib/icpStream.js + src/lib/icpFailure.js against a mocked
+# /api/claude-stream SSE service -- zero LLM cost, zero npm dependencies,
+# no network. Hard-fails on any assertion failure.
+
+on:
+  pull_request:
+    paths:
+      - 'src/lib/icpStream.js'
+      - 'src/lib/icpFailure.js'
+      - 'src/App.jsx'
+      - 'tests/icp-stream/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/lib/icpStream.js'
+      - 'src/lib/icpFailure.js'
+      - 'src/App.jsx'
+  workflow_dispatch: {}
+
+jobs:
+  icp-stream-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      # No `npm install` -- the tests use only Node built-ins (web streams).
+      - name: Stream transport + JSON recovery
+        run: node tests/icp-stream/stream.test.js
+
+      - name: Failure classification + state invariants
+        run: node tests/icp-stream/failure.test.js
