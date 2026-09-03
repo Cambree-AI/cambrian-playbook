@@ -113,9 +113,11 @@ export async function provisionTrialAccess({ email, name, company, invitedBy = "
   // _usage.js). The admitting promo code is stamped on the org — checkout
   // verifies run-pack eligibility against it (migration 034). Conditional so
   // non-promo callers (issue #3 admin approval) never touch the column.
+  // Promo-code signups get 10 free runs (vs. the default 3 for standard trial)
+  // so they can evaluate the product before the $45/mo promo subscription (issue #137).
   const orgName = (company || name || cleanEmail).trim();
   const created = await sbFetch("orgs", "POST",
-    promoCode ? { name: orgName, promo_code: promoCode } : { name: orgName });
+    promoCode ? { name: orgName, promo_code: promoCode, run_limit: 10 } : { name: orgName });
   const orgId = Array.isArray(created) ? created[0]?.id : created?.id;
   if (!orgId) {
     console.warn("[provision] Org creation failed:", JSON.stringify(created));
