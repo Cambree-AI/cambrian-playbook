@@ -17,11 +17,12 @@
     "test:properties": "node tests/fit-check/properties.js",
     "test:ssrf": "node tests/fetch-ssrf/ssrf.test.js",
     "test:icpstream": "node tests/icp-stream/stream.test.js && node tests/icp-stream/failure.test.js",
+    "test:apiaws": "node tests/api-aws/guard.test.js && node tests/api-aws/contact.test.js",
     "test:fitcheck": "npm run test:noop && npm run test:fitscores && npm run test:properties",
     "test:play": "node tests/the-play/eval.js",
     "test:regression": "node tests/fit-check/regression-sweep.js",
     "test:regression:full": "node tests/fit-check/regression-sweep.js --full",
-    "test": "npm run test:lint && npm run test:backtest && npm run test:icpstream && npm run test:golden"
+    "test": "npm run test:lint && npm run test:backtest && npm run test:icpstream && npm run test:apiaws && npm run test:golden"
   },
   "dependencies": {
     "fflate": "^0.8.2",
