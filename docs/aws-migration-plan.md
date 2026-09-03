@@ -139,6 +139,14 @@ Deploy-role trust policies match `sub = repo:Cambree-AI@311088446/cambrian-playb
 
 Security headers live in `customHttp.yml` (repo root); rewrites in the module's `custom_rule`s. Git connection = Amplify GitHub App (org-installed) + `AMPLIFY_GITHUB_TOKEN` PAT at create time, followed by the console "Update required" connection migration per app. Ops notes: API-created branches never auto-run a first build (trigger one release); branch env-var changes don't rebuild (trigger a release to bake them).
 
+### API platform (created 2026-09-02, issue #86 — `infra/modules/api` + `api-aws/`)
+
+The Phase 3 landing zone for function ports: per env, an **API Gateway HTTP API** with one Lambda per endpoint (nodejs22.x/arm64, routes mirror Vercel at `/api/<name>`), CloudWatch logs, stage throttling (the platform replacement for `_guard.js`'s in-memory limiter; usage plans are Phase 8), and a Secrets Manager container `cambree/<env>/api-env` (Terraform creates the container only — the value is set once per env via `put-secret-value`, documented in api-aws/README.md, so secret values never touch git or state).
+
+- Lambda sources live in **`api-aws/`** (Vercel's `api/` stays live and untouched); `api-aws/shared/` is the ported guard/usage/adapter/secrets layer, **bundled** into each function by esbuild (decision record in api-aws/README.md — bundled module, not a Lambda layer). CI builds the bundles inside `.github/workflows/terraform.yml` before plan/apply, so a code-only merge redeploys via `source_code_hash`.
+- **Pilot endpoint: `contact`.** The SPA reaches migrated endpoints via the `VITE_API_ENDPOINT_ORIGINS` JSON map (per-endpoint origin override in `src/lib/api.js`, set per env in `infra/envs/*/amplify.auto.tfvars` from the `api_endpoint` output); unmapped endpoints keep using `VITE_API_URL`.
+- Unit tests: `npm run test:apiaws` + `.github/workflows/api-aws-tests.yml` (mocked JWKS/Supabase, parity-oracle against the Vercel copies). The **port recipe** for every subsequent endpoint is in api-aws/README.md.
+
 - **Modules (proposed):** `network` (VPC, subnets, endpoints), `ecr`, `ecs-worker` (cluster, task defs, autoscaling), `queue` (SQS + DLQ), `orchestration` (Step Functions, IAM roles), `api` (API Gateway REST + WebSocket APIs, Lambdas, DynamoDB connections table), `crons` (EventBridge Scheduler), `secrets` (Secrets Manager/SSM), `amplify` (the Amplify app, branch config, domain, headers/rewrites), `dns` (Route 53, ACM), `observability` (CloudWatch dashboards/alarms, log groups, cost alarms).
 - Amplify itself is created via Terraform (`aws_amplify_app`, `aws_amplify_branch`, `aws_amplify_domain_association`) so hosting config is code, not console.
 - Bedrock access (model-invocation IAM policies, inference profiles) is Terraform-managed.

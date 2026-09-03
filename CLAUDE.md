@@ -77,6 +77,9 @@ api/                         # Vercel serverless functions (underscore files = s
 ├── admin.js + _admin-action.js  # superuser-only (SUPERUSER_EMAIL) analytics/actions
 └── cron-*.js                # 3 Vercel crons (CRON_SECRET): monthly token reset,
                              #   weekly data refresh, weekly seller profiles
+api-aws/                     # AWS Lambda ports of api/ endpoints (issue #86, strangler pattern —
+                             #   Vercel api/ stays live; shared/ = ported guard/usage/adapter/secrets;
+                             #   deployed by infra/modules/api via the Terraform pipeline; see its README)
 supabase/migrations/         # 32 sequential SQL migrations (orgs, RLS, usage log, data-science tables)
 scripts/                     # ops: nightly-backup, check-rls, pl.mjs (P&L), smoke-brief,
                              #   variance diagnostics, consistency/ drift harness
@@ -100,7 +103,7 @@ docs/archive/                # historical session/audit/release logs (see index 
 ### Environment variables
 
 Server (`process.env`): `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_{STARTER,PRO,TEAM,ENTERPRISE}`, `HUBSPOT_CLIENT_ID/SECRET`, `HUBSPOT_TOKEN_KEY`, `APOLLO_API_KEY`, `CRON_SECRET`, `SUPERUSER_EMAIL`, `ALLOW_GUEST`.
-Client (`import.meta.env`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`.
+Client (`import.meta.env`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`, `VITE_API_URL` (API origin, issue #83; empty = same-origin), `VITE_API_ENDPOINT_ORIGINS` (JSON per-endpoint origin overrides for AWS-migrated endpoints, issue #86).
 
 **`ANTHROPIC_API_KEY` must never get a `VITE_` prefix** — that would bundle it into the browser (this exact leak happened once; the v100 proxy architecture exists to prevent it). The Supabase anon key is intentionally `VITE_`-prefixed and safe to expose.
 
