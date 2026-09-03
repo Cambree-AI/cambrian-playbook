@@ -1,0 +1,13 @@
+{
+  "name": "cambree-api-aws",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "AWS Lambda sources for the API platform (issue #86). Vercel's api/ stays live and untouched; endpoints move here one at a time.",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

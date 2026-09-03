@@ -31,6 +31,12 @@ variable "vite_api_url" {
   default     = ""
 }
 
+variable "vite_api_endpoint_origins" {
+  description = "Per-endpoint origin overrides as a JSON object (issue #86), e.g. {\"/api/contact\":\"<api_endpoint output>\"}. Endpoints not listed keep using vite_api_url. Empty = no overrides."
+  type        = string
+  default     = ""
+}
+
 module "amplify" {
   source = "../../modules/amplify"
 
@@ -40,10 +46,11 @@ module "amplify" {
   github_access_token = var.amplify_github_token
 
   environment_variables = {
-    VITE_SUPABASE_URL      = var.vite_supabase_url
-    VITE_SUPABASE_ANON_KEY = var.vite_supabase_anon_key
-    VITE_APP_URL           = var.vite_app_url
-    VITE_API_URL           = var.vite_api_url
+    VITE_SUPABASE_URL         = var.vite_supabase_url
+    VITE_SUPABASE_ANON_KEY    = var.vite_supabase_anon_key
+    VITE_APP_URL              = var.vite_app_url
+    VITE_API_URL              = var.vite_api_url
+    VITE_API_ENDPOINT_ORIGINS = var.vite_api_endpoint_origins
   }
 }
 
