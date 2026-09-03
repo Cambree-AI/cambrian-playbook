@@ -13,13 +13,16 @@
 
 name: terraform
 
+# api-aws/** is in the trigger paths (issue #86): Lambda code is zipped into
+# the plan via archive_file, so a code-only merge deploys through the same
+# plan/apply pipeline as infra changes.
 on:
   pull_request:
     branches: [dev, staging, main]
-    paths: ["infra/envs/**", "infra/modules/**"]
+    paths: ["infra/envs/**", "infra/modules/**", "api-aws/**"]
   push:
     branches: [dev, staging, main]
-    paths: ["infra/envs/**", "infra/modules/**"]
+    paths: ["infra/envs/**", "infra/modules/**", "api-aws/**"]
 
 permissions:
   id-token: write # OIDC token for aws-actions/configure-aws-credentials
@@ -62,6 +65,16 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
+
+      # Lambda bundles must exist before plan: archive_file zips api-aws/dist
+      # at plan time (infra/modules/api). Contained npm project — no root deps.
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22"
+
+      - name: Build Lambda bundles
+        working-directory: api-aws
+        run: npm ci && npm run build
 
       - name: Terraform init
         working-directory: infra/envs/${{ env.TF_ENV }}
@@ -138,6 +151,16 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
+
+      # Same build as the plan job: the zip hashed into the plan is the zip
+      # that gets applied.
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22"
+
+      - name: Build Lambda bundles
+        working-directory: api-aws
+        run: npm ci && npm run build
 
       - name: Terraform init
         working-directory: infra/envs/${{ env.TF_ENV }}
