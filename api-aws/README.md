@@ -123,5 +123,9 @@ plaintext env vars win over secret keys).
    include `{"/api/<name>": "<api_endpoint output>"}`. Amplify does not
    rebuild on env-var changes — trigger a release. Vercel-served deploys keep
    using the Vercel endpoint (the var is unset there) until cutover.
+   **CSP prerequisite (one-time per env, not per endpoint):** the env's
+   `api_endpoint` origin must be in the `connect-src` list in `customHttp.yml`
+   — otherwise the browser blocks the call before it leaves the page
+   (dev + staging added 2026-09-03; prod still pending its first apply).
 8. **Promote** dev → staging → main. The Vercel copy stays deployed but
    unreferenced; it is removed in the final conversion issue.
