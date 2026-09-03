@@ -126,6 +126,6 @@ plaintext env vars win over secret keys).
    **CSP prerequisite (one-time per env, not per endpoint):** the env's
    `api_endpoint` origin must be in the `connect-src` list in `customHttp.yml`
    — otherwise the browser blocks the call before it leaves the page
-   (dev + staging added 2026-09-03; prod still pending its first apply).
+   (all three envs added 2026-09-03).
 8. **Promote** dev → staging → main. The Vercel copy stays deployed but
    unreferenced; it is removed in the final conversion issue.
