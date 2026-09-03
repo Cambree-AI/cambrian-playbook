@@ -5,3 +5,8 @@ vite_supabase_url      = "https://akceiidofsiajrjtgone.supabase.co" # cambree-st
 vite_supabase_anon_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFrY2VpaWRvZnNpYWpyanRnb25lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyODE2OTgsImV4cCI6MjEwMDg1NzY5OH0.IFyk54T-pg1uWCEp3E1BO-kDHTIQXjgH23qImLYBehU"
 vite_app_url           = "https://dev.d1gtnd67v2ws7a.amplifyapp.com"
 vite_api_url           = "https://staging.cambree.ai" # Vercel staging serves /api there
+# Per-endpoint AWS overrides (issue #86, strangler): only the endpoints listed
+# here hit API Gateway; everything else stays on vite_api_url. Value from the
+# env's `api_endpoint` Terraform output. Amplify env-var changes don't rebuild
+# on their own - trigger a release after this applies.
+vite_api_endpoint_origins = "{\"/api/contact\":\"https://lcog1o2zs2.execute-api.us-east-2.amazonaws.com\"}"
