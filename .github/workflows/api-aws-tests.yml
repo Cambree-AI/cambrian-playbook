@@ -1,0 +1,41 @@
+name: api-aws-tests
+
+# Unit tests for the AWS API platform (issue #86): shared guard (origin/CORS/
+# JWT/caps), the APIGW adapter, and response parity of ported endpoints
+# against their Vercel originals. Live services (Supabase JWKS + REST) are
+# mocked -- zero network, zero npm dependencies. Also verifies the Lambda
+# bundles still build, since terraform plan depends on that.
+
+on:
+  pull_request:
+    paths:
+      - 'api-aws/**'
+      - 'api/_guard.js'
+      - 'api/contact.js'
+      - 'tests/api-aws/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'api-aws/**'
+  workflow_dispatch: {}
+
+jobs:
+  api-aws-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      # Tests import api-aws sources directly -- Node built-ins only.
+      - name: Shared guard + adapter
+        run: node tests/api-aws/guard.test.js
+
+      - name: Contact endpoint parity
+        run: node tests/api-aws/contact.test.js
+
+      - name: Lambda bundles build
+        working-directory: api-aws
+        run: npm ci && npm run build

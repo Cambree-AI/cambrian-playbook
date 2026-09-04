@@ -9,7 +9,7 @@
 // Does NOT create any auth account directly — signup happens via the emailed
 // invite link.
 
-import { isAllowedOrigin, checkRateLimit } from "./_guard.js";
+import { applyCors, isAllowedOrigin, checkRateLimit } from "./_guard.js";
 import { provisionTrialAccess } from "./_provision.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
@@ -80,7 +80,10 @@ async function notifyFounder({ name, email, company, note, created_at, extra }) 
           (note ? `Note:    ${note}\n` : "") +
           (extra ? `Flag:    ${extra}\n` : "") +
           `When:    ${created_at}\n\n` +
-          `Send them an invite from Supabase Auth if approved.`,
+          // A Supabase-dashboard auth invite carries no invitation_token and
+          // creates no org — the user would land with broken onboarding. The
+          // admin queue (or the in-app invite flow) provisions correctly.
+          `Approve or dismiss it from Reporting → Access Requests in the app.`,
       }),
     });
     if (!r.ok) console.warn("[request-access] Resend responded", r.status, await r.text().catch(() => ""));
@@ -89,7 +92,35 @@ async function notifyFounder({ name, email, company, note, created_at, extra }) 
   }
 }
 
+// Acknowledgment to the requester on the queued path — without it the manual
+// path is completely silent until a human approves (issue #3 gap analysis).
+async function notifyRequester({ name, email }) {
+  if (!RESEND_API_KEY) return;
+  const firstName = (name || "").trim().split(/\s+/)[0] || "there";
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: FROM_ADDR,
+        to: email,
+        subject: "We got your Cambree access request",
+        text:
+          `Hi ${firstName},\n\n` +
+          `Thanks for requesting access to the Cambree private beta. A human reviews every request personally — ` +
+          `when yours is approved you'll get an invite email from this address with a link to set up your account.\n\n` +
+          `No action needed in the meantime. If you have questions, just reply to this email.\n\n` +
+          `— The Cambree team`,
+      }),
+    });
+    if (!r.ok) console.warn("[request-access] Requester ack Resend responded", r.status, await r.text().catch(() => ""));
+  } catch (e) {
+    console.warn("[request-access] Requester ack failed:", e.message);
+  }
+}
+
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
 
   const origin = req.headers.origin || req.headers.referer || "";
@@ -111,6 +142,11 @@ export default async function handler(req, res) {
   const code = typeof promoCode === "string" ? promoCode.trim() : "";
   if (code.length > 64) return res.status(400).json({ error: "Input too long" });
 
+  // Normalize: auth + users.email are lowercase, and the dedup/queue matching
+  // must treat Louis.Ruiz@ and louis.ruiz@ as the same requester (observed
+  // duplicate in production, 2026-08-11).
+  const cleanEmail = email.trim().toLowerCase();
+
   const created_at = new Date().toISOString();
 
   // Idempotency: if the same email was already submitted within the last 15
@@ -119,7 +155,7 @@ export default async function handler(req, res) {
   const idempotencyWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   try {
     const dupCheck = await sbRest(
-      `access_requests?email=eq.${encodeURIComponent(email.trim())}&created_at=gte.${encodeURIComponent(idempotencyWindow)}&select=id,status&limit=1`
+      `access_requests?email=eq.${encodeURIComponent(cleanEmail)}&created_at=gte.${encodeURIComponent(idempotencyWindow)}&select=id,status&limit=1`
     );
     if (dupCheck.ok) {
       const rows = await dupCheck.json();
@@ -142,7 +178,7 @@ export default async function handler(req, res) {
   let requestId = null;
   try {
     const insRes = await sbRest("access_requests", "POST",
-      { name, email, company, note: note || null, status: "pending", created_at, promo_code: code || null },
+      { name, email: cleanEmail, company, note: note || null, status: "pending", created_at, promo_code: code || null },
       "return=representation");
     if (insRes.ok) {
       const rows = await insRes.json().catch(() => null);
@@ -153,7 +189,7 @@ export default async function handler(req, res) {
   }
 
   if (codeRedeemed) {
-    const prov = await provisionTrialAccess({ email, name, company, invitedBy: "system:promo", promoCode: code });
+    const prov = await provisionTrialAccess({ email: cleanEmail, name, company, invitedBy: "system:promo", promoCode: code });
     if (prov.ok) {
       if (requestId) {
         try {
@@ -166,12 +202,14 @@ export default async function handler(req, res) {
     }
     // Provisioning refused (existing user, etc.) — queue for a human instead.
     console.warn("[request-access] Promo provisioning fell back to queue:", prov.reason);
-    await notifyFounder({ name, email, company, note, created_at, extra: `Valid promo code, but auto-provision failed (${prov.reason}) — approve manually.` });
+    await notifyFounder({ name, email: cleanEmail, company, note, created_at, extra: `Valid promo code, but auto-provision failed (${prov.reason}) — approve manually.` });
+    await notifyRequester({ name, email: cleanEmail });
     return res.json({ ok: true, approved: false, message: QUEUED_MSG });
   }
 
   // Manual queue path (no code, or code not recognized)
-  await notifyFounder({ name, email, company, note, created_at, extra: code ? "Submitted an unrecognized promo code." : null });
+  await notifyFounder({ name, email: cleanEmail, company, note, created_at, extra: code ? "Submitted an unrecognized promo code." : null });
+  await notifyRequester({ name, email: cleanEmail });
 
   // Always succeed for the user once validated — email/DB failures are logged, not surfaced.
   return res.json({ ok: true, approved: false, message: code ? BAD_CODE_MSG : QUEUED_MSG });

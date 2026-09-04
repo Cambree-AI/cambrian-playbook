@@ -1,12 +1,38 @@
 // lib/api.js — Anthropic API wrapper
 // All Claude calls go through /api/claude serverless proxy
 
+// API origin (issue #83). Unset/empty => relative paths (same-origin), so
+// Vercel-served deploys are byte-identical in behavior. Amplify builds set
+// VITE_API_URL to the Vercel API origin until the functions migrate to AWS.
+export const API_BASE = import.meta.env.VITE_API_URL || "";
+
+// Per-endpoint origin overrides (issue #86) — the strangler mechanism for the
+// AWS migration. VITE_API_ENDPOINT_ORIGINS is a JSON object mapping an /api
+// path to the origin that serves it, e.g.
+//   {"/api/contact":"https://abc123.execute-api.us-east-2.amazonaws.com"}
+// Endpoints not in the map keep using API_BASE; malformed JSON disables all
+// overrides rather than breaking every API call.
+export const API_ENDPOINT_ORIGINS = (() => {
+  try { return JSON.parse(import.meta.env.VITE_API_ENDPOINT_ORIGINS || "{}") || {}; }
+  catch { console.warn("[api] VITE_API_ENDPOINT_ORIGINS is not valid JSON — ignoring"); return {}; }
+})();
+
+// Every client call to /api/* goes through this so the origin is switchable
+// per deployment and per endpoint (issue #86) as functions move to AWS.
+export const apiFetch = (path, opts) => {
+  const route = path.split("?")[0];
+  const base = Object.prototype.hasOwnProperty.call(API_ENDPOINT_ORIGINS, route)
+    ? API_ENDPOINT_ORIGINS[route]
+    : API_BASE;
+  return fetch(base + path, opts);
+};
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export async function callAI(prompt, maxTok=1000){
   for(let attempt=0; attempt<3; attempt++){
     try{
-      const r = await fetch("/api/claude",{
+      const r = await apiFetch("/api/claude",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
@@ -105,7 +131,7 @@ export async function callAI(prompt, maxTok=1000){
 // ── GENERATE BRIEF ────────────────────────────────────────────────────────────
 
 export async function callAIRaw(payload) {
-  const r = await fetch("/api/claude", {
+  const r = await apiFetch("/api/claude", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(payload),
@@ -114,7 +140,7 @@ export async function callAIRaw(payload) {
 }
 
 export async function streamAI(prompt, onChunk, maxTok=2000) {
-  const response = await fetch('/api/claude-stream', {
+  const response = await apiFetch('/api/claude-stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

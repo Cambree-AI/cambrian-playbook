@@ -4,7 +4,7 @@
 // first brief completion. Awards +1 run to the referrer's org (capped
 // at 5 bonus runs per month).
 
-import { verifyJwt, decodeJwtPayload, isAllowedOrigin, checkRateLimit } from "./_guard.js";
+import { applyCors, verifyJwt, decodeJwtPayload, isAllowedOrigin, checkRateLimit } from "./_guard.js";
 
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -27,6 +27,7 @@ async function sbRpc(fn, params) {
 }
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
 
   const origin = req.headers.origin || req.headers.referer || "";

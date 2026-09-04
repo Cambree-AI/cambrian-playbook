@@ -1,0 +1,29 @@
+# Providers cannot be for_each'd, so the per-account module is instantiated
+# once per member account with an explicit provider.
+
+module "dev" {
+  source    = "./modules/github-account"
+  providers = { aws = aws.dev }
+
+  github_sub_prefix   = local.github_sub_prefix
+  env_slug            = "dev"
+  github_environments = var.accounts["dev"].github_environments
+}
+
+module "staging" {
+  source    = "./modules/github-account"
+  providers = { aws = aws.staging }
+
+  github_sub_prefix   = local.github_sub_prefix
+  env_slug            = "staging"
+  github_environments = var.accounts["staging"].github_environments
+}
+
+module "prod" {
+  source    = "./modules/github-account"
+  providers = { aws = aws.prod }
+
+  github_sub_prefix   = local.github_sub_prefix
+  env_slug            = "prod"
+  github_environments = var.accounts["prod"].github_environments
+}

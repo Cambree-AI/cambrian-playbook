@@ -5,6 +5,7 @@
 // No-org users see a simplified account panel with "Create Organization".
 
 import React, { useState, useEffect } from "react";
+import { apiFetch } from "../lib/api.js";
 import { fetchOrgMembers, fetchOrgInvitations, sbPatch } from "../lib/org.js";
 import { timeAgo } from "../lib/utils.js";
 
@@ -15,7 +16,7 @@ function ReferralWidget({ sbToken }) {
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!sbToken) return;
-    fetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/referral", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "get_referral_info" }) })
       .then(r => r.json()).then(d => { if (d.ok) setInfo(d); }).catch(() => {});
   }, [sbToken]);
@@ -45,14 +46,14 @@ function HubSpotSection({ sbToken }) {
 
   useEffect(() => {
     if (!sbToken) return;
-    fetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "status" }) })
       .then(r => r.json()).then(setStatus).catch(() => setStatus({ connected: false }));
   }, [sbToken]);
 
   const startConnect = () => {
     setLoading(true);
-    fetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "start" }) })
       .then(r => r.json())
       .then(d => { if (d.url) window.location.href = d.url; else setLoading(false); })
@@ -62,7 +63,7 @@ function HubSpotSection({ sbToken }) {
   const disconnect = () => {
     if (!confirm("Disconnect HubSpot? You can reconnect anytime.")) return;
     setDisconnecting(true);
-    fetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+    apiFetch("/api/hubspot", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
       body: JSON.stringify({ action: "disconnect" }) })
       .then(() => setStatus({ connected: false }))
       .finally(() => setDisconnecting(false));
@@ -180,7 +181,7 @@ export default function OrgPanel({ orgCtx, setOrgCtx, sbUser, sbToken, onClose }
     if (!email || !isAdmin) return;
     setInviteLoading(true); setInviteMsg("");
     try {
-      const res = await fetch("/api/invite", {
+      const res = await apiFetch("/api/invite", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ email, role: inviteRole }),
       });
@@ -200,7 +201,7 @@ export default function OrgPanel({ orgCtx, setOrgCtx, sbUser, sbToken, onClose }
     if (!isAdmin) return;
     setInviteLoading(true);
     try {
-      const res = await fetch("/api/invite", {
+      const res = await apiFetch("/api/invite", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ email: inv.email, role: inv.role }),
       });
@@ -218,7 +219,7 @@ export default function OrgPanel({ orgCtx, setOrgCtx, sbUser, sbToken, onClose }
     try {
       const url = createOrgUrl.trim();
       const sellerUrl = url ? (url.startsWith("http") ? url : `https://${url}`) : null;
-      const res = await fetch("/api/admin", {
+      const res = await apiFetch("/api/admin", {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
         body: JSON.stringify({ action: "create_org", email: sbUser?.email, orgData: { name: createOrgName.trim(), seller_url: sellerUrl, plan: "trial" } }),
       });
