@@ -39,6 +39,7 @@ Full workflow: **[docs/branching.md](docs/branching.md)**. Summary:
 - Rollback = reset to the last good tag (e.g. `v2.0.0-stable`) and force-push. Release history: docs/AUDIT_GUIDE.md and docs/archive/PRODUCTION_RELEASE_2026-06-09.md.
 - Before shipping any scoring or brief-pipeline change: run the 10-target Stage-0 validation (always include Stripe for contamination and Boeing for revenue/HQ); reject the change if any correctly-scored target regresses >5 points. Protocol in docs/STAGE_0_REMEDIATION_PLAN.md.
 - **Never attribute Claude anywhere on GitHub** — no "Generated with Claude Code", "Co-Authored-By: Claude", or similar in commit messages, PR bodies, or comments on issues/PRs.
+- **Infrastructure changes go through Terraform applied by GitHub Actions** (`.github/workflows/terraform.yml`, issue #73) — never the AWS console, never a local `terraform apply`. Merging `dev`/`staging`/`main` auto-applies `infra/envs/*` to the matching account (production gated by required-reviewer approval). The one-time bootstraps in issues #9/#73 were the last laptop applies. Sole standing exception: the laptop-only layers `infra/org/` and `infra/github-oidc/`, which stay out of CI by design and are applied locally as the management account only with explicit human sign-off. Console access is read-only/diagnostic.
 
 ## Architecture
 
@@ -76,6 +77,9 @@ api/                         # Vercel serverless functions (underscore files = s
 ├── admin.js + _admin-action.js  # superuser-only (SUPERUSER_EMAIL) analytics/actions
 └── cron-*.js                # 3 Vercel crons (CRON_SECRET): monthly token reset,
                              #   weekly data refresh, weekly seller profiles
+api-aws/                     # AWS Lambda ports of api/ endpoints (issue #86, strangler pattern —
+                             #   Vercel api/ stays live; shared/ = ported guard/usage/adapter/secrets;
+                             #   deployed by infra/modules/api via the Terraform pipeline; see its README)
 supabase/migrations/         # 32 sequential SQL migrations (orgs, RLS, usage log, data-science tables)
 scripts/                     # ops: nightly-backup, check-rls, pl.mjs (P&L), smoke-brief,
                              #   variance diagnostics, consistency/ drift harness
@@ -99,7 +103,7 @@ docs/archive/                # historical session/audit/release logs (see index 
 ### Environment variables
 
 Server (`process.env`): `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_KEY`, `SUPABASE_JWT_SECRET`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_{STARTER,PRO,TEAM,ENTERPRISE}`, `HUBSPOT_CLIENT_ID/SECRET`, `HUBSPOT_TOKEN_KEY`, `APOLLO_API_KEY`, `CRON_SECRET`, `SUPERUSER_EMAIL`, `ALLOW_GUEST`.
-Client (`import.meta.env`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`.
+Client (`import.meta.env`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL`, `VITE_API_URL` (API origin, issue #83; empty = same-origin), `VITE_API_ENDPOINT_ORIGINS` (JSON per-endpoint origin overrides for AWS-migrated endpoints, issue #86).
 
 **`ANTHROPIC_API_KEY` must never get a `VITE_` prefix** — that would bundle it into the browser (this exact leak happened once; the v100 proxy architecture exists to prevent it). The Supabase anon key is intentionally `VITE_`-prefixed and safe to expose.
 
@@ -153,3 +157,30 @@ Read on demand — don't preload. **Durable** = still-accurate reference. **Hist
 - Scoring weights: 45/30/25 deterministic (Option C); the 40/30/30 LLM scheme in AGENT_CONTEXT/overview is the old system.
 - Model IDs: trust `src/config/constants.js` + `api/_guard.js` (Sonnet is `claude-sonnet-4-6` as of July 2026); docs citing `claude-sonnet-4-5-20250929` predate the update.
 - Pricing: overview + status-2026-05-04 are authoritative; cost-model.md and wireframe.md figures are earlier drafts.
+
+# AWS Guidance
+
+- Prefer the AWS MCP Server for AWS interactions — it provides sandboxed
+  execution, observability, and audit logging. If unavailable, use the
+  AWS CLI directly.
+- Before starting a task, check whether a relevant AWS skill is available.
+  Load the skill with `retrieve_skill` and prefer its guidance over
+  general knowledge.
+- When uncertain about specific AWS details (API parameters, permissions,
+  limits, error codes), verify against documentation rather than guessing.
+  State uncertainty explicitly if you cannot confirm.
+- When creating infrastructure, prefer infrastructure-as-code (AWS CDK or
+  CloudFormation) over direct CLI commands.
+- When working with infrastructure, follow AWS Well-Architected Framework
+  principles.
+- Do not use em dashes in AWS resource names or descriptions. Use
+  hyphens instead.
+
+## Secret Safety
+
+- MUST load the `aws-secrets-manager` skill first for any secret,
+  credential, API key, token, or password task. MUST NOT call
+  `secretsmanager get-secret-value` or `batch-get-secret-value`, and MUST
+  NOT hit the Secrets Manager Agent daemon directly. MUST use
+  `{{resolve:secretsmanager:secret-id:SecretString:json-key}}` with
+  `asm-exec` so the secret resolves at runtime without entering context.

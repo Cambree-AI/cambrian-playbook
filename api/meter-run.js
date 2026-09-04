@@ -25,7 +25,7 @@
 // checks the org's allowance, increments, and answers. That is the whole job —
 // which is exactly why it is reliable.
 
-import { isAllowedOrigin, checkRateLimit, verifyJwt, decodeJwtPayload } from "./_guard.js";
+import { applyCors, isAllowedOrigin, checkRateLimit, verifyJwt, decodeJwtPayload } from "./_guard.js";
 import { checkOrgUsage, incrementUsage, incrementMaxUsage } from "./_usage.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -38,6 +38,7 @@ const KINDS = {
 };
 
 export default async function handler(req, res) {
+  if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
 
   const origin = req.headers.origin || req.headers.referer || "";

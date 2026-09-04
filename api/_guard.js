@@ -267,6 +267,36 @@ function isAllowedOrigin(origin) {
   if (h === "cambriancatalyst.ai" || h.endsWith(".cambriancatalyst.ai")) return true;
   if (h === "cambree.ai" || h.endsWith(".cambree.ai")) return true;
   if (h === "localhost" || h === "127.0.0.1") return true;
+  // Amplify default domains (issue #83) — exact per-app hostnames, never a
+  // wildcard on all of amplifyapp.com. App ids: docs/aws-migration-plan.md §7.
+  if (h === "dev.d1gtnd67v2ws7a.amplifyapp.com") return true;    // dev
+  if (h === "staging.d33ublf97u0bs6.amplifyapp.com") return true; // staging
+  if (h === "main.d1fuoohbeo8gqk.amplifyapp.com") return true;   // prod
+  return false;
+}
+
+// ── CORS (issue #83) ─────────────────────────────────────────────────────
+// The Amplify-hosted SPA calls these functions cross-origin. Auth is a
+// Bearer JWT (no cookies), so this is plain bearer-token CORS: echo the
+// origin back ONLY when allowlisted (never *), and answer preflight.
+// Returns true when the request was an OPTIONS preflight and has been
+// fully answered — the caller must return immediately in that case.
+export function applyCors(req, res) {
+  const origin = req.headers.origin || "";
+  if (origin && isAllowedOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type, X-Billable-Run, X-Billable-Max, X-Brief-Type, X-Seller-Url, X-Target-Company"
+    );
+    res.setHeader("Access-Control-Max-Age", "86400");
+    res.status(204).end();
+    return true;
+  }
   return false;
 }
 
@@ -374,6 +404,7 @@ export function buildAnthropicBody(body, { stream = false } = {}) {
 // ── MAIN GUARD ───────────────────────────────────────────────────────────
 // Returns sanitized body on success, null on rejection (response already sent).
 export async function guard(req, res, { stream = false } = {}) {
+  if (applyCors(req, res)) return null; // OPTIONS preflight answered
   if (req.method !== "POST") {
     res.status(405).end();
     return null;
