@@ -44,9 +44,11 @@ export default async function handler(req, res) {
     const rolloverData = await rolloverRes.json();
     const paidCount = rolloverData?.orgs_processed || 0;
 
-    // Step 1b: Reset max_run_count for paid orgs (Max Mode removed, but
-    // counter should not accumulate indefinitely month-over-month)
-    await fetch(`${SB_URL}/rest/v1/orgs?plan=eq.paid&max_run_count=gt.0`, {
+    // Step 1b: Reset max_run_count for paid and promo_monthly orgs (Max Mode
+    // removed, but counter should not accumulate indefinitely month-over-month).
+    // promo_monthly has max_run_limit=0 so this should always be a no-op for
+    // those orgs, but defensive resets are cheap.
+    await fetch(`${SB_URL}/rest/v1/orgs?plan=in.(paid,promo_monthly)&max_run_count=gt.0`, {
       method: "PATCH",
       headers: {
         apikey: SB_KEY,

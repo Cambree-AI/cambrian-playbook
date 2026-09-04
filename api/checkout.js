@@ -15,12 +15,13 @@ const APP_URL = process.env.VITE_APP_URL || "https://www.cambriancatalyst.ai";
 const SB_URL = process.env.VITE_SUPABASE_URL;
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 
-// Plan config — maps planId to run limits
+// Plan config — maps planId to run limits. Keep in sync with stripe-webhook.js.
 const PLAN_LIMITS = {
-  starter:    { run_limit: 25,   max_run_limit: 5 },
-  pro:        { run_limit: 100,  max_run_limit: 20 },
-  team:       { run_limit: 250,  max_run_limit: 50 },
-  enterprise: { run_limit: 1000, max_run_limit: 200 },
+  starter:       { run_limit: 25,   max_run_limit: 5 },
+  pro:           { run_limit: 100,  max_run_limit: 20 },
+  team:          { run_limit: 250,  max_run_limit: 50 },
+  enterprise:    { run_limit: 1000, max_run_limit: 200 },
+  promo_monthly: { run_limit: 20,   max_run_limit: 0 },  // issue #137: 2-month promo subscription
 };
 
 // One-time run pack for promo-code signups — runs added by the webhook via
@@ -58,11 +59,17 @@ export default async function handler(req, res) {
 
   const { priceId, planId: requestedPlanId } = req.body || {};
   const isPack = requestedPlanId === "promo_pack";
+  const isPromoMonthly = requestedPlanId === "promo_monthly";
   let planId, sessionPriceId;
   if (isPack) {
     sessionPriceId = process.env.STRIPE_PRICE_PROMO_PACK;
     if (!sessionPriceId) return res.status(500).json({ error: "Promo offer not configured" });
     planId = "promo_pack";
+  } else if (isPromoMonthly) {
+    // $45/mo promo subscription — 2 billing cycles before graduating to starter (issue #137).
+    sessionPriceId = process.env.STRIPE_PRICE_PROMO_MONTHLY;
+    if (!sessionPriceId) return res.status(500).json({ error: "Promo offer not configured" });
+    planId = "promo_monthly";
   } else {
     if (!priceId || typeof priceId !== "string") return res.status(400).json({ error: "priceId required" });
     planId = PRICE_TO_PLAN[priceId];
@@ -111,6 +118,25 @@ export default async function handler(req, res) {
     }
   }
 
+  // Promo monthly eligibility (issue #137): org must be on trial plan AND have a
+  // promo_code on record (stamped at provisioning). The $45/mo offer is only for
+  // promo-code signups in the free phase — not general-public self-serve.
+  // promo orgs (old one-time pack purchasers) proceed via the regular starter checkout.
+  if (isPromoMonthly) {
+    try {
+      if (!orgId) return res.status(403).json({ error: "This offer isn't available for your account" });
+      const orgRes = await fetch(`${SB_URL}/rest/v1/orgs?id=eq.${orgId}&select=promo_code,plan`, {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` },
+      });
+      const org = (await orgRes.json())?.[0];
+      const eligible = org?.promo_code && org.plan === "trial";
+      if (!eligible) return res.status(403).json({ error: "This offer isn't available for your account" });
+    } catch (e) {
+      console.error("[checkout] Promo monthly eligibility check failed:", e.message);
+      return res.status(500).json({ error: "Eligibility check failed" });
+    }
+  }
+
   try {
     // Create Stripe Checkout session — one-time payment for the run pack,
     // subscription for everything else
@@ -129,6 +155,10 @@ export default async function handler(req, res) {
     if (isPack) {
       params.append("metadata[pack_runs]", String(PROMO_PACK_RUNS));
     } else {
+      // Subscription metadata — the webhook reads plan_id to apply org limits.
+      // For promo_monthly, the Stripe Subscription Schedule (created in the webhook
+      // after checkout completes) will overwrite plan_id to "starter" on graduation,
+      // which triggers the automatic upgrade via customer.subscription.updated (issue #137).
       params.append("subscription_data[metadata][user_id]", payload.sub);
       params.append("subscription_data[metadata][org_id]", orgId);
       params.append("subscription_data[metadata][plan_id]", planId);
