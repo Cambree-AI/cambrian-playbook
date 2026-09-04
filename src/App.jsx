@@ -9060,6 +9060,53 @@ Return ONLY raw JSON:
         }
       }
 
+      // Firecrawl discovery fallback (#29) — search-index discovery is unreliable on
+      // thin or poorly-indexed sites (cambriancatalyst.ai itself reproduced 8/8).
+      // When discovery returns <3 pages, probe the standard marketing paths directly
+      // via /api/fetch (plain fetch → Firecrawl render escalation, render:"auto").
+      // Probed pages carry the SAME trust level as discovered ones — URL hints for
+      // the ICP research pass, never ground truth. Probes fire concurrently with no
+      // retries; any failure (404, timeout, SSRF block) is a silent per-path skip.
+      if(pages.length<3){
+        console.log(`[scan] Discovery returned ${pages.length} page(s) — probing standard paths via /api/fetch fallback`);
+        const candidates=[
+          {path:"",label:"Homepage",type:""},
+          {path:"/products",label:"Products",type:"product"},
+          {path:"/solutions",label:"Solutions",type:"product"},
+          {path:"/customers",label:"Customers",type:"case_study"},
+          {path:"/case-studies",label:"Case Studies",type:"case_study"},
+          {path:"/about",label:"About",type:""},
+        ];
+        const probed=await Promise.all(candidates.map(async(c)=>{
+          try{
+            const r=await apiFetch("/api/fetch",{method:"POST",headers:authHeaders(),body:JSON.stringify({url:baseUrl+c.path,render:"auto"})});
+            if(!r.ok) return null;
+            const fd=await r.json();
+            // ok:false (404/timeout/blocked) or near-empty text → skip silently
+            if(!fd?.ok||!fd.text||fd.text.length<200) return null;
+            // Same-domain guard on the post-redirect URL (same idiom as the p2-fetch pipeline)
+            if(fd.finalUrl){
+              try{
+                const h=new URL(fd.finalUrl).hostname.replace(/^www\./,"").toLowerCase();
+                const base=url.split("/")[0].replace(/^www\./,"").toLowerCase();
+                if(!h.includes(base)&&!base.includes(h)) return null;
+              }catch{ return null; }
+            }
+            return {url:fd.finalUrl||baseUrl+c.path,label:c.label,type:c.type};
+          }catch{ return null; } // one failed probe must never break the scan
+        }));
+        // Merge into the discovery result, dedupe by normalized URL
+        const normUrl=(u)=>u.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/$/,"").toLowerCase();
+        const seen=new Set(pages.map(p=>normUrl(p.url)));
+        for(const p of probed){
+          if(!p||seen.has(normUrl(p.url))) continue;
+          seen.add(normUrl(p.url));
+          pages.push(p);
+        }
+        pages=pages.slice(0,8);
+        console.log(`[scan] Direct-probe fallback merged: ${probed.filter(Boolean).length} probe hit(s) → ${pages.length} page(s) total`);
+      }
+
       console.log("URL scan found pages:", pages.length, pages);
       if(pages.length>0){
         setProductUrls(pages.map(p=>({url:p.url,label:p.label||"",type:p.type||""})));
@@ -14654,34 +14701,55 @@ Return ONLY raw JSON:
                       <span style={{fontSize:14}}>✓</span> {productUrls.filter(u=>u.url).length} product page{productUrls.filter(u=>u.url).length!==1?"s":""} confirmed
                     </div>
                   )}
+                  {/* Single context affordance (#29) — the ONLY card the light path shows:
+                      upload + funding-stage chip + segment chip. The Seller Materials
+                      Upload expander below is suppressed while this card is visible so the
+                      two affordances never stack. Free-text description removed — structured
+                      inputs + uploaded docs only. */}
                   {urlScanStatus==="none"&&(
                     <div style={{background:"var(--bg-1)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"14px 16px",marginTop:10}}>
                       <div style={{fontSize:13,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>Let's add a little context</div>
                       <div style={{fontSize:12,color:"var(--ink-1)",lineHeight:1.6,marginBottom:12}}>
                         Looks like your company's website is a little light on product, services, solutions, and case-study content.
-                        Not a problem — use the upload button to add relevant materials (case studies, product one-pagers, etc.),
-                        or use the text field below to describe the products, solutions, or services you're focused on selling.
+                        Not a problem — upload relevant materials (case studies, product one-pagers, etc.) and pick the options below.
                       </div>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs) */}
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs → proof pack) */}
                         <label className="btn btn-secondary btn-sm" style={{cursor:"pointer"}}>
                           <input type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                             onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                           📂 Upload materials
                         </label>
-                        <button className="btn btn-secondary btn-sm"
-                          onClick={()=>{
-                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("sellerDocsUpload");return next;});
-                            setTimeout(()=>{document.getElementById("kickoffv2-icp-input")?.focus();},80);
-                          }}>
-                          ✏️ Describe what you sell
-                        </button>
                         {sellerDocs.length>0&&(
                           <span style={{fontSize:11,fontWeight:600,color:"var(--green)"}}>✓ {sellerDocs.length} doc{sellerDocs.length>1?"s":""} added</span>
                         )}
                       </div>
+                      <div style={{marginBottom:10}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Your Funding Stage</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {["Bootstrapped","Angel","Seed","Series A","Series B","Series C","Series D+","PE-Backed","Private","Public"].map(stage=>(
+                            <button key={stage} onClick={()=>setSellerStage(stage)}
+                              style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(sellerStage===stage?"var(--ink-0)":"var(--line-0)"),
+                                background:sellerStage===stage?"var(--ink-0)":"var(--surface)",color:sellerStage===stage?"#fff":"var(--ink-1)",
+                                fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.13s"}}>
+                              {stage}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Market Segment <span style={{fontWeight:400,color:"var(--ink-3)"}}>pick 1</span></div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                          {["SMB","Mid-Market","Enterprise"].map(v=>{
+                            const sel=icpTargeting.segment===v;
+                            return <button key={v} onClick={()=>setIcpTargeting(p=>({...p,segment:sel?"":v}))}
+                              style={{padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all 0.13s",
+                                border:"1.5px solid "+(sel?"var(--navy)":"var(--line-0)"),background:sel?"var(--navy)":"var(--surface)",color:sel?"#fff":"var(--ink-1)"}}>{v}</button>;
+                          })}
+                        </div>
+                      </div>
                       <div style={{fontSize:11,color:"var(--ink-3)",marginTop:10}}>
-                        Either one works. Then continue below — you'll build your ICP on the next step with whatever you add here.
+                        Then continue below — you'll build your ICP on the next step with whatever you add here.
                       </div>
                     </div>
                   )}
@@ -14698,10 +14766,14 @@ Return ONLY raw JSON:
                 </div>
 
                 {/* ── Seller Materials Upload (V2) ─────────────────────────────────────
-                    Always visible directly below the URL field. Starts open (key absent
-                    from collapsedBB initial set). Feeds sellerDocs → buildSellerProofPack
-                    → ICP Pass-2 + all brief sections. Uses <label> + inline <input> so
-                    no docRef is needed (V2 and Classic renders are mutually exclusive). */}
+                    Visible directly below the URL field on the normal path. Starts open
+                    (key absent from collapsedBB initial set). Feeds sellerDocs →
+                    buildSellerProofPack → ICP Pass-2 + all brief sections. Uses <label> +
+                    inline <input> so no docRef is needed (V2 and Classic renders are
+                    mutually exclusive). Suppressed on the light path (#29) — the "Let's
+                    add a little context" card above carries the upload affordance there,
+                    so only one affordance ever shows. */}
+                {urlScanStatus!=="none"&&(
                 <div style={{marginTop:14}}>
                   <div onClick={()=>toggleBB("sellerDocsUpload")}
                     style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
@@ -14792,6 +14864,7 @@ Return ONLY raw JSON:
                   </div>
                   )}
                 </div>
+                )}
 
                 {/* Single context-aware primary CTA — no two stacked full-width buttons:
                     pre-scan  → run the EXISTING Go pipeline (scan / disambiguation), label "Analyze my company →";
