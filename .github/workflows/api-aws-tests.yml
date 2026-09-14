@@ -14,6 +14,9 @@ on:
       - 'api/contact.js'
       - 'api/knowledge.js'
       - 'api/enrich-free.js'
+      - 'api/request-access.js'
+      - 'api/invite.js'
+      - 'api/_provision.js'
       - 'tests/api-aws/**'
       # knowledge layer is bundled into the knowledge Lambda (issue #87) --
       # a data edit must still build and keep parity green
@@ -49,6 +52,12 @@ jobs:
 
       - name: Enrich-free endpoint parity
         run: node tests/api-aws/enrich-free.test.js
+
+      - name: Request-access endpoint parity
+        run: node tests/api-aws/request-access.test.js
+
+      - name: Invite endpoint parity
+        run: node tests/api-aws/invite.test.js
 
       - name: Lambda bundles build
         working-directory: api-aws

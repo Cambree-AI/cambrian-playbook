@@ -1,6 +1,6 @@
 # API platform - dev (issue #86): API Gateway HTTP API + Lambda endpoints.
-# Endpoints: contact (pilot, issue #86); knowledge + enrich-free (utility
-# ports, issue #87). CI builds api-aws/dist before plan/apply
+# Endpoints: contact (pilot, issue #86); knowledge, enrich-free,
+# request-access, invite (utility ports, issue #87). CI builds api-aws/dist before plan/apply
 # (.github/workflows/terraform.yml).
 
 module "api" {
@@ -15,6 +15,10 @@ module "api" {
     # to SEC EDGAR + Wikidata SPARQL (slow upstreams, no keys).
     knowledge     = { timeout_seconds = 30 }
     "enrich-free" = { timeout_seconds = 30 }
+    # 30s: request-access chains promo RPCs + provisioning + Resend emails;
+    # invite chains several Supabase REST/auth calls.
+    "request-access" = { timeout_seconds = 30 }
+    invite           = { timeout_seconds = 30 }
   }
 
   common_environment = {

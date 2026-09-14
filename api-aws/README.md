@@ -13,10 +13,13 @@ api-aws/
 │   ├── guard.js       # port of api/_guard.js: origin allowlist, CORS, JWT (HS256 + JWKS), caps
 │   ├── usage.js       # port of api/_usage.js: api_usage_log via Supabase REST
 │   ├── adapter.js     # APIGW HTTP API (payload v2) event/response ⇄ Vercel (req, res)
-│   └── secrets.js     # cold-start Secrets Manager load → process.env
+│   ├── secrets.js     # cold-start Secrets Manager load → process.env
+│   └── provision.js   # port of api/_provision.js: trial-org provisioning (issue #87)
 ├── contact/index.js   # pilot endpoint (issue #86)
 ├── knowledge/index.js # JWT-gated knowledge layer (issue #87) — bundles src/data/**
 ├── enrich-free/index.js # SEC EDGAR + Wikidata enrichment (issue #87)
+├── request-access/index.js # beta request form + promo auto-provision (issue #87)
+├── invite/index.js    # org invitations, admin JWT (issue #87)
 ├── build.mjs          # esbuild: <name>/index.js → dist/<name>/index.mjs
 └── package.json       # esbuild only; `npm run build`
 ```
@@ -69,7 +72,9 @@ rm secrets.json
 Copy values from the Vercel project's env vars for the matching environment.
 Include only keys an AWS endpoint actually reads (the pilot needs
 `SUPABASE_SERVICE_KEY`; `knowledge` adds `SUPABASE_JWT_SECRET` — the first
-ported endpoint that verifies HS256 JWTs); add keys as later ports need them by running
+ported endpoint that verifies HS256 JWTs; `request-access` adds
+`RESEND_API_KEY`; `invite` adds `SUPERUSER_EMAIL` — plaintext-ish config, but
+it rides the container so per-env values stay out of git); add keys as later ports need them by running
 `put-secret-value` again with the full updated JSON. Note: secrets are cached
 per Lambda instance for its lifetime, so an updated value only reaches
 instances started after the change — redeploy the function (or wait for
