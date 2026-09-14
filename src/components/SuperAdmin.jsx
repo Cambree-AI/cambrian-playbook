@@ -2399,12 +2399,6 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             setOpenMenu(null);
           }}>Clone Setup to User</button>
           <button className="admin-action-item" onClick={() => {
-            navigator.clipboard?.writeText(`${window.location.origin}?ref=admin`);
-            setPlanSaveMsg("Signup link copied");
-            setTimeout(() => setPlanSaveMsg(""), 3000);
-            setOpenMenu(null);
-          }}>Copy Invite Link</button>
-          <button className="admin-action-item" onClick={() => {
             apiFetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
               body: JSON.stringify({ email: menuContext.email, role: menuContext.role }) })
               .then(r => r.json()).then(d => setPlanSaveMsg(d.ok ? (d.note || `Sent to ${menuContext.email}`) : `Error: ${d.error}`))

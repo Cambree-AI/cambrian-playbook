@@ -250,8 +250,10 @@ export default async function handler(req, res) {
       }
 
       // Approve: trial org + invitation + welcome email — same shared path as
-      // promo auto-approve. The claim above is the idempotency gate.
-      const prov = await provisionTrialAccess({ email: row.email, name: row.name, company: row.company, invitedBy: callerEmail });
+      // promo auto-approve. The claim above is the idempotency gate. The
+      // referral code captured at request time (migration 039) rides along so
+      // manually-approved signups still credit the referrer (issue #154).
+      const prov = await provisionTrialAccess({ email: row.email, name: row.name, company: row.company, invitedBy: callerEmail, referredBy: row.referral_code || null });
       if (prov.ok) {
         console.log(`[admin] Approved access request ${requestId} (${row.email}) — org ${prov.orgId}, ${prov.action}`);
         return res.json({ ok: true, message: `Approved ${row.email} — invite ${prov.emailSent ? "sent" : "NOT sent (check logs)"}` });

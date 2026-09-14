@@ -91,7 +91,7 @@ async function sendInviteEmail(email, invitationToken) {
  * Returns { ok: true, orgId, invitationId, emailSent, action }
  *      or { ok: false, reason } — caller should fall back to the manual queue.
  */
-export async function provisionTrialAccess({ email, name, company, invitedBy = "system", promoCode = null }) {
+export async function provisionTrialAccess({ email, name, company, invitedBy = "system", promoCode = null, referredBy = null }) {
   if (!SB_URL || !SB_KEY) return { ok: false, reason: "not_configured" };
   const cleanEmail = email.trim().toLowerCase();
 
@@ -123,11 +123,15 @@ export async function provisionTrialAccess({ email, name, company, invitedBy = "
     return { ok: false, reason: "org_create_failed" };
   }
 
+  // referred_by (migration 039) is copied onto the users row by the
+  // auto_provision trigger at signup — server-side referral attribution
+  // that survives the email hop (issue #154).
   const invResult = await sbFetch("invitations", "POST", {
     org_id: orgId,
     email: cleanEmail,
     role: "admin",
     invited_by: invitedBy,
+    ...(referredBy ? { referred_by: referredBy } : {}),
   });
   const inv = Array.isArray(invResult) ? invResult[0] : invResult;
   if (!inv?.token) {

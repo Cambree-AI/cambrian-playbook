@@ -4354,7 +4354,7 @@ function PasswordGate({ onAuth }) {
         const r=await apiFetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{})}),
+          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{}),...(sessionStorage.getItem("pending_referral_code")?{referralCode:sessionStorage.getItem("pending_referral_code")}:{})}),
         });
         if(r.ok){const d=await r.json().catch(()=>({ok:true}));setRequestSent(d);setErr("");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");reqInFlightRef.current=false;}
@@ -5618,6 +5618,7 @@ export default function App(){
   const[intelAdjustments,setIntelAdjustments]=useState({});
   const[intelModalTarget,setIntelModalTarget]=useState(null); // company name for open modal
   const[orgPanelOpen,setOrgPanelOpen]=useState(false); // org settings/team drawer
+  const[orgPanelFocus,setOrgPanelFocus]=useState(null); // 'referral' scrolls the dashboard to Refer & Earn (issue #154)
   const[superAdminOpen,setSuperAdminOpen]=useState(false); // superuser analytics
   // reportPanelOpen removed — consolidated into UserDashboard (orgPanelOpen)
   const[moreMenuOpen,setMoreMenuOpen]=useState(false); // header overflow menu
@@ -14223,6 +14224,11 @@ Return ONLY raw JSON:
                       onMouseEnter={e=>e.currentTarget.style.background="var(--bg-1)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
                       Plans & Pricing
                     </button>}
+                    {sbUser&&orgCtx&&<button onClick={()=>{loadSessions();setOrgPanelFocus("referral");setOrgPanelOpen(true);setMoreMenuOpen(false);}}
+                      style={{width:"100%",padding:"8px 16px",border:"none",background:"none",cursor:"pointer",fontSize:12,fontWeight:600,color:"var(--ink-1)",display:"flex",alignItems:"center",gap:10,textAlign:"left"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--bg-1)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      Refer & Earn
+                    </button>}
 
                     {/* SUPPORT */}
                     <div style={{height:1,background:"var(--line-0)",margin:"4px 0"}}/>
@@ -20085,7 +20091,7 @@ Return ONLY raw JSON:
 
       {/* User dashboard (replaces OrgPanel + ReportPanel) */}
       {orgPanelOpen && (
-        <UserDashboard orgCtx={orgCtx} setOrgCtx={setOrgCtx} sbUser={sbUser} sbToken={sbToken} savedSessions={savedSessions} onClose={()=>setOrgPanelOpen(false)} onHubspotChange={setHubspotStatus} />
+        <UserDashboard orgCtx={orgCtx} setOrgCtx={setOrgCtx} sbUser={sbUser} sbToken={sbToken} savedSessions={savedSessions} initialFocus={orgPanelFocus} onClose={()=>{setOrgPanelOpen(false);setOrgPanelFocus(null);}} onHubspotChange={setHubspotStatus} />
       )}
 
       {/* Reporting panel */}
