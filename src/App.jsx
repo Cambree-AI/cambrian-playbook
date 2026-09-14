@@ -4,11 +4,12 @@ import { OUTCOMES } from "./data/outcomes.js";
 import { RIVER_STAGES } from "./data/riverFramework.js";
 import { SAMPLE_ROWS } from "./data/sampleAccounts.js";
 import { sbAuth, sbGetUser, sbSessions, sbStoreTokens, sbRestoreSession, sbRefreshSession, sbClearTokens, sbSetTokenCallback, sbUpdateUserMetadata } from "./lib/supabase.js";
-import { fetchOrgContext, sbPatch } from "./lib/org.js";
+import { fetchOrgContext, sbPatch, sbRpc } from "./lib/org.js";
 import SuperAdmin from "./components/SuperAdmin.jsx";
 import UserDashboard from "./components/UserDashboard.jsx";
 import S9SolutionFit from "./stages/S9_SolutionFit.jsx";
 import { computeFitScore, buildSignalExtractionPrompt, labelForScore } from "./lib/fitScoring.js";
+import { MERGED_PLAY } from "./config/constants.js";
 import { stripCitations, repairJSON, consumeClaudeSse, parseStreamJson } from "./lib/icpStream.js";
 import { icpErrorCode, icpFailureState, classifyIcpPhase2Error } from "./lib/icpFailure.js";
 
@@ -4353,7 +4354,7 @@ function PasswordGate({ onAuth }) {
         const r=await apiFetch("/api/request-access",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{})}),
+          body:JSON.stringify({name:(first+" "+last).trim(),email,company,...(promoCode.trim()?{promoCode:promoCode.trim()}:{}),...(sessionStorage.getItem("pending_referral_code")?{referralCode:sessionStorage.getItem("pending_referral_code")}:{})}),
         });
         if(r.ok){const d=await r.json().catch(()=>({ok:true}));setRequestSent(d);setErr("");}
         else{const d=await r.json().catch(()=>({}));setErr(d.error||"Could not submit your request — please try again.");reqInFlightRef.current=false;}
@@ -5207,7 +5208,7 @@ const APP_GUIDES = {
     subtitle: "Complete walkthrough of the 9-step sales intelligence workflow",
     icon: "📘",
     sections: [
-      { h: "Getting Started", body: "Sign up at cambree.ai. 3 free runs, no credit card. Each run takes you through the full 9-step workflow." },
+      { h: "Getting Started", body: "Sign up at cambree.ai. 10 free runs, no credit card. Each run takes you through the full 9-step workflow." },
       { h: "Step 0: Start", body: "Sets up your selling identity — who you are, what you sell, and what proof you have.\n\n1. Enter your company URL (e.g., yourcompany.com)\n2. Cambree researches your company and auto-builds your Ideal Customer Profile\n3. Upload sales materials (PDFs, decks, one-pagers) to ground AI output in YOUR proof\n4. Add proof points (ROI metrics, awards, customer wins) — cited in every brief\n5. Select your funding stage — this calibrates how the tool positions you\n\nTip: Use a URL, not just a company name — URLs give the best results." },
       { h: "Step 1: ICP & RFPs", body: "Shows your auto-generated Ideal Customer Profile — industries, buyer personas, pain points, conferences, and RFP opportunities.\n\n• Review every field — click any text to edit it\n• Your corrections override AI content in all downstream output\n• Switch to \"RFP Intel\" tab for matching procurement opportunities\n• Adjust Fit Scoring Weights to prioritize different dimensions\n\nTip: Edit the Industries list if the AI picked wrong verticals — this directly affects which companies get matched." },
       { h: "Step 2: Import", body: "Three ways to add target companies:\n\n• Upload CSV/Excel — columns auto-map (Company, Industry, URL, Employees, Ownership)\n• Quick Entry — type company names one per line\n• Build Target Accounts — AI generates 25-30 ICP-matched companies with industry, headcount, and revenue filters\n\nAll imported companies are automatically scored for ICP fit." },
@@ -5229,7 +5230,7 @@ const APP_GUIDES = {
     icon: "📙",
     sections: [
       { h: "User Management", body: "Invite: Settings → Team → Invite Member → enter email + role.\n\nRoles:\n• Rep — run briefs, save sessions, push to HubSpot\n• Manager — Rep + view team sessions and reporting\n• Admin — Manager + invite/remove members, change org settings\n\nChange role: Team → click role dropdown → select new role.\nRemove: Team → \"...\" → Remove. Sessions remain in the org." },
-      { h: "Organization Setup", body: "Seller URL: Settings → Account → enter your company URL. Triggers ICP generation.\n\nPlans:\n• Trial: 3 free runs, no credit card\n• Starter ($99/mo): 25 runs\n• Pro ($349/mo): 100 runs\n• Team ($799/mo): 250 runs\n• Enterprise ($2,500/mo): 1,000 runs\n\nRollover: Unused runs carry forward (capped at 1 month's allocation)." },
+      { h: "Organization Setup", body: "Seller URL: Settings → Account → enter your company URL. Triggers ICP generation.\n\nPlans:\n• Trial: 10 free runs, no credit card\n• Promo ($45/mo): 20 runs, first 2 months half off, then Starter\n• Starter ($99/mo): 25 runs\n• Pro ($349/mo): 100 runs\n• Team ($799/mo): 250 runs\n• Enterprise ($2,500/mo): 1,000 runs\n\nRollover: Unused runs carry forward (capped at 1 month's allocation)." },
       { h: "HubSpot Setup", body: "Settings → HubSpot → Connect. Must be logged into HubSpot in the same browser first.\n\nAfter connecting, \"Push to HubSpot\" appears in brief and post-call action bars.\n\nIf push fails: Disconnect → Reconnect in Settings." },
       { h: "Troubleshooting — ICP", body: "ICP not building?\n1. Check the URL — use a full domain like company.com\n2. Try with .com — some TLDs don't resolve\n3. Click \"Regenerate ICP\" to force fresh build\n4. Check console (DevTools → Console) for errors\n5. Check run limit — 0 remaining = ICP won't build" },
       { h: "Troubleshooting — Briefs", body: "Sections blank?\n1. Look for amber banner — \"X sections incomplete\"\n2. Hit Regenerate — free, doesn't count against runs\n3. Some sections (P3 Strategy with Opus) take 15-30 seconds\n4. Check console for specific failures" },
@@ -5605,6 +5606,7 @@ export default function App(){
   const[icpDelta,setIcpDelta]=useState(null); // {alignments:[], gaps:[], recommendations:[]}
   const[icpDeltaLoading,setIcpDeltaLoading]=useState(false);
   const[orgCtx,setOrgCtx]=useState(null); // {id, name, run_count, run_limit, plan, userRole, ...}
+  const[promoOffer,setPromoOffer]=useState(null); // 'run_pack' | 'monthly' | null — which promo card this org gets (promo_offer_kind RPC, migration 037)
   const[upgradeOpen,setUpgradeOpen]=useState(false); // show upgrade prompt modal
   const[contactFormOpen,setContactFormOpen]=useState(false);
   const[contactFormMsg,setContactFormMsg]=useState("");
@@ -5616,6 +5618,7 @@ export default function App(){
   const[intelAdjustments,setIntelAdjustments]=useState({});
   const[intelModalTarget,setIntelModalTarget]=useState(null); // company name for open modal
   const[orgPanelOpen,setOrgPanelOpen]=useState(false); // org settings/team drawer
+  const[orgPanelFocus,setOrgPanelFocus]=useState(null); // 'referral' scrolls the dashboard to Refer & Earn (issue #154)
   const[superAdminOpen,setSuperAdminOpen]=useState(false); // superuser analytics
   // reportPanelOpen removed — consolidated into UserDashboard (orgPanelOpen)
   const[moreMenuOpen,setMoreMenuOpen]=useState(false); // header overflow menu
@@ -5762,6 +5765,13 @@ export default function App(){
   // Canonical Solution Thesis = { riverHypo, solutionFit } — both already
   //   persisted in getSessionSnap(); no new state needed.
   const solConEnabled = (() => { try { return localStorage.getItem("cc_sol_consolidation") !== "off"; } catch { return true; } })();
+  // ── MERGED PLAY FEATURE FLAG (issue #28) ────────────────────────────────────
+  // Default comes from config (MERGED_PLAY, ships OFF). When ON: the Game Plan
+  // step's solutionMapping + hypothesis content renders inside the Brief's Play
+  // section (render move — zero new model calls) and step 7 (Game Plan) is
+  // retired from the stepper. When OFF: behavior is byte-identical to today.
+  // localStorage "cc_merged_play" = "on" | "off" overrides for staging QA.
+  const mergedPlay = (() => { try { const v = localStorage.getItem("cc_merged_play"); if (v === "on") return true; if (v === "off") return false; } catch { /* config default */ } return MERGED_PLAY; })();
   const[briefStatus,setBriefStatus]=useState("");
   const[briefError,setBriefError]=useState("");
   const[riverHypo,setRiverHypo]=useState(null);
@@ -9060,6 +9070,53 @@ Return ONLY raw JSON:
         }
       }
 
+      // Firecrawl discovery fallback (#29) — search-index discovery is unreliable on
+      // thin or poorly-indexed sites (cambriancatalyst.ai itself reproduced 8/8).
+      // When discovery returns <3 pages, probe the standard marketing paths directly
+      // via /api/fetch (plain fetch → Firecrawl render escalation, render:"auto").
+      // Probed pages carry the SAME trust level as discovered ones — URL hints for
+      // the ICP research pass, never ground truth. Probes fire concurrently with no
+      // retries; any failure (404, timeout, SSRF block) is a silent per-path skip.
+      if(pages.length<3){
+        console.log(`[scan] Discovery returned ${pages.length} page(s) — probing standard paths via /api/fetch fallback`);
+        const candidates=[
+          {path:"",label:"Homepage",type:""},
+          {path:"/products",label:"Products",type:"product"},
+          {path:"/solutions",label:"Solutions",type:"product"},
+          {path:"/customers",label:"Customers",type:"case_study"},
+          {path:"/case-studies",label:"Case Studies",type:"case_study"},
+          {path:"/about",label:"About",type:""},
+        ];
+        const probed=await Promise.all(candidates.map(async(c)=>{
+          try{
+            const r=await apiFetch("/api/fetch",{method:"POST",headers:authHeaders(),body:JSON.stringify({url:baseUrl+c.path,render:"auto"})});
+            if(!r.ok) return null;
+            const fd=await r.json();
+            // ok:false (404/timeout/blocked) or near-empty text → skip silently
+            if(!fd?.ok||!fd.text||fd.text.length<200) return null;
+            // Same-domain guard on the post-redirect URL (same idiom as the p2-fetch pipeline)
+            if(fd.finalUrl){
+              try{
+                const h=new URL(fd.finalUrl).hostname.replace(/^www\./,"").toLowerCase();
+                const base=url.split("/")[0].replace(/^www\./,"").toLowerCase();
+                if(!h.includes(base)&&!base.includes(h)) return null;
+              }catch{ return null; }
+            }
+            return {url:fd.finalUrl||baseUrl+c.path,label:c.label,type:c.type};
+          }catch{ return null; } // one failed probe must never break the scan
+        }));
+        // Merge into the discovery result, dedupe by normalized URL
+        const normUrl=(u)=>u.replace(/^https?:\/\//,"").replace(/^www\./,"").replace(/\/$/,"").toLowerCase();
+        const seen=new Set(pages.map(p=>normUrl(p.url)));
+        for(const p of probed){
+          if(!p||seen.has(normUrl(p.url))) continue;
+          seen.add(normUrl(p.url));
+          pages.push(p);
+        }
+        pages=pages.slice(0,8);
+        console.log(`[scan] Direct-probe fallback merged: ${probed.filter(Boolean).length} probe hit(s) → ${pages.length} page(s) total`);
+      }
+
       console.log("URL scan found pages:", pages.length, pages);
       if(pages.length>0){
         setProductUrls(pages.map(p=>({url:p.url,label:p.label||"",type:p.type||""})));
@@ -9202,7 +9259,8 @@ Return ONLY raw JSON:
     if(d.contactRole) setContactRole(d.contactRole);
     if(d.dealClassification) setDealClassification(d.dealClassification);
     if(d.importMode) setImportMode(d.importMode);
-    setShowSessions(false);setStep(d.step!=null?d.step:(d.sellerUrl?1:0));
+    // mergedPlay (issue #28): step 6 (Game Plan) is retired — sessions saved there land on the merged Brief
+    setShowSessions(false);setStep(d.step!=null?(mergedPlay&&d.step===6?5:d.step):(d.sellerUrl?1:0));
     // Reset auto-save snapshot so restored state isn't immediately re-saved
     lastAutoSaveSnap.current = JSON.stringify(d);
     // Stale session warning — 14+ days old
@@ -9302,6 +9360,15 @@ Return ONLY raw JSON:
       }
       // Arrow keys & number keys — stage navigation (disabled during in-call to prevent accidental navigation)
       if (step === 7) return; // In-call: no keyboard nav
+      // mergedPlay (issue #28): step 6 (Game Plan) is retired — arrows/jumps skip over it
+      if (mergedPlay) {
+        if (e.key === "ArrowRight" && step < 9) { setStep(s => { const n = Math.min(s + 1, 9); return n === 6 ? 7 : n; }); return; }
+        if (e.key === "ArrowLeft"  && step > 0) { setStep(s => { const n = Math.max(s - 1, 0); return n === 6 ? 5 : n; }); return; }
+        if (e.key === "0") { setStep(9); return; }
+        const numM = parseInt(e.key, 10);
+        if (numM >= 1 && numM <= 9) { setStep(numM - 1 === 6 ? 7 : numM - 1); return; }
+        return;
+      }
       if (e.key === "ArrowRight" && step < 9) { setStep(s => Math.min(s + 1, 9)); return; }
       if (e.key === "ArrowLeft"  && step > 0) { setStep(s => Math.max(s - 1, 0)); return; }
       // Number keys 1-9, 0 — jump to stage (user-facing 1-10, internal 0-9)
@@ -9605,6 +9672,11 @@ Return ONLY raw JSON:
     console.log("[sol-con] Brief quorum met — firing pre-call SA + hypothesis in parallel");
     buildSolutionFit({ preCall: true });
     if (!riverHypo && !riverHypoLoading) buildRiverHypo(brief, selectedAccount);
+    // mergedPlay (issue #28): with the Game Plan step retired, the gate map's old build
+    // trigger ("Prep for the Call →" click) no longer runs before the map is needed —
+    // build it here at quorum so the Approval Gate Map card in the merged Brief layout
+    // populates without user action. Idempotent (buildGateMap no-ops if already present).
+    if (mergedPlay) buildGateMap(brief, selectedAccount);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brief?._completedSections, !!brief, !!selectedAccount, !!sellerICP]);
 
@@ -13389,6 +13461,17 @@ Return ONLY raw JSON:
   // Refresh orgCtx after billable calls to keep token count accurate
   const refreshOrgCtx = () => { if (sbUser?.id && sbToken) fetchOrgContext(sbUser.id, sbToken).then(org => { if (org) setOrgCtx(org); }); };
 
+  // Which promo offer card the pricing modal shows. grants_run_pack lives in the
+  // service-role-only promo_codes table, so the client asks the promo_offer_kind()
+  // RPC (migration 038) instead of deciding from orgCtx alone. Any trial org can
+  // qualify for the monthly offer — no promo code required (issue #151).
+  React.useEffect(() => {
+    if (!sbToken || !orgCtx?.id) { setPromoOffer(null); return; }
+    sbRpc("promo_offer_kind", sbToken, {})
+      .then(kind => setPromoOffer(kind === "run_pack" || kind === "monthly" ? kind : null))
+      .catch(() => setPromoOffer(null));
+  }, [sbToken, orgCtx?.id, orgCtx?.promo_code, orgCtx?.plan]);
+
   // Auto-populate seller URL from org context on new sessions
   // so users don't have to re-enter their company every time.
   // Pre-fills the field and sets sellerUrl, but does NOT auto-trigger
@@ -13417,7 +13500,7 @@ Return ONLY raw JSON:
       // knowledge, compliance, battle cards, etc. Without this, the cached
       // trial-tier layers would persist until the 5-min cache expires.
       setTimeout(fetchKnowledgeLayer, 2500);
-      setChatMessages(prev => [...prev, { role: "assistant", content: plan === "promo_pack" ? "Your 20-run pack is active — the runs are already on your account. Let's go close some deals." : `Welcome to the ${plan.charAt(0).toUpperCase()+plan.slice(1)} plan! Your runs have been upgraded. Let's go close some deals.` }]);
+      setChatMessages(prev => [...prev, { role: "assistant", content: plan === "promo_pack" ? "Your 20-run pack is active — the runs are already on your account. Let's go close some deals." : plan === "promo_monthly" ? "Your promo plan is active — 20 runs a month for 2 months, then you'll graduate to Starter automatically. Let's go close some deals." : `Welcome to the ${plan.charAt(0).toUpperCase()+plan.slice(1)} plan! Your runs have been upgraded. Let's go close some deals.` }]);
       setChatOpen(true);
     } else if (checkout === "cancel") {
       window.history.replaceState({}, "", window.location.pathname);
@@ -13572,7 +13655,7 @@ Return ONLY raw JSON:
     { id:"nav-accounts",icon:"📊", label:"Go to Fit Check",    section:"Navigate", action:()=>setStep(3) },
     { id:"nav-review",  icon:"👁", label:"Go to Account Review",section:"Navigate", action:()=>setStep(4) },
     { id:"nav-brief",   icon:"📋", label:"Go to Brief",        section:"Navigate", action:()=>setStep(5) },
-    { id:"nav-hypo",    icon:"🧪", label:"Go to Hypothesis",   section:"Navigate", action:()=>setStep(6) },
+    { id:"nav-hypo",    icon:"🧪", label:"Go to Hypothesis",   section:"Navigate", action:()=>setStep(mergedPlay?5:6) },
     { id:"nav-incall",  icon:"🎙", label:"Go to In-Call",      section:"Navigate", action:()=>setStep(7) },
     { id:"nav-sa",      icon:"🏗", label:"Go to Solution Fit", section:"Navigate", action:()=>setStep(8) },
     { id:"nav-post",    icon:"📬", label:"Go to Post-Call",    section:"Navigate", action:()=>setStep(9) },
@@ -14009,6 +14092,8 @@ Return ONLY raw JSON:
               if (sellerUrl === "research-only" && i !== 0 && i !== 5) return null;
               // When solution consolidation is on, Step 8 is absorbed into Step 6 — hide it
               if (solConEnabled && i === 8) return null;
+              // When mergedPlay is on (issue #28), Step 6 (Game Plan) is absorbed into Step 5 (Brief) — hide it
+              if (mergedPlay && i === 6) return null;
               const canNav = (()=>{
                 if(i===step) return false;
                 if(i===0) return true;
@@ -14036,7 +14121,7 @@ Return ONLY raw JSON:
                     aria-current={step===i?"step":undefined}
                     title={STEP_TIPS[i] || s}
                     style={{position:"relative"}}>
-                    <div className={`step-num ${celebrateStep===i?"just-completed":""}`}>{step>i?"✓":(solConEnabled&&i>8?i:i+1)}</div>
+                    <div className={`step-num ${celebrateStep===i?"just-completed":""}`}>{step>i?"✓":(mergedPlay&&i>6?(solConEnabled&&i>8?i-1:i):(solConEnabled&&i>8?i:i+1))}</div>
                     <div className="step-label">{s}</div>
                     {i === 1 && ((rfpData.open?.length || 0) + (rfpData.signals?.length || 0) + (accountRfpData.open?.length || 0) + (accountRfpData.signals?.length || 0) > 0) && (
                       <span style={{position:"absolute",top:-4,right:-4,background:"var(--red)",color:"white",fontSize:8,fontWeight:800,width:16,height:16,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -14138,6 +14223,11 @@ Return ONLY raw JSON:
                       style={{width:"100%",padding:"8px 16px",border:"none",background:"none",cursor:"pointer",fontSize:12,fontWeight:600,color:"var(--tan-0)",display:"flex",alignItems:"center",gap:10,textAlign:"left"}}
                       onMouseEnter={e=>e.currentTarget.style.background="var(--bg-1)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
                       Plans & Pricing
+                    </button>}
+                    {sbUser&&orgCtx&&<button onClick={()=>{loadSessions();setOrgPanelFocus("referral");setOrgPanelOpen(true);setMoreMenuOpen(false);}}
+                      style={{width:"100%",padding:"8px 16px",border:"none",background:"none",cursor:"pointer",fontSize:12,fontWeight:600,color:"var(--ink-1)",display:"flex",alignItems:"center",gap:10,textAlign:"left"}}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--bg-1)"} onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      Refer & Earn
                     </button>}
 
                     {/* SUPPORT */}
@@ -14564,7 +14654,7 @@ Return ONLY raw JSON:
                       </div>
                     ))}
                   </div>
-                  <div style={{fontSize:12,color:"var(--ink-3)",marginBottom:8}}>3 free runs, no credit card required</div>
+                  <div style={{fontSize:12,color:"var(--ink-3)",marginBottom:8}}>10 free runs, no credit card required</div>
                 </div>
               )}
 
@@ -14654,34 +14744,55 @@ Return ONLY raw JSON:
                       <span style={{fontSize:14}}>✓</span> {productUrls.filter(u=>u.url).length} product page{productUrls.filter(u=>u.url).length!==1?"s":""} confirmed
                     </div>
                   )}
+                  {/* Single context affordance (#29) — the ONLY card the light path shows:
+                      upload + funding-stage chip + segment chip. The Seller Materials
+                      Upload expander below is suppressed while this card is visible so the
+                      two affordances never stack. Free-text description removed — structured
+                      inputs + uploaded docs only. */}
                   {urlScanStatus==="none"&&(
                     <div style={{background:"var(--bg-1)",border:"1.5px solid var(--line-0)",borderRadius:10,padding:"14px 16px",marginTop:10}}>
                       <div style={{fontSize:13,fontWeight:700,color:"var(--ink-0)",marginBottom:6}}>Let's add a little context</div>
                       <div style={{fontSize:12,color:"var(--ink-1)",lineHeight:1.6,marginBottom:12}}>
                         Looks like your company's website is a little light on product, services, solutions, and case-study content.
-                        Not a problem — use the upload button to add relevant materials (case studies, product one-pagers, etc.),
-                        or use the text field below to describe the products, solutions, or services you're focused on selling.
+                        Not a problem — upload relevant materials (case studies, product one-pagers, etc.) and pick the options below.
                       </div>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
-                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs) */}
+                      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginBottom:12}}>
+                        {/* Reuses the existing docs pipeline — same input + handler as the header "+ Add Docs" (handleDocFiles @5725 → sellerDocs → proof pack) */}
                         <label className="btn btn-secondary btn-sm" style={{cursor:"pointer"}}>
                           <input type="file" accept=".pdf,.docx,.txt,.md,.pptx,.csv,.xlsx,.png,.jpg,.jpeg,.webp,.gif,.bmp" multiple style={{display:"none"}}
                             onChange={e=>{handleDocFiles(e.target.files);e.target.value="";}}/>
                           📂 Upload materials
                         </label>
-                        <button className="btn btn-secondary btn-sm"
-                          onClick={()=>{
-                            setCollapsedBB(prev=>{const next=new Set(prev);next.delete("sellerDocsUpload");return next;});
-                            setTimeout(()=>{document.getElementById("kickoffv2-icp-input")?.focus();},80);
-                          }}>
-                          ✏️ Describe what you sell
-                        </button>
                         {sellerDocs.length>0&&(
                           <span style={{fontSize:11,fontWeight:600,color:"var(--green)"}}>✓ {sellerDocs.length} doc{sellerDocs.length>1?"s":""} added</span>
                         )}
                       </div>
+                      <div style={{marginBottom:10}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"var(--ink-2)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6}}>Your Funding Stage</div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                          {["Bootstrapped","Angel","Seed","Series A","Series B","Series C","Series D+","PE-Backed","Private","Public"].map(stage=>(
+                            <button key={stage} onClick={()=>setSellerStage(stage)}
+                              style={{padding:"5px 12px",borderRadius:20,border:"1.5px solid "+(sellerStage===stage?"var(--ink-0)":"var(--line-0)"),
+                                background:sellerStage===stage?"var(--ink-0)":"var(--surface)",color:sellerStage===stage?"#fff":"var(--ink-1)",
+                                fontSize:12,fontWeight:700,cursor:"pointer",transition:"all 0.13s"}}>
+                              {stage}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:600,color:"var(--ink-2)",marginBottom:4}}>Market Segment <span style={{fontWeight:400,color:"var(--ink-3)"}}>pick 1</span></div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                          {["SMB","Mid-Market","Enterprise"].map(v=>{
+                            const sel=icpTargeting.segment===v;
+                            return <button key={v} onClick={()=>setIcpTargeting(p=>({...p,segment:sel?"":v}))}
+                              style={{padding:"5px 10px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",transition:"all 0.13s",
+                                border:"1.5px solid "+(sel?"var(--navy)":"var(--line-0)"),background:sel?"var(--navy)":"var(--surface)",color:sel?"#fff":"var(--ink-1)"}}>{v}</button>;
+                          })}
+                        </div>
+                      </div>
                       <div style={{fontSize:11,color:"var(--ink-3)",marginTop:10}}>
-                        Either one works. Then continue below — you'll build your ICP on the next step with whatever you add here.
+                        Then continue below — you'll build your ICP on the next step with whatever you add here.
                       </div>
                     </div>
                   )}
@@ -14698,10 +14809,14 @@ Return ONLY raw JSON:
                 </div>
 
                 {/* ── Seller Materials Upload (V2) ─────────────────────────────────────
-                    Always visible directly below the URL field. Starts open (key absent
-                    from collapsedBB initial set). Feeds sellerDocs → buildSellerProofPack
-                    → ICP Pass-2 + all brief sections. Uses <label> + inline <input> so
-                    no docRef is needed (V2 and Classic renders are mutually exclusive). */}
+                    Visible directly below the URL field on the normal path. Starts open
+                    (key absent from collapsedBB initial set). Feeds sellerDocs →
+                    buildSellerProofPack → ICP Pass-2 + all brief sections. Uses <label> +
+                    inline <input> so no docRef is needed (V2 and Classic renders are
+                    mutually exclusive). Suppressed on the light path (#29) — the "Let's
+                    add a little context" card above carries the upload affordance there,
+                    so only one affordance ever shows. */}
+                {urlScanStatus!=="none"&&(
                 <div style={{marginTop:14}}>
                   <div onClick={()=>toggleBB("sellerDocsUpload")}
                     style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,padding:"8px 12px",
@@ -14792,6 +14907,7 @@ Return ONLY raw JSON:
                   </div>
                   )}
                 </div>
+                )}
 
                 {/* Single context-aware primary CTA — no two stacked full-width buttons:
                     pre-scan  → run the EXISTING Go pipeline (scan / disambiguation), label "Analyze my company →";
@@ -17519,6 +17635,226 @@ Return ONLY raw JSON:
                 })()}
                 {/* ── END THE PLAY card ─────────────────────────────────── */}
 
+                {/* ── MERGED GAME PLAN (issue #28, flag: mergedPlay) ──────
+                    When ON, the former Game Plan step's solutionMapping +
+                    hypothesis content renders here, directly under The Play
+                    card. Pure render move — same state (brief.solutionMapping,
+                    solutionFit, riverHypo), zero new model calls: the pre-call
+                    auto-run and buildThePlay() already populate everything.
+                    When OFF this block is skipped entirely and the Game Plan
+                    step (step===6 below) renders unchanged — that block stays
+                    the source of truth for the OFF path; this JSX mirrors it. */}
+                {mergedPlay && sellerUrl !== "research-only" && (
+                  <div style={{marginBottom:16}}>
+                    <div style={{display:"flex",alignItems:"center",gap:12,margin:"4px 0 14px"}}>
+                      <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                      <div style={{fontSize:11,fontWeight:700,color:"var(--ink-3)",textTransform:"uppercase",letterSpacing:"0.6px"}}>Game Plan</div>
+                      <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                    </div>
+                    {solConEnabled&&(
+                      <>
+                        {/* Pre-call brief solutions summary (read-only) — shown until SA built */}
+                        {!solutionFit&&!solutionFitLoading&&(brief?.solutionMapping||[]).filter(s=>s?.product).length>0&&(
+                          <div className="bb" style={{marginBottom:14}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>🎯</div>
+                              <div>
+                                <div className="bb-title">Solutions for {selectedAccount?.company}</div>
+                                <div className="bb-sub">From your brief — confirmed or revised post-call</div>
+                              </div>
+                            </div>
+                            <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+                              {(brief.solutionMapping||[]).filter(s=>s?.product).map((s,i)=>(
+                                <div key={i} className="solution-item">
+                                  <div className="sol-badge">{s.product}</div>
+                                  <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{s.fit}</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Full SA architecture — embedded (no wrapper/action bar; owns all SA content) */}
+                        <S9SolutionFit
+                          embedded
+                          solutionFit={solutionFit}
+                          solutionFitLoading={solutionFitLoading}
+                          selectedAccount={selectedAccount}
+                          onRun={buildSolutionFit}
+                          onRegenerate={()=>{setSolutionFit(null);setSolutionFitLoading(true);setTimeout(buildSolutionFit,100);}}
+                        />
+
+                        {/* Divider before RIVER section */}
+                        <div style={{display:"flex",alignItems:"center",gap:12,margin:"20px 0 14px"}}>
+                          <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                          <div style={{fontSize:11,fontWeight:700,color:"var(--ink-3)",textTransform:"uppercase",letterSpacing:"0.6px"}}>RIVER Strategy</div>
+                          <div style={{flex:1,height:1,background:"var(--line-0)"}}/>
+                        </div>
+                      </>
+                    )}
+
+                    {/* Recommended Solutions — flag OFF only (original behavior) */}
+                    {!solConEnabled&&(brief?.solutionMapping||[]).filter(s=>s?.product).length>0&&(
+                      <div className="bb" style={{marginBottom:16}}>
+                        <div className="bb-hdr">
+                          <div className="bb-icon" style={{fontSize:14}}>🎯</div>
+                          <div>
+                            <div className="bb-title">Solutions You're Selling into {selectedAccount?.company}</div>
+                            <div className="bb-sub">How each offering maps to what this account needs</div>
+                          </div>
+                        </div>
+                        <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+                          {(brief.solutionMapping||[]).filter(s=>s?.product).map((s,i)=>(
+                            <div key={i} className="solution-item">
+                              <div className="sol-badge">{s.product}</div>
+                              <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6}}>{s.fit}</div>
+                            </div>
+                          ))}
+                          {brief?.openingAngle&&(
+                            <div style={{marginTop:4,paddingTop:12,borderTop:"1px solid var(--line-1)"}}>
+                              <div style={{fontSize:10,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:5}}>Opening Angle</div>
+                              <div style={{fontSize:13,color:"var(--ink-1)",lineHeight:1.6,fontStyle:"italic"}}>"{brief.openingAngle}"</div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {riverHypoLoading&&(
+                      <div className="load-box" style={{marginBottom:20}}>
+                        <div className="load-status">
+                          <div className="load-spin"/>
+                          {getQuip("hypothesis")}
+                        </div>
+                        <div style={{height:3,background:"var(--tan-3)",borderRadius:2,overflow:"hidden",marginTop:12}}>
+                          <div style={{height:"100%",background:"linear-gradient(90deg,var(--tan-0),var(--navy),var(--green),var(--tan-0))",backgroundSize:"300% 100%",animation:"shimmer 2.5s linear infinite",borderRadius:2}}/>
+                        </div>
+                        <div style={{fontSize:11,color:"var(--ink-3)",textAlign:"center",marginTop:8}}>
+                          This usually finishes before you're done reading the brief
+                        </div>
+                      </div>
+                    )}
+
+                    {riverHypo&&(
+                      <>
+                        {/* RIVER fields — Quick Summary + Expand */}
+                        {[
+                          {key:"reality",    label:"R — Reality",      icon:"📍", sub:"Current state", color:"var(--navy)"},
+                          {key:"impact",     label:"I — Impact",       icon:"💥", sub:"Cost of inaction", color:"var(--red)"},
+                          {key:"vision",     label:"V — Vision",       icon:"🔭", sub:"What success looks like", color:"var(--green)"},
+                          {key:"entryPoints",label:"E — Entry Points", icon:"🚪", sub:"Decision-makers", color:"var(--purple)"},
+                          {key:"route",      label:"R — Route",        icon:"🗺", sub:"Fastest path to close", color:"var(--tan-0)"},
+                        ].map(({key,label,icon,sub,color})=>(
+                          <RiverFieldCard
+                            key={key}
+                            fieldKey={key}
+                            label={label}
+                            icon={icon}
+                            sub={sub}
+                            color={color}
+                            value={String(riverHypo[key]||"")}
+                            onChange={v=>setRiverHypo(prev=>({...prev,[key]:v}))}
+                          />
+                        ))}
+
+                        {/* Opening Angle */}
+                        <div className="bb" style={{marginBottom:10}}>
+                          <div className="bb-hdr">
+                            <div className="bb-icon" style={{fontSize:14}}>🎯</div>
+                            <div><div className="bb-title">Opening Angle</div><div className="bb-sub">The insight that makes everything click</div></div>
+                          </div>
+                          <div className="bb-body">
+                            <EF
+                              value={riverHypo.openingAngle||""}
+                              onChange={v=>setRiverHypo(prev=>({...prev,openingAngle:v}))}
+                              placeholder="Click to edit opening angle..."
+                            />
+                          </div>
+                        </div>
+
+                        {/* Challenger Insight */}
+                        {riverHypo.challengerInsight&&(
+                          <div className="bb" style={{marginBottom:10}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>⚡</div>
+                              <div><div className="bb-title">Teaching Insight</div><div className="bb-sub">The assumption to challenge — teach this to the organization through your champion</div></div>
+                            </div>
+                            <div className="bb-body">
+                              <div style={{background:"var(--green-bg)",border:"2px solid var(--green)",borderRadius:8,padding:"12px 16px"}}>
+                                <div style={{fontSize:9,fontWeight:700,color:"var(--green)",textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:6}}>The Teaching Insight</div>
+                                <div style={{fontSize:14,color:"var(--ink-0)",lineHeight:1.7,fontStyle:"italic"}}>"{riverHypo.challengerInsight}"</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* JOLT Plan */}
+                        {riverHypo.joltPlan&&(riverHypo.joltPlan.judgeIndecision||riverHypo.joltPlan.recommendation)&&(
+                          <div className="bb" style={{marginBottom:10}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>🛡</div>
+                              <div><div className="bb-title">Overcoming Indecision</div><div className="bb-sub">Indecision kills 40-60% of deals. Fear of messing up beats fear of missing out.</div></div>
+                            </div>
+                            <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:10}}>
+                              {[
+                                {key:"judgeIndecision",label:"J — Judge the Indecision",color:"var(--amber)",bg:"var(--amber-bg)",icon:"🔍"},
+                                {key:"recommendation",label:"O — Offer Your Recommendation",color:"var(--green)",bg:"var(--green-bg)",icon:"🎯"},
+                                {key:"limitExploration",label:"L — Limit the Exploration",color:"var(--navy)",bg:"var(--navy-bg)",icon:"🔬"},
+                                {key:"takeRiskOff",label:"T — Take Risk Off the Table",color:"var(--purple)",bg:"var(--purple-bg)",icon:"🛡"},
+                              ].map(({key,label,color,bg,icon})=>riverHypo.joltPlan[key]&&(
+                                <div key={key} style={{background:bg,border:"1px solid "+color+"33",borderRadius:8,padding:"10px 12px"}}>
+                                  <div style={{fontSize:10,fontWeight:700,color,textTransform:"uppercase",letterSpacing:"0.4px",marginBottom:4}}>{icon} {label}</div>
+                                  <EF value={riverHypo.joltPlan[key]||""} onChange={v=>setRiverHypo(prev=>({...prev,joltPlan:{...prev.joltPlan,[key]:v}}))} single/>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Talk Tracks */}
+                        {(riverHypo.talkTracks||[]).length>0&&(
+                          <div className="bb" style={{marginBottom:10}}>
+                            <div className="bb-hdr">
+                              <div className="bb-icon" style={{fontSize:14}}>💬</div>
+                              <div><div className="bb-title">Talk Tracks</div><div className="bb-sub">Stage-by-stage language — grounded in buyer experience research</div></div>
+                            </div>
+                            <div className="bb-body" style={{display:"flex",flexDirection:"column",gap:12}}>
+                              {(riverHypo.talkTracks||[]).map((t,i)=>(
+                                <div key={i} style={{borderLeft:"3px solid var(--tan-0)",paddingLeft:12}}>
+                                  <div style={{fontSize:10,fontWeight:700,color:"var(--tan-0)",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:4}}>{t.stage}</div>
+                                  <EF
+                                    value={t.line||""}
+                                    onChange={v=>setRiverHypo(prev=>{
+                                      const tt=[...(prev.talkTracks||[])];
+                                      tt[i]={...tt[i],line:v};
+                                      return {...prev,talkTracks:tt};
+                                    })}
+                                    single
+                                    placeholder="Click to edit..."
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {!riverHypo&&!riverHypoLoading&&(
+                      <EmptyState icon="🧪" title="No hypothesis yet" sub="This is where you stop winging it. A structured conversation plan, talk tracks that sound like you, and an insight that makes them lean in. Build it — then go be the most prepared person on the call." action={()=>buildRiverHypo(brief,selectedAccount)} actionLabel="Build Hypothesis →"/>
+                    )}
+
+                    {!riverHypoLoading&&riverHypo?.reality?.includes("Could not generate")&&(
+                      <div style={{marginTop:4}}>
+                        <button className="btn btn-secondary" onClick={()=>{if(!checkNoChange("hypo",getHypoSig,()=>buildRiverHypo(brief,selectedAccount)))buildRiverHypo(brief,selectedAccount);}} disabled={riverHypoLoading}>
+                          ↻ Regenerate Hypothesis
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* ── END MERGED GAME PLAN ────────────────────────────────── */}
+
                 {(briefError || brief._error || brief._failedSections?.length > 0) && (
                   <div style={{background:"var(--amber-bg)",border:"1.5px solid var(--amber)",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
                     <div style={{fontSize:12,fontWeight:700,color:"var(--amber)",marginBottom:8}}>
@@ -17618,7 +17954,9 @@ Return ONLY raw JSON:
                     {(briefLoading || brief?._error || brief?._failedSections?.length > 0 || Object.values(brief?._loadingSections || {}).some(Boolean)) && (
                     <button className="btn btn-secondary" disabled={briefLoading} onClick={()=>{if(!checkNoChange("brief",getBriefSig,()=>pickAccount(selectedAccount)))pickAccount(selectedAccount);}}>{briefLoading ? "⏳ Regenerating..." : "↻ Regenerate"}</button>
                     )}
-                    {sellerUrl!=="research-only"&&<button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>}
+                    {sellerUrl!=="research-only"&&(mergedPlay
+                      ? <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setActiveRiver(0);setStep(7);}}>Start the Call →</button>
+                      : <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>)}
                     <button className="btn btn-secondary" onClick={clearAccount} title="Clear this account and go back to Fit Scores">Switch Account</button>
                   </div>
                 </div>
@@ -18897,7 +19235,9 @@ Return ONLY raw JSON:
                   <button className="btn btn-secondary" disabled={briefLoading} onClick={()=>{if(!checkNoChange("brief",getBriefSig,()=>pickAccount(selectedAccount)))pickAccount(selectedAccount);}}>{briefLoading ? "⏳ Regenerating..." : "↻ Regenerate"}</button>
                   )}
                   <ExportMenu locked={exportLocked} onPDF={doExport} onCSV={()=>csvExport("Brief", brief)} />
-                  <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>
+                  {mergedPlay
+                    ? <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setActiveRiver(0);setStep(7);}}>Start the Call →</button>
+                    : <button className="btn btn-green btn-lg" onClick={()=>{if(!riverHypo&&!riverHypoLoading&&brief)buildRiverHypo(brief,selectedAccount);buildGateMap(brief,selectedAccount);setStep(6);}}>Prep for the Call →</button>}
                 </div>
               </>
             )}
@@ -19209,9 +19549,11 @@ Return ONLY raw JSON:
               <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
                 <div style={{fontFamily:"'Crimson Pro',serif",fontSize:24,fontWeight:600,color:confColor(confidence)}}>{confidence}%</div>
                 <div style={{fontSize:12,color:"var(--ink-3)"}}>confidence</div>
-                <button className="btn btn-secondary btn-sm" onClick={()=>setStep(6)}>← Hypothesis</button>
+                {mergedPlay
+                  ? <button className="btn btn-secondary btn-sm" onClick={()=>setStep(5)}>← Brief</button>
+                  : <button className="btn btn-secondary btn-sm" onClick={()=>setStep(6)}>← Hypothesis</button>}
                 <ExportMenu locked={exportLocked} onPDF={doExport} onCSV={()=>csvExport("In-Call", {gateAnswers,riverData,gateNotes,notes,confidence})} />
-                <button className="btn btn-green btn-sm" onClick={()=>{buildSolutionFit();setStep(solConEnabled?6:8);}} disabled={solutionFitLoading}>
+                <button className="btn btn-green btn-sm" onClick={()=>{buildSolutionFit();setStep(mergedPlay?5:(solConEnabled?6:8));}} disabled={solutionFitLoading}>
                   {solutionFitLoading?"Analyzing...":"End Call →"}
                 </button>
               </div>
@@ -19749,7 +20091,7 @@ Return ONLY raw JSON:
 
       {/* User dashboard (replaces OrgPanel + ReportPanel) */}
       {orgPanelOpen && (
-        <UserDashboard orgCtx={orgCtx} setOrgCtx={setOrgCtx} sbUser={sbUser} sbToken={sbToken} savedSessions={savedSessions} onClose={()=>setOrgPanelOpen(false)} onHubspotChange={setHubspotStatus} />
+        <UserDashboard orgCtx={orgCtx} setOrgCtx={setOrgCtx} sbUser={sbUser} sbToken={sbToken} savedSessions={savedSessions} initialFocus={orgPanelFocus} onClose={()=>{setOrgPanelOpen(false);setOrgPanelFocus(null);}} onHubspotChange={setHubspotStatus} />
       )}
 
       {/* Reporting panel */}
@@ -19976,7 +20318,8 @@ Return ONLY raw JSON:
               </div>
               <div style={{fontSize:13,color:"var(--ink-2)",lineHeight:1.5}}>
                 {!sbUser
-                  ? "Create a free account — 3 full runs, zero credit card. Full ICP, deep briefs, RIVER hypothesis, and the confidence that comes from actually doing your homework."
+                  ? "Create a free account — 10 full runs, zero credit card. Full ICP, deep briefs, RIVER hypothesis, and the confidence that comes from actually doing your homework."
+                  : orgCtx?.plan==="trial" && promoOffer==="monthly" && (orgCtx?.run_count||0) >= (orgCtx?.run_limit||0) ? `You've used all ${orgCtx?.run_limit||10} free runs. Unlock 20 more for half off — $45/mo for 2 months, then Starter.`
                   : orgCtx?.plan==="trial" ? `You've used ${orgCtx?.run_count||0} of ${orgCtx?.run_limit||3} trial runs. If the briefs made you better, imagine what a full month does.`
                   : `You're on the ${orgCtx?.plan} plan (${orgCtx?.run_count||0}/${orgCtx?.run_limit||3} runs used). Need more firepower?`}
               </div>
@@ -19984,8 +20327,8 @@ Return ONLY raw JSON:
 
             {/* Pricing cards */}
             <div style={{padding:"20px 24px",display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(145px, 1fr))",gap:10}}>
-              {/* One-time run pack — only for orgs admitted via a promo code, still on trial (or topping up a prior pack). Eligibility is re-verified server-side in /api/checkout. */}
-              {sbUser&&orgCtx?.promo_code&&(orgCtx?.plan==="trial"||orgCtx?.plan==="promo")&&(
+              {/* One-time run pack — only for orgs whose admitting promo code grants it (promo_offer_kind RPC). Eligibility is re-verified server-side in /api/checkout. */}
+              {sbUser&&promoOffer==="run_pack"&&(
                 <div style={{border:"2px solid var(--green)",borderRadius:10,padding:"18px 16px",position:"relative",background:"var(--surface)"}}>
                   <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--green)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Your Offer</div>
                   <div style={{fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>Run Pack</div>
@@ -20010,6 +20353,35 @@ Return ONLY raw JSON:
                   }}
                     style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:"var(--green)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:12,fontFamily:"var(--font-sans)"}}>
                     Get 20 runs →
+                  </button>
+                </div>
+              )}
+              {/* $45/mo promo subscription (issue #143) — promo-code trial orgs whose code doesn't grant the run pack. 2 billing cycles, then Stripe's subscription schedule graduates the org to Starter. Eligibility is re-verified server-side in /api/checkout. */}
+              {sbUser&&promoOffer==="monthly"&&(
+                <div style={{border:"2px solid var(--green)",borderRadius:10,padding:"18px 16px",position:"relative",background:"var(--surface)"}}>
+                  <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",fontSize:10,fontWeight:700,padding:"2px 10px",borderRadius:20,background:"var(--green)",color:"var(--surface)",textTransform:"uppercase",letterSpacing:"0.5px",whiteSpace:"nowrap"}}>Your Offer</div>
+                  <div style={{fontSize:14,fontWeight:700,color:"var(--ink-0)",marginBottom:4}}>Promo Plan</div>
+                  <div style={{display:"flex",alignItems:"baseline",gap:2,marginBottom:2}}>
+                    <span style={{fontSize:32,fontWeight:700,color:"var(--ink-0)",fontFamily:"'Crimson Pro',serif"}}>$45</span>
+                    <span style={{fontSize:12,color:"var(--ink-3)"}}>/mo</span>
+                  </div>
+                  <div style={{fontSize:11,color:"var(--tan-0)",fontWeight:600,marginBottom:2}}>20 runs / month</div>
+                  <div style={{fontSize:11,color:"var(--ink-3)",marginBottom:10}}>Half off Starter — 2 months at $45, then $99/mo</div>
+                  {["Full ICP + brief pipeline","RIVER hypothesis + discovery","Milton coaching","Paid-tier knowledge layers"].map(f=>(
+                    <div key={f} style={{fontSize:11,color:"var(--ink-1)",padding:"2px 0",display:"flex",gap:6}}>
+                      <span style={{color:"var(--green)",flexShrink:0}}>✓</span>{f}
+                    </div>
+                  ))}
+                  <button onClick={async()=>{
+                    try{
+                      const r=await apiFetch("/api/checkout",{method:"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${sbToken}`},body:JSON.stringify({planId:"promo_monthly"})});
+                      const d=await r.json();
+                      if(d.url)window.location.href=d.url;
+                      else alert(d.error||"Checkout failed — please try again.");
+                    }catch{alert("Failed to start checkout — check your connection.");}
+                  }}
+                    style={{display:"block",width:"100%",textAlign:"center",padding:"10px",borderRadius:8,background:"var(--green)",color:"var(--surface)",fontSize:12,fontWeight:700,border:"none",cursor:"pointer",marginTop:12,fontFamily:"var(--font-sans)"}}>
+                    Start promo plan →
                   </button>
                 </div>
               )}

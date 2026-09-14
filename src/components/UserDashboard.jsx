@@ -126,7 +126,18 @@ const r = (role) => ROLE_META[role] || ROLE_META.rep;
 // Lazy import OrgPanel for no-org users
 import OrgPanel from "./OrgPanel.jsx";
 
-export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, savedSessions, onClose, onHubspotChange }) {
+export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, savedSessions, initialFocus, onClose, onHubspotChange }) {
+  // Deep-link from the account menu's "Refer & Earn" item (issue #154): the
+  // widget sits at the bottom of the dashboard tab, so scroll it into view.
+  // Declared before the no-org early return so hook order stays stable.
+  const referralRef = React.useRef(null);
+  React.useEffect(() => {
+    if (initialFocus === "referral") {
+      const t = setTimeout(() => referralRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 150);
+      return () => clearTimeout(t);
+    }
+  }, [initialFocus]);
+
   // If user has no org, show the simplified OrgPanel (has "Create Organization" flow)
   if (!orgCtx) return <OrgPanel orgCtx={orgCtx} setOrgCtx={setOrgCtx} sbUser={sbUser} sbToken={sbToken} onClose={onClose} />;
 
@@ -627,7 +638,7 @@ export default function UserDashboard({ orgCtx, setOrgCtx, sbUser, sbToken, save
               </div>
 
               {/* Referral widget */}
-              <div style={{ background: "var(--bg-1)", borderRadius: 10, padding: "14px 18px" }}>
+              <div ref={referralRef} style={{ background: "var(--bg-1)", borderRadius: 10, padding: "14px 18px" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--tan-0)", textTransform: "uppercase", letterSpacing: "0.4px", marginBottom: 8 }}>Refer & Earn</div>
                 <div style={{ fontSize: 12, color: "var(--ink-2)", lineHeight: 1.6, marginBottom: 8 }}>
                   Share your referral link. When someone signs up and runs their first brief, your org gets <strong>+1 bonus run</strong> (up to 5/month).

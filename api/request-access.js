@@ -133,7 +133,7 @@ export default async function handler(req, res) {
            || req.headers["x-real-ip"] || req.socket?.remoteAddress || "unknown";
   if (!checkRateLimit(ip)) return res.status(429).json({ error: "Too many requests" });
 
-  const { name, email, company, note, promoCode } = req.body || {};
+  const { name, email, company, note, promoCode, referralCode } = req.body || {};
   if (!name || !email || !company) return res.status(400).json({ error: "Name, email, and company are required" });
   if (!EMAIL_RE.test(email)) return res.status(400).json({ error: "Invalid email format" });
   if (name.length > 200 || email.length > 254 || company.length > 200 || (note && note.length > 2000)) {
@@ -141,6 +141,22 @@ export default async function handler(req, res) {
   }
   const code = typeof promoCode === "string" ? promoCode.trim() : "";
   if (code.length > 64) return res.status(400).json({ error: "Input too long" });
+
+  // Referral attribution (issue #154): validate the ?ref code the visitor
+  // arrived with, but NEVER block a signup on a bad one — an invalid or
+  // unknown code is silently dropped. Valid codes ride the access request →
+  // invitation → users.referred_by (migration 039).
+  let referredBy = null;
+  const rawRef = typeof referralCode === "string" ? referralCode.trim() : "";
+  if (rawRef && /^[a-zA-Z0-9_-]{4,32}$/.test(rawRef)) {
+    try {
+      const refRes = await sbRest(`users?referral_code=eq.${encodeURIComponent(rawRef)}&select=id&limit=1`);
+      if (refRes.ok) {
+        const rows = await refRes.json();
+        if (Array.isArray(rows) && rows.length > 0) referredBy = rawRef;
+      }
+    } catch (e) { console.warn("[request-access] Referral code lookup failed:", e.message); }
+  }
 
   // Normalize: auth + users.email are lowercase, and the dedup/queue matching
   // must treat Louis.Ruiz@ and louis.ruiz@ as the same requester (observed
@@ -178,7 +194,7 @@ export default async function handler(req, res) {
   let requestId = null;
   try {
     const insRes = await sbRest("access_requests", "POST",
-      { name, email: cleanEmail, company, note: note || null, status: "pending", created_at, promo_code: code || null },
+      { name, email: cleanEmail, company, note: note || null, status: "pending", created_at, promo_code: code || null, referral_code: referredBy },
       "return=representation");
     if (insRes.ok) {
       const rows = await insRes.json().catch(() => null);
@@ -189,7 +205,7 @@ export default async function handler(req, res) {
   }
 
   if (codeRedeemed) {
-    const prov = await provisionTrialAccess({ email: cleanEmail, name, company, invitedBy: "system:promo", promoCode: code });
+    const prov = await provisionTrialAccess({ email: cleanEmail, name, company, invitedBy: "system:promo", promoCode: code, referredBy });
     if (prov.ok) {
       if (requestId) {
         try {

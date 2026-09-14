@@ -29,11 +29,13 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("overview"); // overview | users | activity | urls
   const [plans, setPlans] = useState([
-    { id: "trial", name: "Trial", tokens: 3, maxTokens: 0, price: 0, costPerToken: 1.16 },
+    { id: "trial", name: "Trial", tokens: 10, maxTokens: 0, price: 0, costPerToken: 1.16 },
     { id: "starter", name: "Starter", tokens: 25, maxTokens: 5, price: 99, costPerToken: 1.16 },
     { id: "pro", name: "Pro", tokens: 100, maxTokens: 20, price: 349, costPerToken: 1.16 },
     { id: "team", name: "Team", tokens: 250, maxTokens: 50, price: 799, costPerToken: 1.16 },
     { id: "enterprise", name: "Enterprise", tokens: 1000, maxTokens: 200, price: 2500, costPerToken: 1.16 },
+    // promo: true keeps the $45 comp plan out of the revenue projections' averages
+    { id: "promo_monthly", name: "Promo Monthly", tokens: 20, maxTokens: 0, price: 45, costPerToken: 1.16, promo: true },
   ]);
   const [planSaveMsg, setPlanSaveMsg] = useState("");
   // ── GLOBAL FILTERS ──
@@ -235,13 +237,15 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
   const applyPlanToOrg = async (orgId, planId) => {
     const plan = plans.find(p => p.id === planId);
     if (!plan) return;
+    // Through /api/admin so the service role applies it and tier names map to legal
+    // DB plan values — a direct PATCH with plan:'starter' violates orgs_plan_check.
     try {
-      await fetch(`${SB_URL}/rest/v1/orgs?id=eq.${orgId}`, {
-        method: "PATCH",
-        headers: { apikey: SB_KEY, Authorization: `Bearer ${sbToken}`, "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({ plan: plan.id, run_limit: plan.tokens, max_run_limit: plan.maxTokens }),
+      const r = await apiFetch("/api/admin", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
+        body: JSON.stringify({ action: "update_org", orgId, email: "org", fields: { plan: plan.id, run_limit: plan.tokens, max_run_limit: plan.maxTokens, rollover_cap: plan.price > 0 ? plan.tokens : 0 } }),
       });
-      setPlanSaveMsg(`Applied "${plan.name}" to org ${orgId}`);
+      const d = await r.json();
+      setPlanSaveMsg(d.ok ? `Applied "${plan.name}" to org ${orgId}` : `Error: ${d.error || "Failed to apply plan"}`);
       setTimeout(() => setPlanSaveMsg(""), 3000);
     } catch { setPlanSaveMsg("Error applying plan"); }
   };
@@ -332,6 +336,8 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             <option value="">Any plan</option>
             <option value="trial">Trial</option>
             <option value="paid">Paid</option>
+            <option value="promo_monthly">Promo Monthly</option>
+            <option value="promo">Promo (run pack)</option>
             <option value="enterprise">Enterprise</option>
             <option value="suspended">Suspended</option>
           </select>
@@ -355,6 +361,8 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             <option value="">Any plan</option>
             <option value="trial">Trial</option>
             <option value="paid">Paid</option>
+            <option value="promo_monthly">Promo Monthly</option>
+            <option value="promo">Promo (run pack)</option>
             <option value="enterprise">Enterprise</option>
             <option value="suspended">Suspended</option>
           </select>
@@ -1289,7 +1297,7 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                     if (!name) { setPlanSaveMsg("Org name required"); setTimeout(() => setPlanSaveMsg(""), 3000); return; }
                     const url = document.getElementById("sa-new-org-url")?.value?.trim();
                     const plan = document.getElementById("sa-new-org-plan")?.value || "trial";
-                    const limits = { trial: { run_limit: 3, max_run_limit: 0 }, starter: { run_limit: 25, max_run_limit: 5 }, pro: { run_limit: 100, max_run_limit: 20 }, team: { run_limit: 250, max_run_limit: 50 }, enterprise: { run_limit: 1000, max_run_limit: 200 } };
+                    const limits = { trial: { run_limit: 10, max_run_limit: 0 }, starter: { run_limit: 25, max_run_limit: 5 }, pro: { run_limit: 100, max_run_limit: 20 }, team: { run_limit: 250, max_run_limit: 50 }, enterprise: { run_limit: 1000, max_run_limit: 200 } };
                     const body = { name, plan, ...(limits[plan] || {}) };
                     if (url) body.seller_url = url.startsWith("http") ? url : `https://${url}`;
                     try {
@@ -1356,12 +1364,12 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                               </td>
                               <td>
                                 {(() => {
-                                  const pm = { trial: { bg: "var(--amber-bg)", border: "var(--amber)" }, starter: { bg: "var(--green-bg)", border: "var(--green)" }, pro: { bg: "var(--green-bg)", border: "var(--green)" }, team: { bg: "var(--navy-bg)", border: "var(--navy)" }, enterprise: { bg: "var(--violet-bg)", border: "var(--violet)" }, paid: { bg: "var(--green-bg)", border: "var(--green)" }, suspended: { bg: "var(--red-bg)", border: "var(--red)" } };
+                                  const pm = { trial: { bg: "var(--amber-bg)", border: "var(--amber)" }, starter: { bg: "var(--green-bg)", border: "var(--green)" }, pro: { bg: "var(--green-bg)", border: "var(--green)" }, team: { bg: "var(--navy-bg)", border: "var(--navy)" }, enterprise: { bg: "var(--violet-bg)", border: "var(--violet)" }, paid: { bg: "var(--green-bg)", border: "var(--green)" }, promo: { bg: "var(--green-bg)", border: "var(--green)" }, promo_monthly: { bg: "var(--green-bg)", border: "var(--green)" }, suspended: { bg: "var(--red-bg)", border: "var(--red)" } };
                                   const ps = pm[o.plan] || pm.trial;
                                   return (
                                 <select defaultValue={o.plan} onChange={e => {
                                   const plan = e.target.value;
-                                  const limits = { trial: { run_limit: 3, max_run_limit: 0 }, starter: { run_limit: 25, max_run_limit: 5 }, pro: { run_limit: 100, max_run_limit: 20 }, team: { run_limit: 250, max_run_limit: 50 }, enterprise: { run_limit: 1000, max_run_limit: 200 } };
+                                  const limits = { trial: { run_limit: 10, max_run_limit: 0 }, starter: { run_limit: 25, max_run_limit: 5, rollover_cap: 25 }, pro: { run_limit: 100, max_run_limit: 20, rollover_cap: 100 }, team: { run_limit: 250, max_run_limit: 50, rollover_cap: 250 }, enterprise: { run_limit: 1000, max_run_limit: 200, rollover_cap: 1000 }, promo_monthly: { run_limit: 20, max_run_limit: 0, rollover_cap: 20 } };
                                   patchOrg({ plan, ...(limits[plan] || {}) }, `${o.name} \u2192 ${plan}${limits[plan]?.run_limit ? ` (${limits[plan].run_limit} runs)` : ""}`);
                                 }} style={{ background: ps.bg, borderColor: ps.border, color: ps.border, fontWeight: 700 }}>
                                   <option value="trial">Trial</option>
@@ -1370,6 +1378,9 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
                                   <option value="team">Team</option>
                                   <option value="enterprise">Enterprise</option>
                                   <option value="paid">Paid</option>
+                                  {/* Manual comp \u2014 no Stripe subscription/schedule behind it, so no auto-graduation (issue #146) */}
+                                  <option value="promo_monthly">Promo Monthly ($45)</option>
+                                  <option value="promo">Promo (run pack)</option>
                                   <option value="suspended">Suspended</option>
                                 </select>
                                   );
@@ -1914,8 +1925,9 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
               <div style={{ background: "var(--bg-1)", borderRadius: 10, padding: "16px 18px" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
                   {[10, 25, 50, 100].map(users => {
-                    const avgPrice = plans.filter(p => p.price > 0).reduce((s, p) => s + p.price, 0) / plans.filter(p => p.price > 0).length;
-                    const avgCost = plans.filter(p => p.price > 0).reduce((s, p) => s + p.tokens * p.costPerToken, 0) / plans.filter(p => p.price > 0).length;
+                    const projectable = plans.filter(p => p.price > 0 && !p.promo);
+                    const avgPrice = projectable.reduce((s, p) => s + p.price, 0) / projectable.length;
+                    const avgCost = projectable.reduce((s, p) => s + p.tokens * p.costPerToken, 0) / projectable.length;
                     const mrr = Math.round(users * avgPrice * 0.6); // assume 60% on avg paid plan
                     const cost = Math.round(users * avgCost * 0.6);
                     return (
@@ -2386,12 +2398,6 @@ export default function SuperAdmin({ sbUser, sbToken, orgCtx, onClose }) {
             setTimeout(() => setPlanSaveMsg(""), 4000);
             setOpenMenu(null);
           }}>Clone Setup to User</button>
-          <button className="admin-action-item" onClick={() => {
-            navigator.clipboard?.writeText(`${window.location.origin}?ref=admin`);
-            setPlanSaveMsg("Signup link copied");
-            setTimeout(() => setPlanSaveMsg(""), 3000);
-            setOpenMenu(null);
-          }}>Copy Invite Link</button>
           <button className="admin-action-item" onClick={() => {
             apiFetch("/api/invite", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${sbToken}` },
               body: JSON.stringify({ email: menuContext.email, role: menuContext.role }) })
