@@ -177,17 +177,15 @@ console.log("\n── new user: invitation + email ─────────�
   reset();
   state.inviteInsertResults = [{ code: "23505", message: "duplicate key value" }, [{ id: "inv-2", token: "tok-2" }]];
   const out = await handler(event({ body: GOOD }));
-  // KNOWN UPSTREAM BUG, ported bug-for-bug: api/invite.js merges the retry's
-  // ARRAY result into the error OBJECT via Object.assign(invResult,
-  // retryResult), so invResult.token is never found and the handler 500s
-  // ("Failed to generate invitation token") even though the retry insert
-  // succeeded — leaving an orphan invitation row. Parity beats correctness
-  // here (the origin flip must be behavior-neutral); fix BOTH copies
-  // together in a follow-up bugfix, then update this assertion.
-  assert(out.statusCode === 500 && JSON.parse(out.body).error === "Failed to generate invitation token",
-    "duplicate-key retry → 500 (bug-for-bug parity with api/invite.js — see comment)");
-  assert(state.deletedInvitations.length === 2 && state.calls.filter(c => c.url.endsWith("/rest/v1/invitations") && c.method === "POST").length === 2,
-    "retry path still deletes the conflict and re-inserts (the orphan row the bug leaves behind)");
+  // Fixed in issue #169 (both copies together): the retry result — a
+  // PostgREST array — is now reassigned to invResult instead of
+  // Object.assign-merged into the error object, so the fresh token is found
+  // and the invite completes instead of 500ing with an orphan row.
+  const body = JSON.parse(out.body);
+  assert(out.statusCode === 200 && body.ok === true && body.invitation_id === "inv-2" && body.email_sent === true,
+    "duplicate-key conflict → cleanup, retry, and invite succeeds (issue #169)");
+  assert(state.deletedInvitations.length === 2 && state.authInvites[0]?.data?.invitation_token === "tok-2",
+    "retry deletes the conflict and the email carries the retried token");
 }
 {
   reset();
