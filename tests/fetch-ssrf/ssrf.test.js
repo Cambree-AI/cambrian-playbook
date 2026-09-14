@@ -8,17 +8,28 @@
 // redirects-to-private, non-http schemes, and linkedin.com. Each case asserts
 // the correct { ok: false, reason } — never a connection attempt.
 //
-// Usage: node tests/fetch-ssrf/ssrf.test.js
+// Usage: node tests/fetch-ssrf/ssrf.test.js                 (Vercel copy)
+//        node tests/fetch-ssrf/ssrf.test.js --module=api-aws (Lambda copy, issue #87)
 // Exit 0 = all green. Exit 1 = failures (do NOT proceed to 2b until green).
+//
+// The same suite gates BOTH copies of the SSRF module — the Lambda port
+// (api-aws/shared/fetch-ssrf.js) must stay byte-equivalent to the Vercel
+// original, so any drift fails whichever run imports the drifted copy.
 
-import {
+/* global process */
+const MODULE_PATH = process.argv.includes('--module=api-aws')
+  ? '../../api-aws/shared/fetch-ssrf.js'
+  : '../../api/_fetch-ssrf.js';
+console.log(`[ssrf.test] module under test: ${MODULE_PATH}`);
+
+const {
   validateUrl,
   isPrivateIp,
   isPrivateIPv4,
   isPrivateIPv6,
   isBlockedHost,
   normalizeHostname,
-} from '../../api/_fetch-ssrf.js';
+} = await import(MODULE_PATH);
 
 let passed = 0;
 let failed = 0;

@@ -17,7 +17,11 @@ on:
       - 'api/request-access.js'
       - 'api/invite.js'
       - 'api/_provision.js'
+      - 'api/referral.js'
+      - 'api/fetch.js'
+      - 'api/_fetch-ssrf.js'
       - 'tests/api-aws/**'
+      - 'tests/fetch-ssrf/**'
       # knowledge layer is bundled into the knowledge Lambda (issue #87) --
       # a data edit must still build and keep parity green
       - 'src/data/**'
@@ -58,6 +62,15 @@ jobs:
 
       - name: Invite endpoint parity
         run: node tests/api-aws/invite.test.js
+
+      - name: Referral endpoint parity
+        run: node tests/api-aws/referral.test.js
+
+      - name: Fetch endpoint parity
+        run: node tests/api-aws/fetch.test.js
+
+      - name: SSRF suite against the Lambda copy
+        run: node tests/fetch-ssrf/ssrf.test.js --module=api-aws
 
       - name: Lambda bundles build
         working-directory: api-aws

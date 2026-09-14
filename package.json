@@ -17,7 +17,7 @@
     "test:properties": "node tests/fit-check/properties.js",
     "test:ssrf": "node tests/fetch-ssrf/ssrf.test.js",
     "test:icpstream": "node tests/icp-stream/stream.test.js && node tests/icp-stream/failure.test.js",
-    "test:apiaws": "node tests/api-aws/coverage.test.js && node tests/api-aws/guard.test.js && node tests/api-aws/contact.test.js && node tests/api-aws/knowledge.test.js && node tests/api-aws/enrich-free.test.js && node tests/api-aws/request-access.test.js && node tests/api-aws/invite.test.js",
+    "test:apiaws": "node tests/api-aws/coverage.test.js && node tests/api-aws/guard.test.js && node tests/api-aws/contact.test.js && node tests/api-aws/knowledge.test.js && node tests/api-aws/enrich-free.test.js && node tests/api-aws/request-access.test.js && node tests/api-aws/invite.test.js && node tests/api-aws/referral.test.js && node tests/api-aws/fetch.test.js && node tests/fetch-ssrf/ssrf.test.js --module=api-aws",
     "test:fitcheck": "npm run test:noop && npm run test:fitscores && npm run test:properties",
     "test:play": "node tests/the-play/eval.js",
     "test:regression": "node tests/fit-check/regression-sweep.js",

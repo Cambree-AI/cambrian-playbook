@@ -1,6 +1,6 @@
 # API platform - prod (issue #86): API Gateway HTTP API + Lambda endpoints.
-# Endpoints: contact (pilot, issue #86); knowledge, enrich-free,
-# request-access, invite (utility ports, issue #87). CI builds api-aws/dist before plan/apply
+# Endpoints: contact (pilot, issue #86) + the issue #87 utility ports:
+# knowledge, enrich-free, request-access, invite, referral, fetch. CI builds api-aws/dist before plan/apply
 # (.github/workflows/terraform.yml); the apply is gated by the production
 # GitHub Environment's required-reviewer approval like every prod change.
 
@@ -20,6 +20,10 @@ module "api" {
     # invite chains several Supabase REST/auth calls.
     "request-access" = { timeout_seconds = 30 }
     invite           = { timeout_seconds = 30 }
+    # referral chains several Supabase calls; fetch runs the two-stage page
+    # fetch (4s plain + 12s render) — 30s matches its Vercel maxDuration.
+    referral = { timeout_seconds = 15, environment = { APP_URL = var.vite_app_url } }
+    fetch    = { timeout_seconds = 30 }
   }
 
   common_environment = {
