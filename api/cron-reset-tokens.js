@@ -31,6 +31,24 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Step 0: Expire this month's referral bonus runs BEFORE the rollover, so
+    // rollover math sees the base run_limit, not the bonus-inflated one. The
+    // RPC (migration 039) removes referral_bonus_runs from run_limit and zeroes
+    // the counter atomically — bonus runs are a monthly perk, not permanent
+    // capacity (issue #154).
+    let referralExpired = 0;
+    try {
+      const expRes = await fetch(`${SB_URL}/rest/v1/rpc/expire_referral_bonus`, {
+        method: "POST",
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const expData = await expRes.json();
+      referralExpired = expData?.orgs_processed || 0;
+    } catch (e) {
+      console.warn("[cron] expire_referral_bonus failed:", e.message);
+    }
+
     // Step 1: Process rollover for paid orgs (atomic RPC)
     const rolloverRes = await fetch(`${SB_URL}/rest/v1/rpc/process_monthly_rollover`, {
       method: "POST",
@@ -44,9 +62,11 @@ export default async function handler(req, res) {
     const rolloverData = await rolloverRes.json();
     const paidCount = rolloverData?.orgs_processed || 0;
 
-    // Step 1b: Reset max_run_count for paid orgs (Max Mode removed, but
-    // counter should not accumulate indefinitely month-over-month)
-    await fetch(`${SB_URL}/rest/v1/orgs?plan=eq.paid&max_run_count=gt.0`, {
+    // Step 1b: Reset max_run_count for paid and promo_monthly orgs (Max Mode
+    // removed, but counter should not accumulate indefinitely month-over-month).
+    // promo_monthly has max_run_limit=0 so this should always be a no-op for
+    // those orgs, but defensive resets are cheap.
+    await fetch(`${SB_URL}/rest/v1/orgs?plan=in.(paid,promo_monthly)&max_run_count=gt.0`, {
       method: "PATCH",
       headers: {
         apikey: SB_KEY,
@@ -57,31 +77,16 @@ export default async function handler(req, res) {
       body: JSON.stringify({ max_run_count: 0 }),
     });
 
-    // Step 2: Reset trial orgs (no rollover, just zero out)
-    const trialRes = await fetch(`${SB_URL}/rest/v1/orgs?plan=eq.trial&run_count=gt.0`, {
-      method: "PATCH",
-      headers: {
-        apikey: SB_KEY,
-        Authorization: `Bearer ${SB_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify({ run_count: 0, max_run_count: 0, rollover_runs: 0 }),
-    });
-    const trialUpdated = await trialRes.json();
-    const trialCount = Array.isArray(trialUpdated) ? trialUpdated.length : 0;
+    // Step 2: Trial orgs are NOT reset. The 10 free runs are a one-time
+    // allotment in the promo funnel (10 free → $45/mo half-off → Starter,
+    // issue #151) — resetting monthly would hand out fresh free runs forever
+    // and remove the reason to convert at run 11. Trial run_count is monotonic,
+    // same as the old one-time run pack.
+    const trialCount = 0;
 
-    // Step 3: Reset referral bonus counters (monthly cap resets)
-    await fetch(`${SB_URL}/rest/v1/orgs?referral_bonus_runs=gt.0`, {
-      method: "PATCH",
-      headers: {
-        apikey: SB_KEY,
-        Authorization: `Bearer ${SB_KEY}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify({ referral_bonus_runs: 0 }),
-    });
+    // Step 3 (referral bonus reset) now happens in Step 0 via
+    // expire_referral_bonus() — the counter AND the bonus capacity expire
+    // together (issue #154).
 
     // Audit log
     await fetch(`${SB_URL}/rest/v1/api_usage_log`, {
@@ -98,12 +103,12 @@ export default async function handler(req, res) {
         input_tokens: 0,
         output_tokens: 0,
         web_searches: 0,
-        endpoint: `paid:${paidCount},trial:${trialCount}`,
+        endpoint: `paid:${paidCount},trial:${trialCount},referral_expired:${referralExpired}`,
       }),
     });
 
-    console.log(`[cron] Monthly cycle: ${paidCount} paid orgs rolled over, ${trialCount} trial orgs reset`);
-    res.status(200).json({ ok: true, paid_rollovers: paidCount, trial_resets: trialCount, timestamp: new Date().toISOString() });
+    console.log(`[cron] Monthly cycle: ${paidCount} paid orgs rolled over, ${trialCount} trial orgs reset, ${referralExpired} referral bonuses expired`);
+    res.status(200).json({ ok: true, paid_rollovers: paidCount, trial_resets: trialCount, referral_bonuses_expired: referralExpired, timestamp: new Date().toISOString() });
   } catch (e) {
     console.error("[cron] Monthly cycle failed:", e.message);
     res.status(500).json({ error: "Cycle failed" });

@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cambree — Zero to one</title>
+<meta name="description" content="You've got an account name and no idea where to start. Cambree gives you the account, the angle, and the ask — sourced, scored, and honest enough to tell you no.">
+<meta property="og:title" content="Cambree — Zero to one">
+<meta property="og:description" content="You've got an account name and no idea where to start. Cambree gives you the account, the angle, and the ask — sourced, scored, and honest enough to tell you no.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cambree.ai">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: light;
+  --deep:    #1A3D47;
+  --deep-2:  #122C34;
+  --orange:  #BD6940;
+  --orange-d:#9E5533;
+  --forest:  #365E4A;
+  --citrus:  #D4D473;
+  --earth:   #2E291C;
+  --paper:   #FAF8F3;
+  --paper-hi:#F4EEE4;
+  --card:    #FFFDF9;
+  --line:    #E5DCCB;
+  --ink:     #2A2820;
+  --muted:   #6E675B;
+  --mint:    #8CC4B6;
+  --peach:   #FBEDE6;
+  --sans:    "Barlow","Segoe UI",-apple-system,Helvetica,Arial,sans-serif;
+  --serif:   "Crimson Pro",Georgia,"Times New Roman",serif;
+}
+*  { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--paper); color: var(--ink); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+a  { color: var(--orange); }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
+
+/* typography */
+.eyebrow { font-size: 11.5px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--orange); }
+.eyebrow.forest { color: var(--forest); }
+.eyebrow.mint   { color: var(--mint); }
+.eyebrow.citrus { color: var(--citrus); }
+h1 { font-family: var(--serif); font-weight: 700; color: var(--deep); letter-spacing: -.5px; line-height: 1.05; font-size: clamp(46px,7vw,84px); }
+h2 { font-family: var(--serif); font-weight: 700; color: var(--deep); line-height: 1.1; font-size: clamp(30px,4vw,44px); margin: 8px 0 14px; }
+h3 { font-size: 16px; font-weight: 800; color: var(--deep); margin-bottom: 6px; }
+p.lead { font-size: clamp(17px,2vw,21px); color: var(--ink); line-height: 1.55; max-width: 680px; }
+p.muted { color: var(--muted); font-size: 14.5px; }
+
+/* buttons */
+.btn { display: inline-block; padding: 14px 26px; border-radius: 10px; font-weight: 800; font-size: 15px; text-decoration: none; border: 1.5px solid var(--deep); background: var(--deep); color: #fff; cursor: pointer; font-family: var(--sans); }
+.btn.orange { background: var(--orange); border-color: var(--orange); }
+.btn.ghost  { background: transparent; color: var(--deep); }
+.btn.light  { background: #fff; color: var(--deep); border-color: #fff; }
+
+/* nav */
+nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; }
+nav .logo { display: flex; align-items: center; text-decoration: none; }
+nav .logo img { height: 32px; width: auto; }
+nav .links a { margin-left: 22px; font-size: 13.5px; font-weight: 700; color: var(--deep); text-decoration: none; }
+nav .links a.cta { border: 1.5px solid var(--deep); border-radius: 8px; padding: 8px 14px; }
+
+/* hero band — Cambrian motif */
+.band { position: relative; background: var(--paper-hi); height: clamp(150px,18vw,220px); overflow: hidden; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.band svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+section { padding: 72px 0; }
+.hero { padding: 64px 0 56px; }
+.hero .grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 48px; align-items: center; }
+
+.proofline { font-size: 13px; color: var(--muted); margin-top: 18px; letter-spacing: .02em; }
+.proofline b { color: var(--forest); }
+.ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 26px; }
+
+/* output card (the play) */
+.play { background: var(--deep); color: #F1F4F5; border-radius: 14px; padding: 22px 24px; border-left: 5px solid var(--orange); box-shadow: 0 18px 40px rgba(26,61,71,.18); }
+.play .k { font-size: 10.5px; letter-spacing: .16em; color: var(--orange); font-weight: 800; }
+.play h4 { font-size: 24px; font-weight: 800; margin: 4px 0 12px; color: #fff; }
+.play .row { display: grid; grid-template-columns: 86px 1fr; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08); font-size: 13px; line-height: 1.5; }
+.play .row b { font-size: 10px; letter-spacing: .14em; color: var(--mint); font-weight: 800; padding-top: 3px; }
+.badge { display: inline-flex; align-items: center; border: 1.5px solid var(--mint); color: var(--mint); border-radius: 999px; padding: 4px 12px; font-weight: 800; font-size: 12px; letter-spacing: .08em; float: right; }
+.badge.comp { border-color: var(--orange); color: var(--orange); }
+.badge.pot  { border-color: #C9D6DA; color: #C9D6DA; }
+.src { display: inline-block; font-size: 10px; letter-spacing: .05em; color: var(--mint); border: 1px solid rgba(140,196,182,.4); border-radius: 4px; padding: 0 6px; margin-left: 6px; vertical-align: middle; }
+.caption { font-size: 12.5px; color: var(--muted); margin-top: 10px; font-style: italic; }
+.caption strong { color: var(--deep); font-style: normal; }
+
+/* problem (dark) */
+.dark { background: var(--deep); color: #EEF2F3; }
+.dark h2 { color: #fff; }
+.dark p  { color: #D3DCDF; }
+.dark .eyebrow { color: var(--citrus); }
+.quote  { font-family: var(--serif); font-size: clamp(22px,2.6vw,30px); line-height: 1.35; color: #fff; border-left: 4px solid var(--citrus); padding-left: 20px; margin: 26px 0 8px; }
+.attrib { font-size: 13px; color: #B8C6CB; }
+
+/* gap */
+.three { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; margin-top: 26px; }
+.col { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; }
+.col .k { font-size: 11px; letter-spacing: .14em; color: var(--muted); font-weight: 800; }
+.col h3 { font-family: var(--serif); font-size: 22px; margin: 6px 0 8px; }
+.col p  { font-size: 14.5px; color: var(--ink); }
+.callout { margin-top: 22px; padding: 18px 22px; background: var(--peach); border-left: 4px solid var(--orange); border-radius: 0 10px 10px 0; font-family: var(--serif); font-size: 20px; color: var(--deep); }
+
+/* pillars */
+.pillars { display: grid; grid-template-columns: 1fr 1.05fr 1fr; gap: 18px; margin-top: 26px; }
+.pillar { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 22px; border-top: 4px solid var(--forest); }
+.pillar.sa { border-top-color: var(--orange); background: #FFF9F5; }
+.pillar .k { font-size: 11px; letter-spacing: .14em; font-weight: 800; color: var(--forest); }
+.pillar.sa .k { color: var(--orange); }
+.pillar h3 { font-family: var(--serif); font-size: 22px; margin: 6px 0 8px; }
+.io { display: flex; align-items: center; gap: 14px; margin-top: 22px; font-size: 14px; color: var(--muted); }
+.io b { color: var(--deep); }
+
+/* proof pair */
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 26px; align-items: start; }
+.slop { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px; font-size: 13.5px; color: #444; line-height: 1.55; }
+.slop .k { font-size: 11px; letter-spacing: .14em; color: var(--muted); font-weight: 800; margin-bottom: 10px; }
+
+/* tells you no */
+.no { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 26px; }
+.nocard { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.nocard .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.nocard .name { font-weight: 800; color: var(--deep); font-size: 17px; }
+.pill { border-radius: 999px; padding: 4px 12px; font-weight: 800; font-size: 12px; letter-spacing: .08em; }
+.pill.comp { border: 1.5px solid var(--orange); color: var(--orange); }
+.pill.pot  { border: 1.5px solid #9AA9AE; color: #5F7176; }
+.nocard p  { font-size: 14px; color: var(--ink); }
+.verdictline { font-family: var(--serif); font-size: clamp(20px,2.4vw,28px); line-height: 1.3; }
+
+/* who */
+.who { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin-top: 22px; }
+.who div { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; font-size: 15px; }
+.who b { color: var(--deep); }
+.not { margin-top: 18px; padding: 16px 20px; border: 1.5px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 15px; }
+
+/* pricing */
+.price { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center; }
+.pricebox { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+.pricebox .big { font-family: var(--serif); font-size: 56px; font-weight: 700; color: var(--deep); line-height: 1; }
+.pricebox .big small { font-family: var(--sans); font-size: 16px; color: var(--muted); font-weight: 600; }
+.pricebox ul { list-style: none; margin-top: 16px; }
+.pricebox li { padding: 6px 0; border-top: 1px solid var(--line); font-size: 14.5px; }
+.pricebox li::before { content: "✓ "; color: var(--forest); font-weight: 800; }
+
+/* faq */
+details { border-top: 1px solid var(--line); }
+details:last-child { border-bottom: 1px solid var(--line); }
+summary { cursor: pointer; padding: 16px 0; font-weight: 800; color: var(--deep); font-size: 16px; list-style: none; display: flex; justify-content: space-between; }
+summary::after { content: "＋"; color: var(--muted); }
+details[open] summary::after { content: "－"; }
+details p { padding: 0 0 16px; color: var(--ink); font-size: 15px; max-width: 760px; }
+
+/* close */
+.close { text-align: center; }
+.close h2 { font-size: clamp(28px,3.6vw,40px); }
+
+footer { padding: 26px 0 40px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+footer a { color: var(--muted); text-decoration: none; margin-right: 14px; }
+
+/* responsive */
+@media(max-width:900px) {
+  .hero .grid,.pair,.no,.price { grid-template-columns: 1fr; }
+  .three,.pillars,.who { grid-template-columns: 1fr; }
+  .badge { float: none; margin-bottom: 8px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/">
+      <img src="/cambree-logo.svg" alt="Cambree" height="32">
+    </a>
+    <div class="links">
+      <a href="#proof">See a real brief</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a class="cta" href="/">Sign in</a>
+    </div>
+  </nav>
+</div>
+
+<!-- ── CAMBRIAN BAND ── -->
+<div class="band">
+  <svg viewBox="0 0 1440 420" preserveAspectRatio="xMidYMid slice"
+       xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+
+    <!-- dashed meandering path line -->
+    <path d="M-30,338 C180,378 380,298 700,346 C980,388 1160,306 1470,336"
+          fill="none" stroke="var(--orange)" stroke-width="1.6"
+          stroke-dasharray="7 9" stroke-linecap="round" opacity=".5"/>
+
+    <!-- LEFT: botanical branching stem with seed nodes -->
+    <g fill="none" stroke="var(--forest)" stroke-width="1.6" stroke-linecap="round" opacity=".85">
+      <path d="M58,424 C70,352 48,296 96,238 C122,206 160,192 194,196"/>
+      <path d="M68,330 C104,316 138,318 164,334"/>
+      <path d="M84,268 C112,254 138,254 158,264"/>
+      <circle cx="198" cy="195" r="4"/>
+      <circle cx="168" cy="336" r="3.4"/>
+      <circle cx="162" cy="262" r="3"/>
+      <path d="M96,238 C86,218 88,200 100,186"/>
+      <circle cx="102" cy="182" r="2.6"/>
+    </g>
+
+    <!-- LEFT: trilobite outline -->
+    <g transform="translate(232,118) scale(0.92)" fill="none"
+       stroke="var(--deep)" stroke-width="1.7" stroke-linecap="round" opacity=".8">
+      <path d="M18,36 C16,13 31,5 50,5 C69,5 84,13 82,36 L78,104 C76,124 64,133 50,133 C36,133 24,124 22,104 Z"/>
+      <path d="M20,41 Q50,49 80,41"/>
+      <path d="M41,38 Q39,12 50,11 Q61,12 59,38"/>
+      <path d="M28,26 q5,-5 10,-1"/>
+      <path d="M62,25 q5,-4 10,0"/>
+      <path d="M38,46 Q36,80 40,110"/>
+      <path d="M62,46 Q64,80 60,110"/>
+      <path d="M22,54 Q50,58 78,54"/>
+      <path d="M22,62 Q50,66 78,62"/>
+      <path d="M23,70 Q50,74 77,70"/>
+      <path d="M24,78 Q50,82 76,78"/>
+      <path d="M25,86 Q50,90 75,86"/>
+      <path d="M27,94 Q50,98 73,94"/>
+      <path d="M29,102 Q50,106 71,102"/>
+      <path d="M33,111 Q50,115 67,111"/>
+      <path d="M37,119 Q50,122 63,119"/>
+    </g>
+
+    <!-- LEFT-TOP: molecular node-and-edge cluster -->
+    <g transform="translate(120,74)" stroke-linecap="round">
+      <g fill="none" stroke="var(--deep)" stroke-width="1.4" opacity=".65">
+        <path d="M4,2 L36,-14"/>
+        <path d="M36,-14 L64,8"/>
+        <path d="M64,8 L32,30"/>
+        <path d="M36,-14 L78,-30"/>
+      </g>
+      <circle cx="2" cy="3" r="4.2" fill="none" stroke="var(--forest)" stroke-width="1.5"/>
+      <circle cx="36" cy="-14" r="3" fill="var(--deep)" opacity=".85"/>
+      <circle cx="65" cy="9" r="4.2" fill="none" stroke="var(--deep)" stroke-width="1.5" opacity=".8"/>
+      <circle cx="31" cy="31" r="2.6" fill="var(--orange)"/>
+      <circle cx="80" cy="-31" r="2.4" fill="var(--forest)" opacity=".85"/>
+    </g>
+
+    <!-- RIGHT: ammonite spiral with chamber ticks -->
+    <g transform="translate(1236,158) scale(1.55)" fill="none" stroke-linecap="round">
+      <path d="M0,-2 A2,2 0 1 1 0,2 A4,4 0 1 1 0,-6 A8,8 0 1 1 0,10 A14,14 0 1 1 0,-18 A22,22 0 1 1 0,26 A32,32 0 1 1 0,-38"
+            stroke="var(--deep)" stroke-width="1.5" opacity=".85"/>
+      <g stroke="var(--forest)" stroke-width="1.1" opacity=".75">
+        <path d="M11.5,-25.9 L15.5,-32.8"/>
+        <path d="M0,-29 L0,-37"/>
+        <path d="M-11.5,-25.9 L-15.5,-32.8"/>
+        <path d="M-19.9,-17.5 L-26.8,-21.5"/>
+        <path d="M-23,-6 L-31,-6"/>
+        <path d="M-19.9,5.5 L-26.8,9.5"/>
+        <path d="M-11.5,13.9 L-15.5,20.8"/>
+      </g>
+    </g>
+
+    <!-- RIGHT-BOTTOM: fern / frond -->
+    <g transform="translate(1346,424) rotate(-6)" fill="none"
+       stroke="var(--forest)" stroke-width="1.5" stroke-linecap="round" opacity=".85">
+      <path d="M0,0 C-12,-46 -26,-92 -26,-142"/>
+      <path d="M-5,-28 q-14,-4 -22,4"/>
+      <path d="M-5,-28 q12,-10 18,-6"/>
+      <path d="M-10,-52 q-13,-4 -20,3"/>
+      <path d="M-10,-52 q11,-10 17,-6"/>
+      <path d="M-15,-76 q-12,-4 -18,3"/>
+      <path d="M-15,-76 q10,-9 15,-5"/>
+      <path d="M-20,-100 q-10,-3 -15,3"/>
+      <path d="M-20,-100 q9,-8 13,-4"/>
+      <path d="M-24,-122 q-8,-2 -12,3"/>
+      <path d="M-24,-122 q7,-7 10,-3"/>
+      <circle cx="-26" cy="-147" r="2.4"/>
+    </g>
+
+    <!-- RIGHT-TOP: second botanical branch -->
+    <g fill="none" stroke="var(--forest)" stroke-width="1.5" stroke-linecap="round" opacity=".8">
+      <path d="M1332,-6 C1310,64 1344,116 1290,158 C1266,176 1240,180 1220,172"/>
+      <path d="M1322,86 C1294,92 1272,86 1256,70"/>
+      <circle cx="1216" cy="171" r="3.6"/>
+      <circle cx="1252" cy="67" r="3"/>
+    </g>
+
+    <!-- accent dashes + dots -->
+    <g stroke="var(--orange)" stroke-width="2" stroke-linecap="round" opacity=".8">
+      <path d="M336,58 l15,-5"/>
+      <path d="M415,150 l12,8"/>
+      <path d="M170,150 l13,-7"/>
+      <path d="M1092,84 l15,4"/>
+      <path d="M1150,268 l13,-8"/>
+      <path d="M1030,190 l14,2"/>
+      <path d="M560,72 l13,-4"/>
+      <path d="M880,64 l13,6"/>
+    </g>
+    <g fill="var(--orange)" opacity=".8">
+      <circle cx="300" cy="212" r="2.2"/>
+      <circle cx="452" cy="94" r="2.6"/>
+      <circle cx="640" cy="46" r="2"/>
+      <circle cx="806" cy="380" r="2.4"/>
+      <circle cx="988" cy="112" r="2.2"/>
+      <circle cx="1122" cy="342" r="2.6"/>
+      <circle cx="510" cy="356" r="2.2"/>
+      <circle cx="212" cy="52" r="2.4"/>
+    </g>
+    <!-- citrus seeds -->
+    <circle cx="742" cy="66" r="3" fill="var(--citrus)" stroke="var(--forest)" stroke-width="1"/>
+    <circle cx="1268" cy="304" r="3" fill="var(--citrus)" stroke="var(--forest)" stroke-width="1"/>
+  </svg>
+</div>
+
+<!-- ── 1 · HERO ── -->
+<section class="hero"><div class="wrap">
+  <div class="grid">
+    <div>
+      <div class="eyebrow">Sales intelligence for the moment before the meeting</div>
+      <h1 style="margin-top:12px">Zero to one.</h1>
+      <p class="lead" style="margin-top:18px">You've got an account name and no idea where to start. Cambree gives you the account, the angle, and the ask — sourced, scored, and honest enough to tell you no.</p>
+      <div class="ctas">
+        <a class="btn orange" href="/">Run your first account →</a>
+        <a class="btn ghost" href="#proof">See a real brief</a>
+      </div>
+      <div class="proofline">Private beta · <b>700+ live runs</b> · on real pipeline with design partners in logistics, fintech, loyalty and health</div>
+    </div>
+    <div>
+      <div class="play">
+        <span class="badge">STRONG · 79</span>
+        <div class="k">THE PLAY · NORTHWIND ANALYTICS → CONTOSO FREIGHT</div>
+        <h4>Contoso Freight</h4>
+        <div class="row"><b>VERDICT</b><span>Worth your time. Contoso is running a multi-year network expansion on systems built for a single-region operation. That gap is exactly what Northwind sells into.</span></div>
+        <div class="row"><b>SIGNAL</b><span>Three new interline partnerships require multi-carrier schedule modelling Contoso has never done. <span class="src">10-K · web</span></span></div>
+        <div class="row"><b>YOUR MOVE</b><span>VP Network Planning or Director of Scheduling — not the C-suite.</span></div>
+      </div>
+      <p class="caption"><strong>Illustrative example. Real Cambree output, fictional companies.</strong> Two URLs in, one run, no CRM history. Condensed for the page.</p>
+    </div>
+  </div>
+</div></section>
+
+<!-- ── 2 · THE PROBLEM ── -->
+<section class="dark"><div class="wrap">
+  <div class="eyebrow">Every seller knows this moment</div>
+  <h2>A name lands on your list.</h2>
+  <p class="lead" style="color:#D3DCDF">Maybe from marketing, maybe a list buy, maybe your VP just said "go get them." And then: who are they, actually? What do they care about this quarter? Where do we fit — and do we? What's worth opening with that isn't the paragraph everyone else opens with?</p>
+  <p class="lead" style="color:#D3DCDF;margin-top:14px">Most reps spend their first two months in a role answering those questions by hand. Then they do it again on the next account.</p>
+  <div class="quote">"That's what I worked on for the first two months in my role."</div>
+  <div class="attrib">— a Sales Director, on reading his first Cambree brief</div>
+</div></section>
+
+<!-- ── 3 · THE GAP ── -->
+<section><div class="wrap">
+  <div class="eyebrow">The gap</div>
+  <h2>Your stack starts at step two.</h2>
+  <div class="three">
+    <div class="col">
+      <div class="k">YOUR CRM</div>
+      <h3>Logs the deal you already found</h3>
+      <p>Excellent at remembering. Blind at zero.</p>
+    </div>
+    <div class="col">
+      <div class="k">YOUR SEQUENCER</div>
+      <h3>Sends the email you already wrote</h3>
+      <p>It needs a message you don't have yet.</p>
+    </div>
+    <div class="col">
+      <div class="k">YOUR CALL INTELLIGENCE</div>
+      <h3>Grades the call you already booked</h3>
+      <p>It needs calls you haven't had.</p>
+    </div>
+  </div>
+  <div class="callout">Every one of them is excellent — and every one of them assumes you already know the account, the angle, and the ask. Cambree is what happens before any of them.</div>
+</div></section>
+
+<!-- ── 4 · WHAT YOU GET ── -->
+<section style="background:var(--paper-hi);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap">
+  <div class="eyebrow">What you get</div>
+  <h2>Your URL and theirs. A playbook back.</h2>
+  <p class="lead">No CRM history. No call logs. No integrations. Cambree builds the playbook; you run it.</p>
+  <div class="pillars">
+    <div class="pillar">
+      <div class="k">SIGNAL ANALYSIS · who deserves your time</div>
+      <h3>Research with receipts</h3>
+      <p>Funding, hiring, exec moves, competitor presence — and a deterministic fit score. Every claim sourced or left blank.</p>
+    </div>
+    <div class="pillar sa">
+      <div class="k">SOLUTION ARCHITECT · what to lead with</div>
+      <h3>The judgment other tools leave to a human</h3>
+      <p>Maps your portfolio to their situation and picks the highest-value solution — and why it matters to them.</p>
+    </div>
+    <div class="pillar">
+      <div class="k">SALES EXCELLENCE · how to open</div>
+      <h3>The email that earns the call</h3>
+      <p>A decade of selling judgment, encoded. Two openers built on a trigger the buyer can verify. Discovery with a reason behind each question.</p>
+    </div>
+  </div>
+  <div class="io"><b>OUT →</b> the fit verdict · the play · the opener · discovery · objections · stakeholders — before the first call.</div>
+</div></section>
+
+<!-- ── 5 · PROOF ── -->
+<section id="proof"><div class="wrap">
+  <div class="eyebrow">Same account. Two answers.</div>
+  <h2>Both are "AI-generated." Only one is worth sending.</h2>
+  <div class="pair">
+
+    <!-- left: the slop -->
+    <div class="slop">
+      <div class="k">WHAT BUYERS ACTUALLY RECEIVE · a generic inbound, every week</div>
+      <p>Hi [First Name],</p>
+      <p style="margin-top:8px">Hope this finds you well! My name is Sarah and I'm on the business development team at Peak Solutions Group. We've helped hundreds of companies drive efficiency across their operations and I'd love to set up 15 minutes to see if there's a fit.</p>
+      <p style="margin-top:8px">We offer a full suite of services — data analytics, workflow automation, customer success consulting — and our clients consistently see 30–40% efficiency gains in the first quarter. We have a flexible model that scales with your needs.</p>
+      <p style="margin-top:8px">Would Tuesday at 2pm work for a quick call?</p>
+      <p style="margin-top:8px">Best,<br>Sarah</p>
+      <p style="margin-top:12px;color:var(--orange);font-weight:800">Fit score: none. Sources: none. Nothing about the buyer.</p>
+    </div>
+
+    <!-- right: the Cambree opener -->
+    <div>
+      <div class="play">
+        <span class="badge">STRONG · 79</span>
+        <div class="k">CAMBREE · NORTHWIND ANALYTICS → CONTOSO FREIGHT</div>
+        <h4>contoso's new interline partners — quick q</h4>
+        <div class="row" style="grid-template-columns:1fr;border-top:0">
+          <span>You've just added three interline partners — lanes Contoso has never had to model competitively before. I'm curious whether your current schedule and capacity data was built to handle multi-carrier visibility, or whether that's a gap your team is working around right now.<br><br>Am I way off base?<br>[Your name here]</span>
+        </div>
+        <div class="row"><b>WHY THIS</b><span>Built on the loudest signal. Every fact traces to the brief — the buyer can verify it in their own filings. <span class="src">sourced</span></span></div>
+      </div>
+      <p class="caption"><strong>Illustrative example. Real Cambree output, fictional companies.</strong> Generic openers pull 1–3% replies; openers built on a specific, sourced trigger pull 15–25%. <span style="font-style:normal">(Industry benchmarks — not our number.)</span></p>
+    </div>
+
+  </div>
+</div></section>
+
+<!-- ── 6 · IT ALSO TELLS YOU NO ── -->
+<section class="dark"><div class="wrap">
+  <div class="eyebrow">The part nobody else built</div>
+  <h2>It also tells you no.</h2>
+  <p class="lead" style="color:#D3DCDF">We built a sales tool that regularly tells our customers not to sell. Feed it an account and sometimes it comes back and says: this isn't a fit, don't spend your quarter here. When it doesn't know something, it says so. Every claim carries its source.</p>
+  <div class="no">
+    <div class="nocard">
+      <div class="top">
+        <span class="name">Fabrikam Data</span>
+        <span class="pill comp">0 · COMPETITOR</span>
+      </div>
+      <p>Northwind and Fabrikam sell into the same buyer. Cambree scores it zero, says why, and won't build a pitch — no matter how many runs you have.</p>
+    </div>
+    <div class="nocard">
+      <div class="top">
+        <span class="name">Adatum Retail</span>
+        <span class="pill pot">62 · POTENTIAL</span>
+      </div>
+      <p>Worth a look, <em>if</em> — the fit runs through one narrow use case, not the core business. Cambree names the condition instead of pretending it's a lock.</p>
+    </div>
+  </div>
+  <p class="verdictline" style="color:#fff;margin-top:26px">A tool that always says yes isn't intelligent. It's agreeable.</p>
+  <p class="muted" style="color:#B8C6CB;margin-top:6px">Fewer opportunities. Better ones. Same inputs, same score, every time — the fit is computed, not vibes.</p>
+</div></section>
+
+<!-- ── 7 · WHO IT'S FOR ── -->
+<section><div class="wrap">
+  <div class="eyebrow">Who it's for</div>
+  <h2>Built for the moment before the meeting.</h2>
+  <div class="who">
+    <div><b>New reps ramping</b> — day-one competence instead of month-three.</div>
+    <div><b>Sellers in a new territory or vertical</b> — a point of view on accounts you've never touched.</div>
+    <div><b>Founders selling their own product</b> — the whole GTM function, in one seat.</div>
+    <div><b>Sales leaders</b> whose team's first-touch quality is the actual bottleneck.</div>
+  </div>
+  <div class="not">If you need a CRM, a dialer, or something to blast 5,000 emails a week — that's not us, and we'll tell you so.</div>
+</div></section>
+
+<!-- ── 8 · PRICING ── -->
+<section id="pricing" style="background:var(--paper-hi);border-top:1px solid var(--line);border-bottom:1px solid var(--line)"><div class="wrap">
+  <div class="price">
+    <div>
+      <div class="eyebrow">Pricing</div>
+      <h2>$99 a month.</h2>
+      <p class="lead">One closed deal pays for a decade of it. Priced for the rep's own card, not a procurement cycle.</p>
+      <p class="muted" style="margin-top:14px">A Run is one account, one complete playbook. Runs, not seats. Unused runs roll over. Teams and orgs on request.</p>
+    </div>
+    <div class="pricebox">
+      <div class="big">$99<small> / month · 25 runs</small></div>
+      <ul>
+        <li>Fit verdict, brief, play and outreach for every account</li>
+        <li>Discovery questions with a reason behind each</li>
+        <li>Milton, the coach, on the call and after it</li>
+        <li>HubSpot push · PDF one-pager export</li>
+        <li>Start with free runs. No card.</li>
+      </ul>
+      <div style="margin-top:18px"><a class="btn orange" href="/">Run your first account →</a></div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ── 9 · FAQ ── -->
+<section id="faq"><div class="wrap">
+  <div class="eyebrow">Questions</div>
+  <h2>The ones we get on every call.</h2>
+  <div style="margin-top:18px">
+    <details>
+      <summary>How is this different from ChatGPT?</summary>
+      <p>ChatGPT will confidently write you an email about a company it half-knows. Cambree captures real signal, applies a real sales methodology, cites its sources, and refuses when the fit isn't there.</p>
+    </details>
+    <details>
+      <summary>Does it close deals for me?</summary>
+      <p>No. Cambree builds the playbook; you run it. It gets you the meeting you deserve and a sharp perspective to walk in with. The rep still has to be good.</p>
+    </details>
+    <details>
+      <summary>Does it replace my reps?</summary>
+      <p>No. It makes a new rep useful in week one instead of month three, and gives a tenured rep the two hours back they spend researching every account.</p>
+    </details>
+    <details>
+      <summary>What if it's wrong?</summary>
+      <p>Every claim is source-tagged so you can check it. When we don't know, we say so instead of inventing. And when an account isn't a fit, we score it that way.</p>
+    </details>
+    <details>
+      <summary>Does it integrate with my CRM?</summary>
+      <p>HubSpot today. We sit upstream of the CRM — we don't replace it.</p>
+    </details>
+    <details>
+      <summary>Where does my data go?</summary>
+      <p>Your URL, your target list and anything you upload are used to build your playbooks and nothing else. Read the <a href="/privacy">privacy policy</a>.</p>
+    </details>
+  </div>
+</div></section>
+
+<!-- ── 10 · CLOSE ── -->
+<section class="close dark"><div class="wrap">
+  <h2>Earn the call. Show up prepared. Get the second date.</h2>
+  <div class="ctas" style="justify-content:center">
+    <a class="btn light" href="/">Run your first account →</a>
+  </div>
+  <p class="muted" style="color:#B8C6CB;margin-top:14px">Smart people go further. Evolve how you sell.</p>
+</div></section>
+
+<!-- ── FOOTER ── -->
+<div class="wrap">
+  <footer>
+    <div>© 2026 Cambree.ai, Inc. · Seattle, WA</div>
+    <div>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="mailto:support@cambree.ai">Contact</a>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>

@@ -91,7 +91,7 @@ async function sendInviteEmail(email, invitationToken) {
  * Returns { ok: true, orgId, invitationId, emailSent, action }
  *      or { ok: false, reason } — caller should fall back to the manual queue.
  */
-export async function provisionTrialAccess({ email, name, company, invitedBy = "system", promoCode = null }) {
+export async function provisionTrialAccess({ email, name, company, invitedBy = "system", promoCode = null, referredBy = null }) {
   if (!SB_URL || !SB_KEY) return { ok: false, reason: "not_configured" };
   const cleanEmail = email.trim().toLowerCase();
 
@@ -109,24 +109,29 @@ export async function provisionTrialAccess({ email, name, company, invitedBy = "
     return { ok: true, orgId: pending[0].org_id, invitationId: pending[0].id, emailSent, action: `resent_${action}` };
   }
 
-  // Fresh trial org (plan/run limits come from column defaults, as in
-  // _usage.js). The admitting promo code is stamped on the org — checkout
+  // Fresh trial org. The admitting promo code is stamped on the org — checkout
   // verifies run-pack eligibility against it (migration 034). Conditional so
   // non-promo callers (issue #3 admin approval) never touch the column.
+  // Every new trial gets 10 free runs — the promo funnel (10 free → $45/mo half-off
+  // → Starter) applies to all signups, promo code or not (issue #151).
   const orgName = (company || name || cleanEmail).trim();
   const created = await sbFetch("orgs", "POST",
-    promoCode ? { name: orgName, promo_code: promoCode } : { name: orgName });
+    promoCode ? { name: orgName, promo_code: promoCode, run_limit: 10 } : { name: orgName, run_limit: 10 });
   const orgId = Array.isArray(created) ? created[0]?.id : created?.id;
   if (!orgId) {
     console.warn("[provision] Org creation failed:", JSON.stringify(created));
     return { ok: false, reason: "org_create_failed" };
   }
 
+  // referred_by (migration 039) is copied onto the users row by the
+  // auto_provision trigger at signup — server-side referral attribution
+  // that survives the email hop (issue #154).
   const invResult = await sbFetch("invitations", "POST", {
     org_id: orgId,
     email: cleanEmail,
     role: "admin",
     invited_by: invitedBy,
+    ...(referredBy ? { referred_by: referredBy } : {}),
   });
   const inv = Array.isArray(invResult) ? invResult[0] : invResult;
   if (!inv?.token) {
