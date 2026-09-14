@@ -19,12 +19,13 @@ const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
 const processedSessions = new Set();
 const DEDUP_MAX = 500;
 
-// Plan config — same as checkout.js
+// Plan config — same as checkout.js. Keep in sync.
 const PLAN_LIMITS = {
-  starter:    { run_limit: 25,   max_run_limit: 5 },
-  pro:        { run_limit: 100,  max_run_limit: 20 },
-  team:       { run_limit: 250,  max_run_limit: 50 },
-  enterprise: { run_limit: 1000, max_run_limit: 200 },
+  starter:       { run_limit: 25,   max_run_limit: 5 },
+  pro:           { run_limit: 100,  max_run_limit: 20 },
+  team:          { run_limit: 250,  max_run_limit: 50 },
+  enterprise:    { run_limit: 1000, max_run_limit: 200 },
+  promo_monthly: { run_limit: 20,   max_run_limit: 0 },  // issue #137: 2-month promo subscription
 };
 
 // One-time run pack (plan_id "promo_pack") — same as checkout.js
@@ -145,6 +146,120 @@ async function applyRunPack(orgId, session) {
   }
 }
 
+// Promo monthly plan activation (issue #137).
+// Sets the org to plan='promo_monthly' with 20 runs/month and kicks off a Stripe
+// Subscription Schedule that automatically graduates to the starter price after
+// 2 billing cycles — no cron or manual step needed for the upgrade.
+async function applyPromoMonthly(orgId, session) {
+  if (!orgId) return;
+  const subscriptionId = session.subscription || null;
+  const promoEnd = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString(); // ~60 days
+
+  try {
+    await fetch(`${SB_URL}/rest/v1/orgs?id=eq.${orgId}`, {
+      method: "PATCH",
+      headers: {
+        apikey: SB_KEY,
+        Authorization: `Bearer ${SB_KEY}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        plan: "promo_monthly",
+        run_limit: 20,
+        max_run_limit: 0,
+        run_count: 0,
+        rollover_cap: 20,
+        stripe_subscription_id: subscriptionId,
+        promo_period_end: promoEnd,
+      }),
+    });
+    console.log(`[stripe] Promo monthly activated for org ${orgId}: 20 runs/mo, ends ~${promoEnd}`);
+  } catch (e) {
+    console.error("[stripe] Promo monthly org update failed:", e.message);
+    return; // Do not create schedule if org update failed
+  }
+
+  // Attach a Subscription Schedule: 2 iterations at promo price → starter price forever.
+  // When Stripe advances to the starter phase, customer.subscription.updated fires with
+  // sub.metadata.plan_id='starter' and the existing updateOrg handler graduates the org.
+  if (subscriptionId) {
+    await attachPromoSchedule(subscriptionId);
+  } else {
+    console.warn("[stripe] Promo monthly: no subscription ID in session — schedule not created");
+  }
+}
+
+// Create a Stripe Subscription Schedule that transitions from the promo price to
+// the starter price after 2 billing cycles. Phase 2 sets metadata.plan_id='starter'
+// on the subscription so the existing customer.subscription.updated webhook handler
+// can call updateOrg('starter') without any additional promo-specific logic.
+async function attachPromoSchedule(subscriptionId) {
+  const PROMO_PRICE = process.env.STRIPE_PRICE_PROMO_MONTHLY;
+  const STARTER_PRICE = process.env.STRIPE_PRICE_STARTER;
+  if (!PROMO_PRICE || !STARTER_PRICE) {
+    console.warn("[stripe] attachPromoSchedule: STRIPE_PRICE_PROMO_MONTHLY or STRIPE_PRICE_STARTER not set — schedule skipped");
+    return;
+  }
+
+  // Step 1: create a schedule from the existing subscription (current period → phase 1).
+  const createParams = new URLSearchParams();
+  createParams.append("from_subscription", subscriptionId);
+  let schedule;
+  try {
+    const createRes = await fetch("https://api.stripe.com/v1/subscription_schedules", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: createParams.toString(),
+    });
+    schedule = await createRes.json();
+    if (schedule.error) {
+      console.error("[stripe] Schedule create failed:", schedule.error.message);
+      return;
+    }
+  } catch (e) {
+    console.error("[stripe] Schedule create network error:", e.message);
+    return;
+  }
+
+  // Step 2: update the schedule with explicit two-phase definition.
+  // Phase 0: promo price, 2 billing cycles total (the current period counts as cycle 1).
+  // Phase 1: starter price, indefinite. end_behavior=release keeps the subscription
+  // running at the starter price after the schedule completes — no cancellation.
+  // Phase 1's metadata overwrites sub.metadata.plan_id to 'starter', which triggers
+  // the existing updateOrg('starter') logic in customer.subscription.updated.
+  const updateParams = new URLSearchParams();
+  updateParams.append("phases[0][items][0][price]", PROMO_PRICE);
+  updateParams.append("phases[0][items][0][quantity]", "1");
+  updateParams.append("phases[0][iterations]", "2");
+  updateParams.append("phases[1][items][0][price]", STARTER_PRICE);
+  updateParams.append("phases[1][items][0][quantity]", "1");
+  updateParams.append("phases[1][metadata][plan_id]", "starter");
+  updateParams.append("end_behavior", "release");
+
+  try {
+    const updateRes = await fetch(`https://api.stripe.com/v1/subscription_schedules/${schedule.id}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: updateParams.toString(),
+    });
+    const updated = await updateRes.json();
+    if (updated.error) {
+      console.error("[stripe] Schedule update failed:", updated.error.message, "— org will NOT auto-graduate; resolve manually in Stripe");
+    } else {
+      console.log(`[stripe] Promo schedule ${schedule.id} created for subscription ${subscriptionId} — graduates to starter after 2 cycles`);
+    }
+  } catch (e) {
+    console.error("[stripe] Schedule update network error:", e.message);
+  }
+}
+
 async function downgradeOrg(orgId) {
   if (!orgId) return;
 
@@ -213,6 +328,7 @@ export default async function handler(req, res) {
         }
         console.log(`[stripe] Checkout completed: user=${userId}, org=${orgId}, plan=${planId}`);
         if (planId === "promo_pack") await applyRunPack(orgId, session);
+        else if (planId === "promo_monthly") await applyPromoMonthly(orgId, session);
         else await updateOrg(orgId, planId);
         break;
       }
