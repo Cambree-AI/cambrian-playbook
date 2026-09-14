@@ -115,7 +115,9 @@ plaintext env vars win over secret keys).
    codes + response bodies **byte-identical to the Vercel copy** (that's the
    parity oracle). Add the file to the `test:apiaws` script if you create a
    new test file, and the Vercel original's path to
-   `.github/workflows/api-aws-tests.yml` trigger paths.
+   `.github/workflows/api-aws-tests.yml` trigger paths. This step is
+   enforced: `tests/api-aws/coverage.test.js` fails CI for any endpoint
+   whose test is missing or unwired.
 6. **Merge through dev.** The terraform workflow plans on the PR and applies
    on merge; verify with the curl matrix (disallowed origin → 403, preflight
    → 204 + ACAO, oversized body → 400, happy path) against

@@ -35,6 +35,9 @@ jobs:
           node-version: '22'
 
       # Tests import api-aws sources directly -- Node built-ins only.
+      - name: Every endpoint has wired-in parity tests
+        run: node tests/api-aws/coverage.test.js
+
       - name: Shared guard + adapter
         run: node tests/api-aws/guard.test.js
 
