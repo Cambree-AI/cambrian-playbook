@@ -1,5 +1,6 @@
 # API platform - prod (issue #86): API Gateway HTTP API + Lambda endpoints.
-# Pilot endpoint: contact. CI builds api-aws/dist before plan/apply
+# Endpoints: contact (pilot, issue #86); knowledge + enrich-free (utility
+# ports, issue #87). CI builds api-aws/dist before plan/apply
 # (.github/workflows/terraform.yml); the apply is gated by the production
 # GitHub Environment's required-reviewer approval like every prod change.
 
@@ -11,6 +12,10 @@ module "api" {
 
   endpoints = {
     contact = {}
+    # 30s: knowledge waits on JWKS + two Supabase reads; enrich-free fans out
+    # to SEC EDGAR + Wikidata SPARQL (slow upstreams, no keys).
+    knowledge     = { timeout_seconds = 30 }
+    "enrich-free" = { timeout_seconds = 30 }
   }
 
   common_environment = {

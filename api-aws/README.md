@@ -15,6 +15,8 @@ api-aws/
 │   ├── adapter.js     # APIGW HTTP API (payload v2) event/response ⇄ Vercel (req, res)
 │   └── secrets.js     # cold-start Secrets Manager load → process.env
 ├── contact/index.js   # pilot endpoint (issue #86)
+├── knowledge/index.js # JWT-gated knowledge layer (issue #87) — bundles src/data/**
+├── enrich-free/index.js # SEC EDGAR + Wikidata enrichment (issue #87)
 ├── build.mjs          # esbuild: <name>/index.js → dist/<name>/index.mjs
 └── package.json       # esbuild only; `npm run build`
 ```
@@ -66,7 +68,8 @@ rm secrets.json
 
 Copy values from the Vercel project's env vars for the matching environment.
 Include only keys an AWS endpoint actually reads (the pilot needs
-`SUPABASE_SERVICE_KEY`); add keys as later ports need them by running
+`SUPABASE_SERVICE_KEY`; `knowledge` adds `SUPABASE_JWT_SECRET` — the first
+ported endpoint that verifies HS256 JWTs); add keys as later ports need them by running
 `put-secret-value` again with the full updated JSON. Note: secrets are cached
 per Lambda instance for its lifetime, so an updated value only reaches
 instances started after the change — redeploy the function (or wait for

@@ -12,7 +12,12 @@ on:
       - 'api-aws/**'
       - 'api/_guard.js'
       - 'api/contact.js'
+      - 'api/knowledge.js'
+      - 'api/enrich-free.js'
       - 'tests/api-aws/**'
+      # knowledge layer is bundled into the knowledge Lambda (issue #87) --
+      # a data edit must still build and keep parity green
+      - 'src/data/**'
   push:
     branches: [ main ]
     paths:
@@ -35,6 +40,12 @@ jobs:
 
       - name: Contact endpoint parity
         run: node tests/api-aws/contact.test.js
+
+      - name: Knowledge endpoint parity
+        run: node tests/api-aws/knowledge.test.js
+
+      - name: Enrich-free endpoint parity
+        run: node tests/api-aws/enrich-free.test.js
 
       - name: Lambda bundles build
         working-directory: api-aws
