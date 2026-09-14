@@ -68,7 +68,7 @@ export default async function handler(req, res) {
     return res.json({
       ok: true,
       referral_code: user.referral_code,
-      referral_link: `https://www.cambriancatalyst.ai?ref=${user.referral_code}`,
+      referral_link: `${process.env.VITE_APP_URL || "https://www.cambree.ai"}?ref=${user.referral_code}`,
       total_referred: referralCount,
       total_rewarded: rewardedCount,
       bonus_runs_this_month: bonusRuns,

@@ -167,7 +167,7 @@ export default async function handler(req, res) {
     if (action === "update_org") {
       const { orgId, fields } = req.body || {};
       if (!orgId || !fields) return res.status(400).json({ error: "orgId and fields required" });
-      const allowed = ["name", "seller_url", "plan", "run_limit", "max_run_limit", "run_count", "max_run_count"];
+      const allowed = ["name", "seller_url", "plan", "run_limit", "max_run_limit", "run_count", "max_run_count", "rollover_cap"];
       const patch = {};
       for (const k of allowed) { if (k in fields) patch[k] = fields[k]; }
       if (!Object.keys(patch).length) return res.status(400).json({ error: "No valid fields" });
@@ -178,8 +178,13 @@ export default async function handler(req, res) {
       }
       // Sanitize string fields against XSS
       if (patch.name) patch.name = String(patch.name).replace(/<[^>]*>/g, "").slice(0, 200);
-      // DB constraint only allows trial/paid/suspended — map tier names
-      if (patch.plan && !["trial", "paid", "suspended"].includes(patch.plan)) patch.plan = "paid";
+      // DB constraint allows trial/paid/suspended/promo/promo_monthly (migration 036) —
+      // pass those through, map tier names (starter/pro/team/enterprise) to 'paid'
+      if (patch.plan && !["trial", "paid", "suspended", "promo", "promo_monthly"].includes(patch.plan)) patch.plan = "paid";
+      // Admin-set promo_monthly is a manual comp — no Stripe subscription/schedule, so no
+      // auto-graduation. Stamp the informational period end; clear it on any other plan.
+      if (patch.plan === "promo_monthly") patch.promo_period_end = new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString();
+      else if (patch.plan) patch.promo_period_end = null;
 
       const r = await fetch(`${SB_URL}/rest/v1/orgs?id=eq.${orgId}`, {
         method: "PATCH",
@@ -194,8 +199,8 @@ export default async function handler(req, res) {
     if (action === "create_org") {
       const { orgData } = req.body || {};
       if (!orgData?.name) return res.status(400).json({ error: "Org name required" });
-      // DB constraint only allows trial/paid/suspended — map tier names to 'paid'
-      if (orgData.plan && !["trial", "paid", "suspended"].includes(orgData.plan)) orgData.plan = "paid";
+      // DB constraint allows trial/paid/suspended/promo/promo_monthly — map tier names to 'paid'
+      if (orgData.plan && !["trial", "paid", "suspended", "promo", "promo_monthly"].includes(orgData.plan)) orgData.plan = "paid";
       const r = await fetch(`${SB_URL}/rest/v1/orgs`, {
         method: "POST",
         headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json", Prefer: "return=representation" },
@@ -245,8 +250,10 @@ export default async function handler(req, res) {
       }
 
       // Approve: trial org + invitation + welcome email — same shared path as
-      // promo auto-approve. The claim above is the idempotency gate.
-      const prov = await provisionTrialAccess({ email: row.email, name: row.name, company: row.company, invitedBy: callerEmail });
+      // promo auto-approve. The claim above is the idempotency gate. The
+      // referral code captured at request time (migration 039) rides along so
+      // manually-approved signups still credit the referrer (issue #154).
+      const prov = await provisionTrialAccess({ email: row.email, name: row.name, company: row.company, invitedBy: callerEmail, referredBy: row.referral_code || null });
       if (prov.ok) {
         console.log(`[admin] Approved access request ${requestId} (${row.email}) — org ${prov.orgId}, ${prov.action}`);
         return res.json({ ok: true, message: `Approved ${row.email} — invite ${prov.emailSent ? "sent" : "NOT sent (check logs)"}` });
