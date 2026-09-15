@@ -1,63 +1,62 @@
-// api/invite.js — Send org invitations
+// api-aws/invite/index.js
+/* global process */
 //
-// POST { email, role } with admin JWT → creates invitation row +
-// sends Supabase invite email with acceptance link.
+// AWS port of api/invite.js (issue #87) — send org invitations.
+// POST { email, role } with admin JWT → creates invitation row + sends
+// Supabase invite email with acceptance link. Logic is a line-for-line copy
+// of the Vercel handler wrapped in the shared adapter; keep the two in sync
+// until the Vercel copy is removed in the final conversion issue. Parity is
+// asserted by tests/api-aws/invite.test.js against a mocked Supabase API.
+//
+// Differences from the Vercel copy (all platform-level):
+//   - no in-memory per-IP invite limiter (10/min Map): Lambda instances
+//     don't share the Map, so it never actually limited anything past one
+//     warm instance. The endpoint is admin-JWT-gated, so baseline API
+//     Gateway stage throttling covers the email-bombing concern; per-user
+//     usage plans are the Phase 8 follow-up (same decision as checkRateLimit,
+//     api-aws/README.md).
+//   - env vars are read lazily — SUPABASE_SERVICE_KEY arrives via Secrets
+//     Manager at cold start (SUPERUSER_EMAIL rides the same container)
+//   - the Vercel copy's unused APP_URL constant is dropped (api-aws is
+//     linted; api/ is not)
 
-import { applyCors, isAllowedOrigin, verifyJwt, decodeJwtPayload } from "./_guard.js";
+import { httpAdapter } from "../shared/adapter.js";
+import { applyCors, isAllowedOrigin, verifyJwt, decodeJwtPayload } from "../shared/guard.js";
+import { loadSecrets } from "../shared/secrets.js";
 
-const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
-const APP_URL = process.env.VITE_APP_URL || "https://www.cambriancatalyst.ai";
-
-// Stricter rate limit for invites — 10 per minute per IP
-const inviteRateBuckets = new Map();
-function checkInviteRateLimit(ip) {
-  const now = Date.now();
-  const bucket = inviteRateBuckets.get(ip);
-  if (!bucket || (now - bucket.windowStart) > 60_000) {
-    inviteRateBuckets.set(ip, { count: 1, windowStart: now });
-    return true;
-  }
-  bucket.count++;
-  return bucket.count <= 10;
-}
+const supabaseUrl = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const serviceKey = () => process.env.SUPABASE_SERVICE_KEY || "";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-async function sbFetch(path, method = "GET", body = null, token = SB_KEY) {
+async function sbFetch(path, method = "GET", body = null, token = null) {
   const headers = {
-    apikey: SB_KEY,
-    Authorization: `Bearer ${token}`,
+    apikey: serviceKey(),
+    Authorization: `Bearer ${token || serviceKey()}`,
     "Content-Type": "application/json",
   };
   if (method === "POST") headers.Prefer = "return=representation";
-  return fetch(`${SB_URL}/rest/v1/${path}`, {
+  return fetch(`${supabaseUrl()}/rest/v1/${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   }).then(r => r.json());
 }
 
-export default async function handler(req, res) {
+export async function inviteHandler(req, res) {
+  await loadSecrets(); // populates SUPABASE_SERVICE_KEY / SUPERUSER_EMAIL on cold start
   if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
-  if (!SB_KEY) return res.status(500).json({ error: "Server not configured for invitations" });
+  if (!serviceKey()) return res.status(500).json({ error: "Server not configured for invitations" });
+
+  const SB_URL = supabaseUrl();
+  const SB_KEY = serviceKey();
 
   // Origin check
   const origin = req.headers.origin || req.headers.referer || "";
   if (!isAllowedOrigin(origin)) return res.status(403).json({ error: "origin not allowed" });
 
-  // Rate limiting — strict for invite endpoint (email bombing prevention)
-  const xff = req.headers["x-forwarded-for"];
-  const ip = req.headers["x-vercel-forwarded-for"]?.split(",")[0]?.trim()
-           || (xff ? xff.split(",").pop().trim() : "")
-           || req.headers["x-real-ip"]
-           || req.socket?.remoteAddress || "unknown";
-  if (!checkInviteRateLimit(ip)) {
-    return res.status(429).json({ error: "Too many invitations — try again in a minute" });
-  }
-
-  // Verify caller identity — use consolidated JWT verification from _guard.js
+  // Verify caller identity — use consolidated JWT verification from the shared guard
   if (!await verifyJwt(req)) return res.status(401).json({ error: "Authentication required" });
   const authToken = (req.headers.authorization || "").slice(7);
   const payload = decodeJwtPayload(authToken);
@@ -94,7 +93,7 @@ export default async function handler(req, res) {
           headers: { apikey: SB_KEY, "Content-Type": "application/json" },
           body: JSON.stringify({ email: cleanEmail }),
         });
-      } catch {}
+      } catch { /* best effort — the membership note is the real answer */ }
       return res.json({ ok: true, action: "password_reset", email_sent: true,
         note: `${cleanEmail} is already a member. Sent a password reset link so they can get back in.` });
     }
@@ -111,7 +110,7 @@ export default async function handler(req, res) {
         headers: { apikey: SB_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({ email: cleanEmail }),
       });
-    } catch {}
+    } catch { /* best effort */ }
     return res.json({ ok: true, action: "reassigned_and_reset", email_sent: true,
       note: `${cleanEmail} already had an account. Moved to your org and sent a password reset link.` });
   }
@@ -186,7 +185,7 @@ export default async function handler(req, res) {
               headers: { apikey: SB_KEY, "Content-Type": "application/json" },
               body: JSON.stringify({ email: cleanEmail }),
             });
-          } catch {}
+          } catch { /* best effort */ }
           return res.json({ ok: true, invitation_id: (Array.isArray(invResult) ? invResult[0] : invResult).id,
             email_sent: true, action: "recovery_sent",
             note: `${cleanEmail} already had a partial account. Sent a password reset link instead.` });
@@ -204,3 +203,5 @@ export default async function handler(req, res) {
       email_sent: false, note: "Invitation created — use the invite link to share directly. No email was sent." });
   }
 }
+
+export const handler = httpAdapter(inviteHandler);

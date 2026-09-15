@@ -27,6 +27,8 @@ npm test               # lint + backtest self-test + golden lite
 
 There is no Jest/Vitest — tests are plain Node scripts under `tests/`. A separate LLM-drift harness lives in `scripts/consistency/` (not part of `npm test`).
 
+**Every AWS Lambda endpoint must ship with unit tests.** Each `api-aws/<name>/index.js` requires response-parity tests at `tests/api-aws/<name>.test.js` (mock all external services via a `globalThis.fetch` stub; assert status codes and bodies byte-identical to the Vercel original — port recipe step 5 in api-aws/README.md), wired into both the `test:apiaws` script and the `api-aws-tests` workflow. `tests/api-aws/coverage.test.js` enforces this — it fails CI if any endpoint lacks a wired-in test. `test:apiaws` is free to run (no network, no LLM calls).
+
 ## Branch & deploy workflow (the rule)
 
 Full workflow: **[docs/branching.md](docs/branching.md)**. Summary:
