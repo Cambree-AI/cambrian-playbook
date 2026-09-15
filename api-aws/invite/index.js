@@ -123,7 +123,7 @@ export async function inviteHandler(req, res) {
   });
 
   // Create fresh invitation record
-  const invResult = await sbFetch("invitations", "POST", {
+  let invResult = await sbFetch("invitations", "POST", {
     org_id: targetOrgId,
     email: cleanEmail,
     role: role || "rep",
@@ -144,7 +144,10 @@ export async function inviteHandler(req, res) {
         console.warn("[invite] Retry failed:", JSON.stringify(retryResult));
         return res.status(400).json({ error: `Failed to create invitation: ${retryResult.message || retryResult.code}` });
       }
-      Object.assign(invResult, retryResult);
+      // Reassign, don't Object.assign: retryResult is a PostgREST ARRAY and
+      // merging it into the error object left invResult.token unreachable —
+      // the retry path 500'd despite inserting the row (issue #169).
+      invResult = retryResult;
     } else {
       console.warn("[invite] Failed to create invitation:", JSON.stringify(invResult));
       return res.status(400).json({ error: `Failed to create invitation: ${invResult.message || invResult.code || "unknown error"}` });
