@@ -9,4 +9,4 @@ vite_api_url           = "https://staging.cambree.ai" # Vercel staging serves /a
 # here hit API Gateway; everything else stays on vite_api_url. Value from the
 # env's `api_endpoint` Terraform output. Amplify env-var changes don't rebuild
 # on their own - trigger a release after this applies.
-vite_api_endpoint_origins = "{\"/api/contact\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\"}"
+vite_api_endpoint_origins = "{\"/api/contact\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\",\"/api/knowledge\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\",\"/api/enrich-free\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\",\"/api/request-access\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\",\"/api/invite\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\",\"/api/referral\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\",\"/api/fetch\":\"https://mcvaccmuoj.execute-api.us-east-2.amazonaws.com\"}"

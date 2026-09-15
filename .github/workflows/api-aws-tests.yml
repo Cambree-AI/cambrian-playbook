@@ -12,7 +12,19 @@ on:
       - 'api-aws/**'
       - 'api/_guard.js'
       - 'api/contact.js'
+      - 'api/knowledge.js'
+      - 'api/enrich-free.js'
+      - 'api/request-access.js'
+      - 'api/invite.js'
+      - 'api/_provision.js'
+      - 'api/referral.js'
+      - 'api/fetch.js'
+      - 'api/_fetch-ssrf.js'
       - 'tests/api-aws/**'
+      - 'tests/fetch-ssrf/**'
+      # knowledge layer is bundled into the knowledge Lambda (issue #87) --
+      # a data edit must still build and keep parity green
+      - 'src/data/**'
   push:
     branches: [ main ]
     paths:
@@ -30,11 +42,35 @@ jobs:
           node-version: '22'
 
       # Tests import api-aws sources directly -- Node built-ins only.
+      - name: Every endpoint has wired-in parity tests
+        run: node tests/api-aws/coverage.test.js
+
       - name: Shared guard + adapter
         run: node tests/api-aws/guard.test.js
 
       - name: Contact endpoint parity
         run: node tests/api-aws/contact.test.js
+
+      - name: Knowledge endpoint parity
+        run: node tests/api-aws/knowledge.test.js
+
+      - name: Enrich-free endpoint parity
+        run: node tests/api-aws/enrich-free.test.js
+
+      - name: Request-access endpoint parity
+        run: node tests/api-aws/request-access.test.js
+
+      - name: Invite endpoint parity
+        run: node tests/api-aws/invite.test.js
+
+      - name: Referral endpoint parity
+        run: node tests/api-aws/referral.test.js
+
+      - name: Fetch endpoint parity
+        run: node tests/api-aws/fetch.test.js
+
+      - name: SSRF suite against the Lambda copy
+        run: node tests/fetch-ssrf/ssrf.test.js --module=api-aws
 
       - name: Lambda bundles build
         working-directory: api-aws

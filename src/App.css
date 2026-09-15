@@ -686,8 +686,8 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
 
 /* ── PRINT ───────────────────────────────────────────── */
 @media print {
-  @page { margin: 14mm 12mm 18mm 12mm; size: A4; }
-  body { background: #fff !important; font-size: 11px !important; line-height: 1.5 !important; color: #1a1a2e !important; }
+  @page { margin: 16mm 12mm 22mm 12mm; size: A4; }
+  body { background: #fff !important; font-size: 11px !important; line-height: 1.5 !important; color: #1a1a2e !important; padding-bottom: 20px !important; }
 
   /* ── HIDE: chrome, nav, interactive, loading ── */
   .header, .session-bar, .footer, .actions-row, .incall-header,
@@ -769,19 +769,19 @@ input[type=text]::placeholder, input[type=email]::placeholder, textarea::placeho
   a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8px; color: #999; word-break: break-all; }
   a[href^="http"] { color: #1B3A6B !important; text-decoration: underline !important; }
 
-  /* ── PRINT FOOTER — every page ── */
+  /* ── PRINT FOOTER — last page only ── */
+  /* position:fixed was clamped to bottom:0 of the content box by Chrome's
+     print engine, causing its background:#fff to cover the last 1-2 lines
+     of text on every page. Removing fixed positioning makes it flow as a
+     normal block at the end of the document (#139). */
   .print-footer {
     display: block !important;
-    position: fixed;
-    bottom: -12mm; /* sit inside the 18mm @page bottom margin, clear of body text */
-    left: 0;
-    right: 0;
+    margin-top: 20px;
+    padding: 8px 0 4px;
+    border-top: 1px solid #eee;
     text-align: center;
     font-size: 8px;
     color: #bbb;
-    padding: 6px 0;
-    border-top: 1px solid #eee;
-    background: #fff; /* opaque — never interleaves even if overlap recurs */
   }
   .print-footer .pf-brand { font-family: 'Crimson Pro', serif; font-weight: 700; color: #1a1a18; }
   .print-footer .pf-brand span { color: #8B6F47; }

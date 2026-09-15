@@ -30,12 +30,13 @@
 // Served via /api/knowledge.js (JWT-auth'd, not in client bundle).
 // Source: compliance-knowledge-layer.json (schema v1.0.0)
 
-// JSON import — use createRequire for Node ESM compatibility on Vercel.
-// Vite handles bare JSON imports at build time, but the API route runs
-// in Node where `import x from "file.json"` needs `with { type: "json" }`.
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const data = require("./compliance-knowledge-layer.json");
+// JSON import — static `with { type: "json" }` so every consumer can see it:
+// Node ESM on Vercel (20.10+/22) supports the attribute natively, and esbuild
+// inlines the JSON into the Lambda knowledge bundle (issue #87). The previous
+// createRequire() form defeated esbuild's static analysis — the bundle
+// shipped a runtime require() for a file that wasn't in the zip, crashing
+// the knowledge Lambda at init.
+import data from "./compliance-knowledge-layer.json" with { type: "json" };
 
 // ── Framework lookups ───────────────────────────────────────────────────
 
