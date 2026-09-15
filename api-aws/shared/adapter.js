@@ -28,6 +28,9 @@ export function eventToReq(event) {
     headers,
     body,
     rawBody,
+    // Vercel parses the query string onto req.query; APIGW v2 delivers it
+    // already-decoded in queryStringParameters (issue #87: enrich-free).
+    query: event.queryStringParameters || {},
     // Vercel handlers read the client IP off the socket as a last resort;
     // API Gateway gives it to us authoritatively.
     socket: { remoteAddress: event.requestContext?.http?.sourceIp || "" },

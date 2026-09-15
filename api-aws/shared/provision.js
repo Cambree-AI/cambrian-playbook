@@ -1,23 +1,31 @@
-// api/_provision.js — shared trial-org provisioning (underscore file: not routed)
+// api-aws/shared/provision.js
+/* global process */
 //
-// Creates a trial org + invitation row and sends the invite email, for flows
-// that approve an access request: promo auto-approve (issue #2) now, the
-// admin Approve queue (issue #3) next. Mirrors the new-user path in
-// api/invite.js — keep the two in sync if the invitation flow changes.
+// Trial-org provisioning for the AWS Lambda endpoints — the port of
+// api/_provision.js (issue #87). Used by request-access now; the admin
+// Approve queue reuses it when api/admin.js ports.
+//
+// KEEP IN SYNC with api/_provision.js until the Vercel copy is
+// decommissioned: org/invitation shapes and the email fallback chain must
+// stay identical so provisioning behaves the same on either platform.
+//
+// Platform difference: env vars are read lazily (per call) instead of at
+// module scope — SUPABASE_SERVICE_KEY and RESEND_API_KEY arrive via Secrets
+// Manager at cold start (shared/secrets.js), after module init.
 
-const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const supabaseUrl = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const serviceKey = () => process.env.SUPABASE_SERVICE_KEY || "";
+const resendKey = () => process.env.RESEND_API_KEY || "";
 const FROM_ADDR = "Cambree <noreply@cambree.ai>";
 
 async function sbFetch(path, method = "GET", body = null) {
   const headers = {
-    apikey: SB_KEY,
-    Authorization: `Bearer ${SB_KEY}`,
+    apikey: serviceKey(),
+    Authorization: `Bearer ${serviceKey()}`,
     "Content-Type": "application/json",
   };
   if (method === "POST") headers.Prefer = "return=representation";
-  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+  const r = await fetch(`${supabaseUrl()}/rest/v1/${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -30,6 +38,8 @@ async function sbFetch(path, method = "GET", body = null) {
 // Falls back to a password-recovery email if the auth user already exists
 // from a prior partial invite (same handling as api/invite.js).
 async function sendInviteEmail(email, invitationToken) {
+  const SB_URL = supabaseUrl();
+  const SB_KEY = serviceKey();
   const authRes = await fetch(`${SB_URL}/auth/v1/invite`, {
     method: "POST",
     headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
@@ -44,7 +54,7 @@ async function sendInviteEmail(email, invitationToken) {
     // contextual approval email with an admin-generated recovery link when
     // Resend is available, and fall back to the plain recovery template.
     try {
-      if (RESEND_API_KEY) {
+      if (resendKey()) {
         const linkRes = await fetch(`${SB_URL}/auth/v1/admin/generate_link`, {
           method: "POST",
           headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" },
@@ -55,7 +65,7 @@ async function sendInviteEmail(email, invitationToken) {
         if (actionLink) {
           const mailRes = await fetch("https://api.resend.com/emails", {
             method: "POST",
-            headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+            headers: { Authorization: `Bearer ${resendKey()}`, "Content-Type": "application/json" },
             body: JSON.stringify({
               from: FROM_ADDR,
               to: email,
@@ -78,7 +88,7 @@ async function sendInviteEmail(email, invitationToken) {
         body: JSON.stringify({ email }),
       });
       return { emailSent: true, action: "recovery_sent" };
-    } catch {}
+    } catch { /* fall through to email_failed */ }
   }
   console.warn("[provision] Auth invite failed:", authRes.status, JSON.stringify(authData));
   return { emailSent: false, action: "email_failed" };
@@ -92,7 +102,7 @@ async function sendInviteEmail(email, invitationToken) {
  *      or { ok: false, reason } — caller should fall back to the manual queue.
  */
 export async function provisionTrialAccess({ email, name, company, invitedBy = "system", promoCode = null, referredBy = null }) {
-  if (!SB_URL || !SB_KEY) return { ok: false, reason: "not_configured" };
+  if (!supabaseUrl() || !serviceKey()) return { ok: false, reason: "not_configured" };
   const cleanEmail = email.trim().toLowerCase();
 
   // Already a full user → nothing to provision; needs a human look.

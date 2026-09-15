@@ -15,14 +15,16 @@ name: terraform
 
 # api-aws/** is in the trigger paths (issue #86): Lambda code is zipped into
 # the plan via archive_file, so a code-only merge deploys through the same
-# plan/apply pipeline as infra changes.
+# plan/apply pipeline as infra changes. src/data/** is there too (issue #87):
+# the knowledge Lambda bundles the knowledge layer, so a data-only edit must
+# rebuild the zip (changed source_code_hash) or AWS would serve stale IP.
 on:
   pull_request:
     branches: [dev, staging, main]
-    paths: ["infra/envs/**", "infra/modules/**", "api-aws/**"]
+    paths: ["infra/envs/**", "infra/modules/**", "api-aws/**", "src/data/**"]
   push:
     branches: [dev, staging, main]
-    paths: ["infra/envs/**", "infra/modules/**", "api-aws/**"]
+    paths: ["infra/envs/**", "infra/modules/**", "api-aws/**", "src/data/**"]
 
 permissions:
   id-token: write # OIDC token for aws-actions/configure-aws-credentials

@@ -1,24 +1,37 @@
-// api/request-access.js
+// api-aws/request-access/index.js
+/* global process */
 //
-// Invite-only beta: handles "Request access" form submissions.
-// No promo code (or an invalid one): inserts the request into access_requests
-// and emails the founder via Resend — a human approves later.
-// Valid promo code: provisions a trial org + invitation and sends the invite
-// email in the same request, no human in the loop (issue #2). Codes live in
-// the promo_codes table (migration 033) so they rotate without a deploy.
-// Does NOT create any auth account directly — signup happens via the emailed
-// invite link.
+// AWS port of api/request-access.js (issue #87) — "Request access" form for
+// the invite-only beta. No promo code (or an invalid one): inserts into
+// access_requests and emails the founder via Resend. Valid promo code:
+// provisions a trial org + invitation in the same request (issue #2). Logic
+// is a line-for-line copy of the Vercel handler wrapped in the shared
+// adapter; keep the two in sync until the Vercel copy is removed in the
+// final conversion issue. Parity is asserted by
+// tests/api-aws/request-access.test.js against mocked Supabase/Resend APIs.
+//
+// Differences from the Vercel copy (all platform-level):
+//   - no in-memory checkRateLimit — API Gateway stage throttling covers it
+//   - the promo-attempt limiter (5 per 15 min per IP — the anti-enumeration
+//     defense) moves from a per-instance Map to the check_promo_attempt()
+//     SQL function (migration 040), so it holds across Lambda cold starts
+//     (issue #87 AC: no in-memory cross-request state). Fails open on RPC
+//     error — same best-effort contract as the Vercel Map, and a Supabase
+//     outage breaks redemption anyway.
+//   - env vars are read lazily — SUPABASE_SERVICE_KEY / RESEND_API_KEY
+//     arrive via Secrets Manager at cold start
+//   - client IP comes from API Gateway's sourceIp via clientIp()
 
-import { applyCors, isAllowedOrigin, checkRateLimit } from "./_guard.js";
-import { provisionTrialAccess } from "./_provision.js";
+import { httpAdapter } from "../shared/adapter.js";
+import { applyCors, isAllowedOrigin, clientIp } from "../shared/guard.js";
+import { loadSecrets } from "../shared/secrets.js";
+import { provisionTrialAccess } from "../shared/provision.js";
 
-const SB_URL = process.env.VITE_SUPABASE_URL;
-const SB_KEY = process.env.SUPABASE_SERVICE_KEY;
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
+const supabaseUrl = () => process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+const serviceKey = () => process.env.SUPABASE_SERVICE_KEY || "";
+const resendKey = () => process.env.RESEND_API_KEY || "";
 const FOUNDER_EMAIL = "joe@cambree.ai";
 const FROM_ADDR = "Cambree <noreply@cambree.ai>";
-
-if (!RESEND_API_KEY) console.warn("[request-access] RESEND_API_KEY not set — founder email disabled");
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -26,27 +39,24 @@ const QUEUED_MSG = "Request received. We review every request and send invites p
 const PROMO_MSG = "You're in! Check your email for your invite link.";
 const BAD_CODE_MSG = "That code wasn't recognized, so your request has been queued for review — we'll send your invite personally.";
 
-// Stricter bucket for promo-code attempts so codes can't be enumerated:
-// 5 attempts per 15 minutes per IP. In-memory and per-instance (best effort),
-// same pattern as api/invite.js. The code comparison itself happens inside
-// the redeem_promo_code() SQL function via an index lookup, so response-time
-// differences leak nothing useful; this limit is the real defense.
-const promoAttemptBuckets = new Map();
-function checkPromoAttemptLimit(ip) {
-  const now = Date.now();
-  const bucket = promoAttemptBuckets.get(ip);
-  if (!bucket || (now - bucket.windowStart) > 15 * 60_000) {
-    promoAttemptBuckets.set(ip, { count: 1, windowStart: now });
-    return true;
-  }
-  bucket.count++;
-  return bucket.count <= 5;
+async function sbRest(path, method = "GET", body = null, prefer = null) {
+  const headers = { apikey: serviceKey(), Authorization: `Bearer ${serviceKey()}`, "Content-Type": "application/json" };
+  if (prefer) headers.Prefer = prefer;
+  return fetch(`${supabaseUrl()}/rest/v1/${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
 }
 
-async function sbRest(path, method = "GET", body = null, prefer = null) {
-  const headers = { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`, "Content-Type": "application/json" };
-  if (prefer) headers.Prefer = prefer;
-  return fetch(`${SB_URL}/rest/v1/${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+// Stricter bucket for promo-code attempts so codes can't be enumerated:
+// 5 attempts per 15 minutes per IP, held in Supabase (migration 040 — the
+// in-memory Map this replaces is meaningless across Lambda instances).
+async function checkPromoAttemptLimit(ip) {
+  try {
+    const r = await sbRest("rpc/check_promo_attempt", "POST", { p_ip: ip });
+    if (!r.ok) { console.warn("[request-access] check_promo_attempt failed:", r.status); return true; } // fail open (best effort)
+    return (await r.json()) === true;
+  } catch (e) {
+    console.warn("[request-access] check_promo_attempt error:", e.message);
+    return true; // fail open (best effort)
+  }
 }
 
 // Atomic validate + consume via SQL (migration 033). False = invalid code.
@@ -62,11 +72,11 @@ async function redeemPromoCode(code) {
 }
 
 async function notifyFounder({ name, email, company, note, created_at, extra }) {
-  if (!RESEND_API_KEY) return;
+  if (!resendKey()) return;
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${resendKey()}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: FROM_ADDR,
         to: FOUNDER_EMAIL,
@@ -95,12 +105,12 @@ async function notifyFounder({ name, email, company, note, created_at, extra }) 
 // Acknowledgment to the requester on the queued path — without it the manual
 // path is completely silent until a human approves (issue #3 gap analysis).
 async function notifyRequester({ name, email }) {
-  if (!RESEND_API_KEY) return;
+  if (!resendKey()) return;
   const firstName = (name || "").trim().split(/\s+/)[0] || "there";
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${resendKey()}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: FROM_ADDR,
         to: email,
@@ -119,19 +129,15 @@ async function notifyRequester({ name, email }) {
   }
 }
 
-export default async function handler(req, res) {
+export async function requestAccessHandler(req, res) {
+  await loadSecrets(); // populates SUPABASE_SERVICE_KEY / RESEND_API_KEY on cold start
   if (applyCors(req, res)) return; // CORS preflight (issue #83)
   if (req.method !== "POST") return res.status(405).end();
 
   const origin = req.headers.origin || req.headers.referer || "";
   if (!isAllowedOrigin(origin)) return res.status(403).json({ error: "Origin not allowed" });
 
-  // Rate limit per IP (reuses the shared sliding-window bucket from _guard.js)
-  const xff = req.headers["x-forwarded-for"];
-  const ip = req.headers["x-vercel-forwarded-for"]?.split(",")[0]?.trim()
-           || (xff ? xff.split(",").pop().trim() : "")
-           || req.headers["x-real-ip"] || req.socket?.remoteAddress || "unknown";
-  if (!checkRateLimit(ip)) return res.status(429).json({ error: "Too many requests" });
+  const ip = clientIp(req);
 
   const { name, email, company, note, promoCode, referralCode } = req.body || {};
   if (!name || !email || !company) return res.status(400).json({ error: "Name, email, and company are required" });
@@ -167,7 +173,8 @@ export default async function handler(req, res) {
 
   // Idempotency: if the same email was already submitted within the last 15
   // minutes, return success without inserting a duplicate row, provisioning a
-  // second org, or re-sending any email.
+  // second org, or re-sending any email. (Already Supabase-backed on Vercel —
+  // it holds across Lambda cold starts unchanged.)
   const idempotencyWindow = new Date(Date.now() - 15 * 60 * 1000).toISOString();
   try {
     const dupCheck = await sbRest(
@@ -186,7 +193,7 @@ export default async function handler(req, res) {
   // provisioning fails falls back to the manual queue (flagged to the founder).
   let codeRedeemed = false;
   if (code) {
-    if (!checkPromoAttemptLimit(ip)) return res.status(429).json({ error: "Too many code attempts — try again later" });
+    if (!await checkPromoAttemptLimit(ip)) return res.status(429).json({ error: "Too many code attempts — try again later" });
     codeRedeemed = await redeemPromoCode(code);
   }
 
@@ -230,3 +237,5 @@ export default async function handler(req, res) {
   // Always succeed for the user once validated — email/DB failures are logged, not surfaced.
   return res.json({ ok: true, approved: false, message: code ? BAD_CODE_MSG : QUEUED_MSG });
 }
+
+export const handler = httpAdapter(requestAccessHandler);
